@@ -1,0 +1,2 @@
+"""Karma Backend - FastAPI Application."""
+
