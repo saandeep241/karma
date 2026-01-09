@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+.venv/
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Data (user-specific)
+karma/data/tasks/
+karma/data/task_details/
+karma/data/reasoning/
+karma/data/memory/
+
+# Keep the data directory structure
+!karma/data/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
+
