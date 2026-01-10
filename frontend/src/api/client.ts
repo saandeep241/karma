@@ -58,8 +58,23 @@ export async function updateContext(context: UpdateContextForm): Promise<Session
 }
 
 // Task Management
+interface TasksByDateResponse {
+  tasks_by_date: Record<string, { tasks: Task[] }>;
+  total_dates: number;
+  stats: StatsData;
+}
+
 export async function getAllTasks(): Promise<Task[]> {
-  return apiFetch<Task[]>('/tasks/all');
+  const response = await apiFetch<TasksByDateResponse>('/tasks/all');
+  
+  // Flatten tasks from all dates into a single array
+  const allTasks: Task[] = [];
+  for (const dateData of Object.values(response.tasks_by_date)) {
+    if (dateData.tasks) {
+      allTasks.push(...dateData.tasks);
+    }
+  }
+  return allTasks;
 }
 
 export async function getTask(taskId: string): Promise<Task> {

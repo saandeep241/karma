@@ -219,33 +219,29 @@ Use the tools now to research this task, then provide your JSON response."""
             "tools_used": [],
             "estimated_minutes": 15,
             "steps": [
-                "[Dummy] Step 1: Get started with the task",
-                "[Dummy] Step 2: Work on the main part",
-                "[Dummy] Step 3: Review and finish"
+                "Step 1: Get started with the task",
+                "Step 2: Work on the main part",
+                "Step 3: Review and finish"
             ],
             "probable_questions": [
-                "[Dummy] What resources do I need?",
-                "[Dummy] How long will this take?"
+                "What resources do I need?",
+                "How long will this take?"
             ],
-            "suggested_resources": [
-                "[Dummy] No resources available - AI is disabled"
-            ],
-            "potential_blockers": [
-                "[Dummy] AI enrichment disabled - set OPENAI_KARMA=true for real research"
-            ],
+            "suggested_resources": [],
+            "potential_blockers": [],
             "success_criteria": [
-                "[Dummy] Task is completed"
+                "Task is completed"
             ],
             "category": "other",
-            "tags": ["[Dummy]"],
-            "agent_notes": "[DUMMY MODE] AI is disabled. Set OPENAI_KARMA=true and OPENAI_API_KEY to enable AI-powered task enrichment with web search and research.",
+            "tags": [],
+            "agent_notes": None,
             "is_dummy": True
         }
         
         # Save enrichment
         self._save_enrichment(task.id, enrichment)
         
-        self.session.add_thought("conclusion", "[DUMMY] Created basic enrichment")
+        self.session.add_thought("conclusion", "Created basic enrichment")
         
         return enrichment
 

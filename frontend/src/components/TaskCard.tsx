@@ -41,51 +41,47 @@ export function TaskCard({
 }: TaskCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const completedSubtasks = task.subtasks.filter(s => s.status === 'completed').length;
-  const totalSubtasks = task.subtasks.length;
+  const completedSubtasks = task.subtasks?.filter(s => s.status === 'completed').length || 0;
+  const totalSubtasks = task.subtasks?.length || 0;
   const progress = totalSubtasks > 0 ? (completedSubtasks / totalSubtasks) * 100 : 0;
 
-  const handleToggleComplete = () => {
+  const handleMarkDone = () => {
     if (!onStatusChange) return;
-    const newStatus: TaskStatus = task.status === 'completed' ? 'pending' : 'completed';
-    onStatusChange(task.id, newStatus);
+    onStatusChange(task.id, 'completed');
   };
+
+  const handleMarkPending = () => {
+    if (!onStatusChange) return;
+    onStatusChange(task.id, 'pending');
+  };
+
+  const isCompleted = task.status === 'completed';
 
   return (
     <div 
-      className={`card animate-fade-in ${task.status === 'completed' ? 'opacity-60' : ''}`}
-      onClick={() => setIsExpanded(!isExpanded)}
+      className={`card animate-fade-in ${isCompleted ? 'opacity-60 bg-[var(--karma-success)]/5' : ''}`}
     >
       {/* Header */}
       <div className="flex items-start gap-3">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            handleToggleComplete();
-          }}
-          className={`checkbox mt-1 flex-shrink-0 ${task.status === 'completed' ? 'checked' : ''}`}
-          aria-label={task.status === 'completed' ? 'Mark incomplete' : 'Mark complete'}
-        />
-        
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0" onClick={() => setIsExpanded(!isExpanded)}>
           <div className="flex items-center gap-2 flex-wrap mb-1">
             <span>{categoryIcons[task.category] || '📌'}</span>
-            <h3 className={`font-medium ${task.status === 'completed' ? 'line-through text-[var(--karma-text-muted)]' : ''}`}>
+            <h3 className={`font-medium ${isCompleted ? 'line-through text-[var(--karma-text-muted)]' : ''}`}>
               {task.text}
             </h3>
-            {task.is_dummy && (
-              <span className="badge badge-warning text-xs">Demo</span>
+            {isCompleted && (
+              <span className="badge badge-success">✓ Done</span>
             )}
           </div>
           
           <div className="flex items-center gap-2 flex-wrap text-sm">
-            <span className={`badge ${priorityColors[task.priority]}`}>
-              {task.priority}
+            <span className={`badge ${priorityColors[task.priority] || 'badge-muted'}`}>
+              {task.priority || 'medium'}
             </span>
             <span className="text-[var(--karma-text-muted)]">
-              ~{task.estimated_minutes} min
+              ~{task.estimated_minutes || 15} min
             </span>
-            {task.tags.length > 0 && (
+            {task.tags && task.tags.length > 0 && (
               <div className="flex gap-1">
                 {task.tags.slice(0, 3).map((tag) => (
                   <span key={tag} className="badge badge-muted">
@@ -113,17 +109,41 @@ export function TaskCard({
           )}
         </div>
 
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsExpanded(!isExpanded);
-          }}
-          className="btn-ghost p-2 rounded-lg"
-        >
-          <span className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
-            ▼
-          </span>
-        </button>
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {isCompleted ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleMarkPending();
+              }}
+              className="btn btn-secondary text-sm py-2 px-3"
+            >
+              ↩️ Undo
+            </button>
+          ) : (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleMarkDone();
+              }}
+              className="btn btn-primary text-sm py-2 px-3"
+            >
+              ✓ Done
+            </button>
+          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsExpanded(!isExpanded);
+            }}
+            className="btn-ghost p-2 rounded-lg"
+          >
+            <span className={`transition-transform inline-block ${isExpanded ? 'rotate-180' : ''}`}>
+              ▼
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* Expanded Content */}
@@ -159,7 +179,7 @@ export function TaskCard({
           )}
 
           {/* Subtasks */}
-          {task.subtasks.length > 0 && onSubtaskToggle && (
+          {task.subtasks && task.subtasks.length > 0 && onSubtaskToggle && (
             <SubtaskList
               subtasks={task.subtasks}
               taskId={task.id}
@@ -169,7 +189,7 @@ export function TaskCard({
 
           {/* Actions */}
           <div className="flex gap-2 mt-4">
-            {!task.subtasks_generated && onBreakdown && (
+            {!task.subtasks_generated && onBreakdown && !isCompleted && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -185,7 +205,7 @@ export function TaskCard({
                 )}
               </button>
             )}
-            {onReResearch && (
+            {onReResearch && !isCompleted && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -213,4 +233,3 @@ export function TaskCard({
     </div>
   );
 }
-

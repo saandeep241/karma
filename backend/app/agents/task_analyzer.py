@@ -155,13 +155,13 @@ JSON response:"""
             task.category = TaskCategory.PERSONAL
         
         task.emotional_fit = [EmotionalState.NEUTRAL]
-        task.tags = ["[Dummy]"]
+        task.tags = []
         task.task_type = "general"
-        task.ai_reasoning = "[DUMMY MODE] AI is disabled. Set OPENAI_KARMA=true to enable AI analysis."
+        task.ai_reasoning = None
         task.is_dummy = True
         
         self.session.add_thought("conclusion", 
-            f"[DUMMY] Analyzed: {task.estimated_minutes}min, {task.energy_required.value} energy, {task.category.value}")
+            f"Analyzed: {task.estimated_minutes}min, {task.energy_required.value} energy, {task.category.value}")
         
         return task
     

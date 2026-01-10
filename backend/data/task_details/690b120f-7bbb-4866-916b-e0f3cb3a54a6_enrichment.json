@@ -1,0 +1,26 @@
+{
+  "task_id": "690b120f-7bbb-4866-916b-e0f3cb3a54a6",
+  "task_text": "adding tasks in sqllite",
+  "enriched_at": "2026-01-09T19:38:02.068876",
+  "enriched_by": "TaskEnricher",
+  "tools_used": [],
+  "estimated_minutes": 15,
+  "steps": [
+    "Step 1: Get started with the task",
+    "Step 2: Work on the main part",
+    "Step 3: Review and finish"
+  ],
+  "probable_questions": [
+    "What resources do I need?",
+    "How long will this take?"
+  ],
+  "suggested_resources": [],
+  "potential_blockers": [],
+  "success_criteria": [
+    "Task is completed"
+  ],
+  "category": "other",
+  "tags": [],
+  "agent_notes": null,
+  "is_dummy": true
+}

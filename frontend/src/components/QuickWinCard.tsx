@@ -2,7 +2,7 @@ import type { QuickWin } from '../types';
 
 interface QuickWinCardProps {
   quickwin: QuickWin;
-  onComplete: () => void;
+  onAddTask: () => void;
   onSkip: () => void;
   isLoading?: boolean;
 }
@@ -22,7 +22,7 @@ const categoryIcons: Record<string, string> = {
 
 export function QuickWinCard({
   quickwin,
-  onComplete,
+  onAddTask,
   onSkip,
   isLoading = false,
 }: QuickWinCardProps) {
@@ -42,9 +42,6 @@ export function QuickWinCard({
         {/* Task Text */}
         <p className="text-lg mb-4">
           {quickwin.text}
-          {quickwin.is_dummy && (
-            <span className="badge badge-warning ml-2 text-xs">Demo</span>
-          )}
         </p>
 
         {/* Time Estimate */}
@@ -63,7 +60,7 @@ export function QuickWinCard({
             Show Another
           </button>
           <button
-            onClick={onComplete}
+            onClick={onAddTask}
             disabled={isLoading}
             className="btn btn-primary"
           >
@@ -71,8 +68,8 @@ export function QuickWinCard({
               <span className="spinner" />
             ) : (
               <>
-                <span>✓</span>
-                I Did It!
+                <span>➕</span>
+                Add Task
               </>
             )}
           </button>
@@ -81,4 +78,3 @@ export function QuickWinCard({
     </div>
   );
 }
-

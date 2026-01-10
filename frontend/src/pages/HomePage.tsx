@@ -5,14 +5,22 @@ import { QuickWinCard, LoadingSpinner, EmptyState } from '../components';
 import { api } from '../api/client';
 import type { QuickWin } from '../types';
 
+type EnergyLevel = 'low' | 'medium' | 'high';
+
+interface UserContext {
+  available_minutes: number;
+  energy_level: EnergyLevel;
+}
+
 export function HomePage() {
   const queryClient = useQueryClient();
   const [currentQuickWin, setCurrentQuickWin] = useState<QuickWin | null>(null);
-
-  // Fetch health status
-  const { data: health } = useQuery({
-    queryKey: ['health'],
-    queryFn: api.checkHealth,
+  const [showAddedMessage, setShowAddedMessage] = useState(false);
+  const [showContextForm, setShowContextForm] = useState(false);
+  const [editableTaskText, setEditableTaskText] = useState('');
+  const [userContext, setUserContext] = useState<UserContext>({
+    available_minutes: 15,
+    energy_level: 'medium',
   });
 
   // Fetch quick win
@@ -34,13 +42,17 @@ export function HomePage() {
     }
   }, [quickWinData, currentQuickWin]);
 
-  // Complete quick win mutation
-  const completeQuickWinMutation = useMutation({
+  // Add task mutation (was complete, now just adds to task list)
+  const addTaskMutation = useMutation({
     mutationFn: (quickwin: QuickWin) => api.completeQuickWin(quickwin),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      setCurrentQuickWin(null);
-      refetchQuickWin();
+      setShowAddedMessage(true);
+      setTimeout(() => {
+        setShowAddedMessage(false);
+        setCurrentQuickWin(null);
+        refetchQuickWin();
+      }, 1500);
     },
   });
 
@@ -49,10 +61,30 @@ export function HomePage() {
     refetchQuickWin();
   };
 
-  const handleComplete = () => {
+  const handleAddTask = () => {
+    // Show context form first and populate editable text
     if (currentQuickWin) {
-      completeQuickWinMutation.mutate(currentQuickWin);
+      setEditableTaskText(currentQuickWin.text);
     }
+    setShowContextForm(true);
+  };
+
+  const handleConfirmAdd = () => {
+    if (currentQuickWin) {
+      // Add context and edited text to the quickwin before saving
+      const quickWinWithContext = {
+        ...currentQuickWin,
+        text: editableTaskText.trim() || currentQuickWin.text,
+        estimated_minutes: userContext.available_minutes,
+        energy_required: userContext.energy_level,
+      };
+      addTaskMutation.mutate(quickWinWithContext);
+      setShowContextForm(false);
+    }
+  };
+
+  const handleCancelContext = () => {
+    setShowContextForm(false);
   };
 
   return (
@@ -63,23 +95,115 @@ export function HomePage() {
           <span className="gradient-text">Make every moment count</span>
         </h1>
         <p className="text-[var(--karma-text-muted)] text-lg max-w-xl mx-auto">
-          Got a few minutes? Let AI suggest something productive you can accomplish right now.
+          Got a few minutes? Here's something productive you can accomplish right now.
         </p>
-        
-        {/* AI Status Badge */}
-        {health && (
-          <div className="mt-4 inline-flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${health.ai_enabled ? 'bg-[var(--karma-success)]' : 'bg-[var(--karma-warning)]'}`} />
-            <span className="text-sm text-[var(--karma-text-muted)]">
-              {health.ai_enabled ? 'AI Mode Active' : 'Demo Mode'}
-            </span>
-          </div>
-        )}
       </div>
 
       {/* Quick Win Section */}
       <div className="max-w-lg mx-auto">
-        {isLoadingQuickWin ? (
+        {showContextForm && currentQuickWin ? (
+          <div className="card animate-fade-in">
+            <h2 className="font-serif text-2xl italic mb-4 text-center">
+              📝 Quick Context
+            </h2>
+            <p className="text-[var(--karma-text-muted)] text-center mb-6">
+              Tell us a bit about your current state to better track this task.
+            </p>
+            
+            {/* Editable Task Text */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-2">
+                ✏️ Task Description
+              </label>
+              <textarea
+                value={editableTaskText}
+                onChange={(e) => setEditableTaskText(e.target.value)}
+                className="w-full p-3 rounded-lg border border-[var(--karma-border)] bg-white focus:border-[var(--karma-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--karma-accent)]/20 resize-none"
+                rows={2}
+                placeholder="What do you want to do?"
+              />
+              <p className="text-xs text-[var(--karma-text-muted)] mt-1">
+                {currentQuickWin.category} • Suggested: ~{currentQuickWin.estimated_minutes} min
+              </p>
+            </div>
+
+            {/* Time Available */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-3">
+                ⏱️ How much time do you have?
+              </label>
+              <div className="grid grid-cols-4 gap-2">
+                {[5, 15, 30, 60].map((mins) => (
+                  <button
+                    key={mins}
+                    onClick={() => setUserContext(prev => ({ ...prev, available_minutes: mins }))}
+                    className={`py-2 px-3 rounded-lg border transition-all ${
+                      userContext.available_minutes === mins
+                        ? 'bg-[var(--karma-accent)] text-white border-[var(--karma-accent)]'
+                        : 'border-[var(--karma-border)] hover:border-[var(--karma-accent)]'
+                    }`}
+                  >
+                    {mins} min
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Energy Level */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-3">
+                ⚡ How's your energy level?
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: 'low' as EnergyLevel, label: '😴 Low', desc: 'Tired' },
+                  { value: 'medium' as EnergyLevel, label: '😊 Medium', desc: 'Normal' },
+                  { value: 'high' as EnergyLevel, label: '🔥 High', desc: 'Energized' },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setUserContext(prev => ({ ...prev, energy_level: option.value }))}
+                    className={`py-3 px-3 rounded-lg border transition-all text-center ${
+                      userContext.energy_level === option.value
+                        ? 'bg-[var(--karma-accent)] text-white border-[var(--karma-accent)]'
+                        : 'border-[var(--karma-border)] hover:border-[var(--karma-accent)]'
+                    }`}
+                  >
+                    <div className="text-lg">{option.label.split(' ')[0]}</div>
+                    <div className="text-xs mt-1 opacity-80">{option.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={handleCancelContext}
+                className="flex-1 btn-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmAdd}
+                disabled={addTaskMutation.isPending}
+                className="flex-1 btn-primary"
+              >
+                {addTaskMutation.isPending ? 'Adding...' : '✓ Add Task'}
+              </button>
+            </div>
+          </div>
+        ) : showAddedMessage ? (
+          <div className="card text-center animate-fade-in border-[var(--karma-success)]">
+            <div className="text-5xl mb-4">✅</div>
+            <h2 className="font-serif text-2xl italic mb-2 text-[var(--karma-success)]">
+              Task Added!
+            </h2>
+            <p className="text-[var(--karma-text-muted)]">
+              Go to <Link to="/browse" className="text-[var(--karma-accent)] underline">Browse Tasks</Link> to manage and complete it.
+            </p>
+          </div>
+        ) : isLoadingQuickWin ? (
           <LoadingSpinner text="Finding a quick win for you..." />
         ) : quickWinError ? (
           <EmptyState
@@ -92,9 +216,9 @@ export function HomePage() {
         ) : currentQuickWin ? (
           <QuickWinCard
             quickwin={currentQuickWin}
-            onComplete={handleComplete}
+            onAddTask={handleAddTask}
             onSkip={handleSkip}
-            isLoading={completeQuickWinMutation.isPending}
+            isLoading={addTaskMutation.isPending}
           />
         ) : (
           <LoadingSpinner text="Loading..." />
@@ -139,4 +263,3 @@ export function HomePage() {
     </div>
   );
 }
-

@@ -1,15 +1,16 @@
 @import "tailwindcss";
 
-/* Custom CSS Variables for Karma Theme */
+/* Custom CSS Variables for Karma Theme - Light Mode with Blue Accent */
 :root {
-  --karma-bg: #0a0a0f;
-  --karma-surface: #12121a;
-  --karma-surface-hover: #1a1a25;
-  --karma-border: #2a2a3a;
-  --karma-text: #e8e8ed;
-  --karma-text-muted: #8888a0;
-  --karma-accent: #7c3aed;
-  --karma-accent-hover: #8b5cf6;
+  --karma-bg: #f8fafc;
+  --karma-surface: #ffffff;
+  --karma-surface-hover: #f1f5f9;
+  --karma-border: #e2e8f0;
+  --karma-text: #1e293b;
+  --karma-text-muted: #64748b;
+  --karma-accent: #0066cc;
+  --karma-accent-hover: #0052a3;
+  --karma-accent-light: #e0f2fe;
   --karma-success: #10b981;
   --karma-warning: #f59e0b;
   --karma-danger: #ef4444;
@@ -58,8 +59,8 @@ body {
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 20px rgba(124, 58, 237, 0.3); }
-  50% { box-shadow: 0 0 40px rgba(124, 58, 237, 0.5); }
+  0%, 100% { box-shadow: 0 0 20px rgba(0, 102, 204, 0.2); }
+  50% { box-shadow: 0 0 30px rgba(0, 102, 204, 0.3); }
 }
 
 @keyframes slide-up {
@@ -88,14 +89,14 @@ body {
 
 /* Glass effect */
 .glass {
-  background: rgba(18, 18, 26, 0.8);
+  background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(12px);
-  border: 1px solid var(--karma-border);
+  border-bottom: 1px solid var(--karma-border);
 }
 
 /* Gradient text */
 .gradient-text {
-  background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 50%, #c4b5fd 100%);
+  background: linear-gradient(135deg, #0066cc 0%, #0099ff 50%, #00ccff 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -124,6 +125,7 @@ body {
 .btn-primary:hover {
   background: var(--karma-accent-hover);
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
 }
 
 .btn-secondary {
@@ -134,7 +136,7 @@ body {
 
 .btn-secondary:hover {
   background: var(--karma-surface-hover);
-  border-color: var(--karma-text-muted);
+  border-color: var(--karma-accent);
 }
 
 .btn-ghost {
@@ -143,7 +145,7 @@ body {
 }
 
 .btn-ghost:hover {
-  background: var(--karma-surface);
+  background: var(--karma-surface-hover);
   color: var(--karma-text);
 }
 
@@ -154,11 +156,12 @@ body {
   border-radius: 1rem;
   padding: 1.5rem;
   transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .card:hover {
   border-color: var(--karma-accent);
-  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 102, 204, 0.1);
 }
 
 /* Input styles */
@@ -176,7 +179,7 @@ body {
 .input:focus {
   outline: none;
   border-color: var(--karma-accent);
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.15);
 }
 
 .input::placeholder {
@@ -194,18 +197,18 @@ body {
 }
 
 .badge-accent {
-  background: rgba(124, 58, 237, 0.2);
-  color: #a78bfa;
+  background: var(--karma-accent-light);
+  color: var(--karma-accent);
 }
 
 .badge-success {
-  background: rgba(16, 185, 129, 0.2);
-  color: #34d399;
+  background: rgba(16, 185, 129, 0.15);
+  color: #059669;
 }
 
 .badge-warning {
-  background: rgba(245, 158, 11, 0.2);
-  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
 }
 
 .badge-muted {
@@ -266,7 +269,12 @@ body {
 
 .progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--karma-accent), #a78bfa);
+  background: linear-gradient(90deg, var(--karma-accent), #0099ff);
   border-radius: 9999px;
   transition: width 0.3s ease;
+}
+
+/* Select dropdown styling */
+select.input {
+  cursor: pointer;
 }

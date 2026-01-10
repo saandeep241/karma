@@ -5,6 +5,8 @@ import { LoadingSpinner } from '../components';
 import { api } from '../api/client';
 import type { TaskCategory, TaskPriority } from '../types';
 
+type EnergyLevel = 'low' | 'medium' | 'high';
+
 export function AddPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -14,7 +16,8 @@ export function AddPage() {
   const [bulkTasks, setBulkTasks] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [category, setCategory] = useState<TaskCategory>('other');
-  const [estimatedMinutes, setEstimatedMinutes] = useState(30);
+  const [estimatedMinutes, setEstimatedMinutes] = useState(15);
+  const [energyLevel, setEnergyLevel] = useState<EnergyLevel>('medium');
 
   // Add single task mutation
   const addTaskMutation = useMutation({
@@ -89,39 +92,77 @@ export function AddPage() {
       {/* Single Task Form */}
       {mode === 'single' && (
         <form onSubmit={handleSubmitSingle} className="card space-y-6">
+          {/* Task Description */}
           <div>
             <label className="block text-sm font-medium mb-2">
-              What do you need to do?
+              ✏️ What do you need to do?
             </label>
-            <input
-              type="text"
+            <textarea
               value={taskText}
               onChange={(e) => setTaskText(e.target.value)}
               placeholder="e.g., Review quarterly report"
-              className="input"
+              className="w-full p-3 rounded-lg border border-[var(--karma-border)] bg-white focus:border-[var(--karma-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--karma-accent)]/20 resize-none"
+              rows={2}
               disabled={isLoading}
               autoFocus
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Priority</label>
-              <select
-                value={priority}
-                onChange={(e) => setPriority(e.target.value as TaskPriority)}
-                className="input"
-                disabled={isLoading}
-              >
-                <option value="low">🟢 Low</option>
-                <option value="medium">🟡 Medium</option>
-                <option value="high">🟠 High</option>
-                <option value="urgent">🔴 Urgent</option>
-              </select>
+          {/* Time Available */}
+          <div>
+            <label className="block text-sm font-medium mb-3">
+              ⏱️ How much time do you have?
+            </label>
+            <div className="grid grid-cols-4 gap-2">
+              {[5, 15, 30, 60].map((mins) => (
+                <button
+                  key={mins}
+                  type="button"
+                  onClick={() => setEstimatedMinutes(mins)}
+                  className={`py-2 px-3 rounded-lg border transition-all ${
+                    estimatedMinutes === mins
+                      ? 'bg-[var(--karma-accent)] text-white border-[var(--karma-accent)]'
+                      : 'border-[var(--karma-border)] hover:border-[var(--karma-accent)]'
+                  }`}
+                >
+                  {mins} min
+                </button>
+              ))}
             </div>
+          </div>
 
+          {/* Energy Level */}
+          <div>
+            <label className="block text-sm font-medium mb-3">
+              ⚡ How's your energy level?
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: 'low' as EnergyLevel, label: '😴 Low', desc: 'Tired' },
+                { value: 'medium' as EnergyLevel, label: '😊 Medium', desc: 'Normal' },
+                { value: 'high' as EnergyLevel, label: '🔥 High', desc: 'Energized' },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setEnergyLevel(option.value)}
+                  className={`py-3 px-3 rounded-lg border transition-all text-center ${
+                    energyLevel === option.value
+                      ? 'bg-[var(--karma-accent)] text-white border-[var(--karma-accent)]'
+                      : 'border-[var(--karma-border)] hover:border-[var(--karma-accent)]'
+                  }`}
+                >
+                  <div className="text-lg">{option.label.split(' ')[0]}</div>
+                  <div className="text-xs mt-1 opacity-80">{option.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Category & Priority Row */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Category</label>
+              <label className="block text-sm font-medium mb-2">📁 Category</label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as TaskCategory)}
@@ -142,18 +183,18 @@ export function AddPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">
-                Estimated Time (min)
-              </label>
-              <input
-                type="number"
-                value={estimatedMinutes}
-                onChange={(e) => setEstimatedMinutes(parseInt(e.target.value) || 30)}
-                min={1}
-                max={480}
+              <label className="block text-sm font-medium mb-2">🎯 Priority</label>
+              <select
+                value={priority}
+                onChange={(e) => setPriority(e.target.value as TaskPriority)}
                 className="input"
                 disabled={isLoading}
-              />
+              >
+                <option value="low">🟢 Low</option>
+                <option value="medium">🟡 Medium</option>
+                <option value="high">🟠 High</option>
+                <option value="urgent">🔴 Urgent</option>
+              </select>
             </div>
           </div>
 
@@ -162,7 +203,7 @@ export function AddPage() {
             disabled={!taskText.trim() || isLoading}
             className="btn btn-primary w-full"
           >
-            {isLoading ? <LoadingSpinner size="sm" /> : 'Add Task'}
+            {isLoading ? <LoadingSpinner size="sm" /> : '✓ Add Task'}
           </button>
         </form>
       )}

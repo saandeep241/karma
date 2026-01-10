@@ -163,13 +163,14 @@ def save_task_with_details(task: dict, date: str) -> dict:
         "text": task.get("text", ""),
         "date": date,
         "status": serialize_for_json(task.get("status", "pending")),
-        "category": serialize_for_json(task.get("category")),
+        "priority": task.get("priority", "medium"),
+        "category": serialize_for_json(task.get("category")) or "other",
         "tags": task.get("tags", []),
         "created_at": serialize_for_json(task.get("created_at")) or datetime.now().isoformat(),
         "started_at": serialize_for_json(task.get("started_at")),
         "completed_at": serialize_for_json(task.get("completed_at")),
-        "estimated_minutes": task.get("estimated_minutes"),
-        "energy_required": serialize_for_json(task.get("energy_required")),
+        "estimated_minutes": task.get("estimated_minutes") or 15,
+        "energy_required": serialize_for_json(task.get("energy_required")) or "medium",
         "emotional_fit": serialize_for_json(task.get("emotional_fit", [])),
         "task_type": task.get("task_type"),
         "ai_reasoning": task.get("ai_reasoning"),
@@ -185,29 +186,44 @@ def save_task_with_details(task: dict, date: str) -> dict:
         "is_dummy": task.get("is_dummy", False)
     }
     
+    # Save to task_details folder
     with open(filepath, 'w') as f:
         json.dump(task_data, f, indent=2)
     
-    # Also update the date-based file
+    # Also update/create the date-based file
     date_filepath = TASKS_DIR / f"{date}.json"
+    
     if date_filepath.exists():
         with open(date_filepath, 'r') as f:
             date_data = json.load(f)
-        
-        # Update task in the list
-        tasks = date_data.get("tasks", [])
-        for i, t in enumerate(tasks):
-            if isinstance(t, dict) and t.get("id") == task_id:
-                tasks[i] = task_data
-                break
-        else:
-            tasks.append(task_data)
-        
-        date_data["tasks"] = tasks
-        date_data["updated_at"] = datetime.now().isoformat()
-        
-        with open(date_filepath, 'w') as f:
-            json.dump(date_data, f, indent=2)
+    else:
+        # Create new date file
+        date_data = {
+            "date": date,
+            "tasks": [],
+            "created_at": datetime.now().isoformat()
+        }
+    
+    # Update task in the list or add it
+    tasks = date_data.get("tasks", [])
+    task_found = False
+    for i, t in enumerate(tasks):
+        if isinstance(t, dict) and t.get("id") == task_id:
+            tasks[i] = task_data
+            task_found = True
+            break
+    
+    if not task_found:
+        tasks.append(task_data)
+    
+    date_data["tasks"] = tasks
+    date_data["updated_at"] = datetime.now().isoformat()
+    date_data["count"] = len(tasks)
+    
+    with open(date_filepath, 'w') as f:
+        json.dump(date_data, f, indent=2)
+    
+    print(f"📁 [TOOL] Saved task to {date_filepath} (total: {len(tasks)} tasks)")
     
     return {"success": True, "task_id": task_id, "filepath": str(filepath)}
 

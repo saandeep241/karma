@@ -172,7 +172,7 @@ export interface SubtaskListProps {
 
 export interface QuickWinCardProps {
   quickwin: QuickWin;
-  onComplete: () => void;
+  onAddTask: () => void;
   onSkip: () => void;
   isLoading?: boolean;
 }

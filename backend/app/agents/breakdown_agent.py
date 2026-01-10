@@ -184,17 +184,17 @@ JSON response:"""
         for i in range(num_steps):
             step = TaskStep(
                 step_number=i + 1,
-                instruction=f"[Dummy] {dummy_actions[i] if i < len(dummy_actions) else 'Continue working'}",
+                instruction=dummy_actions[i] if i < len(dummy_actions) else 'Continue working',
                 estimated_minutes=time_per_step
             )
             steps.append(step)
             
             subtask = Subtask(
                 step_number=i + 1,
-                instruction=f"[Dummy] {dummy_actions[i] if i < len(dummy_actions) else 'Continue working'}",
+                instruction=dummy_actions[i] if i < len(dummy_actions) else 'Continue working',
                 estimated_minutes=time_per_step,
                 status=SubtaskStatus.PENDING,
-                ai_reasoning="[DUMMY MODE] Time estimate is approximate. Set OPENAI_KARMA=true for AI-powered breakdown."
+                ai_reasoning=None
             )
             subtasks.append(subtask)
         

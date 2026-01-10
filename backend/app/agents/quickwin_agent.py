@@ -309,12 +309,10 @@ JSON response:"""
         # Use the fallback mechanism which picks from pre-defined list
         result = self._get_fallback_quickwin(context, excluded)
         
-        # Mark as dummy
-        result["text"] = f"[Dummy] {result['text']}"
-        result["reasoning"] = f"[DUMMY MODE] {result['reasoning']} Set OPENAI_KARMA=true for AI-generated suggestions."
+        # Mark as dummy but don't modify the text
         result["is_dummy"] = True
         
-        self.session.add_thought("conclusion", f"[DUMMY] Generated: {result['text']}")
+        self.session.add_thought("conclusion", f"Generated: {result['text']}")
         
         return result
 

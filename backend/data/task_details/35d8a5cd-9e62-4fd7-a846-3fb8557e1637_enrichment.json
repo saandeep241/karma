@@ -1,0 +1,26 @@
+{
+  "task_id": "35d8a5cd-9e62-4fd7-a846-3fb8557e1637",
+  "task_text": "adingf another task",
+  "enriched_at": "2026-01-09T20:42:31.964320",
+  "enriched_by": "TaskEnricher",
+  "tools_used": [],
+  "estimated_minutes": 15,
+  "steps": [
+    "Step 1: Get started with the task",
+    "Step 2: Work on the main part",
+    "Step 3: Review and finish"
+  ],
+  "probable_questions": [
+    "What resources do I need?",
+    "How long will this take?"
+  ],
+  "suggested_resources": [],
+  "potential_blockers": [],
+  "success_criteria": [
+    "Task is completed"
+  ],
+  "category": "other",
+  "tags": [],
+  "agent_notes": null,
+  "is_dummy": true
+}
