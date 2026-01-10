@@ -22,10 +22,10 @@ export function Layout() {
     <div className="min-h-screen flex flex-col">
       {/* Header */}
       <header className="glass sticky top-0 z-50 border-b border-[var(--karma-border)]">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <NavLink to="/" className="flex items-center gap-2 no-underline">
             <span className="text-2xl">✨</span>
-            <h1 className="font-serif text-2xl italic gradient-text">Karma</h1>
+            <h1 className="font-serif text-2xl gradient-text">Karma</h1>
           </NavLink>
           
           <div className="flex items-center gap-4">
@@ -79,14 +79,14 @@ export function Layout() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-8">
+      <main className="flex-1 max-w-6xl mx-auto w-full px-6 py-8">
         <Outlet />
       </main>
 
       {/* Footer */}
       <footer className="border-t border-[var(--karma-border)] py-6">
-        <div className="max-w-4xl mx-auto px-4 text-center text-[var(--karma-text-muted)] text-sm">
-          <p>Karma — AI-powered task suggestions for productive moments</p>
+        <div className="max-w-6xl mx-auto px-4 text-center text-[var(--karma-text-muted)] text-sm">
+          <p>Karma — AI-powered task suggestions</p>
         </div>
       </footer>
     </div>

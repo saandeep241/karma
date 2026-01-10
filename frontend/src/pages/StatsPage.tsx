@@ -76,7 +76,7 @@ export function StatsPage() {
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
       <div className="text-center">
-        <h1 className="text-2xl font-serif italic gradient-text mb-2">
+        <h1 className="text-2xl font-serif gradient-text mb-2">
           Your Productivity Stats
         </h1>
         <p className="text-[var(--karma-text-muted)]">

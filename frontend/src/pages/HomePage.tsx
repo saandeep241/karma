@@ -105,7 +105,7 @@ export function HomePage() {
     <div className="space-y-8 animate-fade-in">
       {/* Hero Section */}
       <div className="text-center py-8">
-        <h1 className="font-serif text-4xl md:text-5xl italic mb-4">
+        <h1 className="font-serif text-4xl md:text-5xl mb-4">
           <span className="gradient-text">Make every moment count</span>
         </h1>
         <p className="text-[var(--karma-text-muted)] text-lg max-w-xl mx-auto">
@@ -117,12 +117,12 @@ export function HomePage() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-lg mx-auto">
+      <div className="max-w-2xl mx-auto">
         {/* Landing Page - Suggest a Task Button */}
         {!showQuickWin && !showContextForm && (
           <div className="card text-center animate-fade-in">
             <div className="text-6xl mb-6">🎯</div>
-            <h2 className="font-serif text-2xl italic mb-4">
+            <h2 className="font-serif text-2xl mb-4">
               Ready to be productive?
             </h2>
             <p className="text-[var(--karma-text-muted)] mb-6">
@@ -140,7 +140,7 @@ export function HomePage() {
         {/* Quick Win Flow */}
         {showQuickWin && showContextForm && currentQuickWin ? (
           <div className="card animate-fade-in">
-            <h2 className="font-serif text-2xl italic mb-4 text-center">
+            <h2 className="font-serif text-2xl mb-4 text-center">
               📝 Quick Context
             </h2>
             <p className="text-[var(--karma-text-muted)] text-center mb-6">
@@ -235,7 +235,7 @@ export function HomePage() {
         ) : showQuickWin && showAddedMessage ? (
           <div className="card text-center animate-fade-in border-[var(--karma-success)]">
             <div className="text-5xl mb-4">✅</div>
-            <h2 className="font-serif text-2xl italic mb-2 text-[var(--karma-success)]">
+            <h2 className="font-serif text-2xl mb-2 text-[var(--karma-success)]">
               Task Added!
             </h2>
             <p className="text-[var(--karma-text-muted)] mb-4">

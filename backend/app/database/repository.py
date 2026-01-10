@@ -197,6 +197,7 @@ class TaskRepository:
     
     async def get_stats(self) -> dict:
         """Get overall task statistics."""
+        # Basic counts
         result = await self.session.execute(
             select(
                 func.count(TaskModel.id).label("total"),
@@ -212,12 +213,32 @@ class TaskRepository:
         pending = row.pending or 0
         in_progress = row.in_progress or 0
         
+        # Tasks by category
+        category_result = await self.session.execute(
+            select(TaskModel.category, func.count(TaskModel.id))
+            .group_by(TaskModel.category)
+        )
+        tasks_by_category = {cat: count for cat, count in category_result.all() if cat}
+        
+        # Tasks by priority
+        priority_result = await self.session.execute(
+            select(TaskModel.priority, func.count(TaskModel.id))
+            .group_by(TaskModel.priority)
+        )
+        tasks_by_priority = {pri: count for pri, count in priority_result.all() if pri}
+        
         return {
+            "total_tasks": total,
+            "completed_tasks": completed,
+            "pending_tasks": pending + in_progress,
             "total": total,
             "completed": completed,
             "pending": pending,
             "in_progress": in_progress,
-            "completion_rate": completed / total if total > 0 else 0
+            "completion_rate": (completed / total * 100) if total > 0 else 0,
+            "tasks_by_category": tasks_by_category,
+            "tasks_by_priority": tasks_by_priority,
+            "average_completion_time_minutes": 0,  # TODO: Calculate from actual data
         }
 
 

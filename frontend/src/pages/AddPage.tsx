@@ -67,7 +67,7 @@ export function AddPage() {
     <div className="max-w-2xl mx-auto space-y-8 animate-fade-in">
       {/* Header */}
       <div className="text-center">
-        <h1 className="text-2xl font-serif italic gradient-text mb-2">Add Tasks</h1>
+        <h1 className="text-2xl font-serif gradient-text mb-2">Add Tasks</h1>
         <p className="text-[var(--karma-text-muted)]">
           Add tasks individually or import multiple at once
         </p>

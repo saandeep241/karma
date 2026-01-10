@@ -89,9 +89,11 @@ export async function addTask(task: AddTaskForm): Promise<Task> {
 }
 
 export async function importTasks(texts: string[]): Promise<TaskAnalysisResponse> {
-  return apiFetch<TaskAnalysisResponse>('/tasks/import', {
+  // Join texts into a single string with newlines for the import endpoint
+  const textContent = texts.join('\n');
+  return apiFetch<TaskAnalysisResponse>('/todo/import', {
     method: 'POST',
-    body: JSON.stringify({ tasks: texts }),
+    body: JSON.stringify({ text_content: textContent }),
   });
 }
 

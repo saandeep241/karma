@@ -174,72 +174,40 @@ export function TaskCard({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-1 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {isCompleted ? (
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 handleStatusChange('pending');
               }}
-              className="btn btn-secondary text-sm py-2 px-3"
+              className="btn btn-secondary text-sm py-2 px-4"
             >
-              ↩️ Undo
+              ↩️ Reopen
             </button>
           ) : isInProgress ? (
-            <>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleStatusChange('completed');
-                }}
-                className="btn btn-primary text-sm py-2 px-3"
-              >
-                ✓ Done
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleStatusChange('pending');
-                }}
-                className="btn btn-ghost text-sm py-2 px-2"
-                title="Pause"
-              >
-                ⏸️
-              </button>
-            </>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleStatusChange('completed');
+              }}
+              className="btn btn-primary text-sm py-2 px-4"
+            >
+              ✓ Complete
+            </button>
           ) : (
-            <>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleStatusChange('in_progress');
-                }}
-                className="btn btn-secondary text-sm py-2 px-3"
-              >
-                ▶️ Start
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleStatusChange('completed');
-                }}
-                className="btn btn-primary text-sm py-2 px-3"
-              >
-                ✓ Done
-              </button>
-            </>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleStatusChange('completed');
+              }}
+              className="btn btn-primary text-sm py-2 px-4"
+            >
+              ✓ Complete
+            </button>
           )}
         </div>
       </div>
-
-      {/* Status Badge */}
-      {task.status && task.status !== 'pending' && (
-        <div className="mt-2">
-          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusConfig[task.status]?.color || ''}`}>
-            {statusConfig[task.status]?.icon} {statusConfig[task.status]?.label}
-          </span>
-        </div>
-      )}
 
       {/* Expanded Content */}
       {isExpanded && (
