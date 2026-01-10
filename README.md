@@ -2,128 +2,301 @@
 
 Make every moment count with AI-powered task suggestions for productive moments.
 
-## Architecture
+![Karma App](https://img.shields.io/badge/version-5.0.0-blue) ![License](https://img.shields.io/badge/license-MIT-green)
+
+## 🌟 Features
+
+- **Quick Wins** - AI-suggested micro-tasks for small time blocks (5-60 min)
+- **Smart Task Analysis** - AI categorizes tasks by priority, energy, and time
+- **Task Breakdown** - Break complex tasks into actionable subtasks with time estimates
+- **Task Enrichment** - Get AI-researched tips, steps, and resources
+- **Progress Tracking** - View stats and completion history
+- **User Context** - Considers your available time and energy level
+- **Clerk Authentication** - Secure user authentication (optional)
+- **SQLite Database** - Persistent task storage
+- **Dummy Mode** - Works without API keys using demo data
+
+---
+
+## 📁 Project Structure
 
 ```
 karma/
-├── backend/          # FastAPI Python backend
+├── backend/                 # FastAPI Python backend
 │   ├── app/
-│   │   ├── agents/   # AI agents (TaskAnalyzer, QuickWin, etc.)
-│   │   ├── routes/   # API endpoints
-│   │   ├── services/ # Business logic
-│   │   ├── config.py # Configuration
-│   │   ├── models.py # Pydantic models
-│   │   └── main.py   # FastAPI app
-│   ├── data/         # Persistent storage
-│   ├── Dockerfile
+│   │   ├── agents/          # AI agents
+│   │   │   ├── base_agent.py
+│   │   │   ├── task_analyzer.py
+│   │   │   ├── task_suggester.py
+│   │   │   ├── task_enricher.py
+│   │   │   ├── quickwin_agent.py
+│   │   │   ├── breakdown_agent.py
+│   │   │   └── orchestrator.py
+│   │   ├── database/        # SQLite + SQLAlchemy
+│   │   │   ├── models.py
+│   │   │   ├── connection.py
+│   │   │   └── repository.py
+│   │   ├── routes/          # API endpoints
+│   │   │   ├── tasks.py
+│   │   │   ├── suggestions.py
+│   │   │   └── sessions.py
+│   │   ├── services/        # Business logic
+│   │   ├── auth.py          # Clerk authentication
+│   │   ├── config.py        # Configuration
+│   │   ├── models.py        # Pydantic models
+│   │   └── main.py          # FastAPI app
+│   ├── data/                # SQLite database
+│   ├── venv/                # Python virtual environment
 │   └── requirements.txt
 │
-├── frontend/         # React + TypeScript frontend
+├── frontend/                # React + TypeScript frontend
 │   ├── src/
-│   │   ├── api/      # API client
-│   │   ├── components/
-│   │   ├── pages/
-│   │   └── types/    # TypeScript types
-│   ├── Dockerfile
-│   └── package.json
+│   │   ├── api/             # API client
+│   │   ├── components/      # React components
+│   │   ├── pages/           # Page components
+│   │   └── types/           # TypeScript types
+│   ├── package.json
+│   └── vite.config.ts
 │
-└── docker-compose.yml
+├── docker-compose.yml
+└── README.md
 ```
 
-## Quick Start
+---
 
-### Development Mode
+## 🚀 Quick Start
 
-1. **Start the Backend:**
-   ```bash
-   cd backend
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   pip install -r requirements.txt
-   
-   # Set environment variables
-   export OPENAI_KARMA=true  # Enable AI mode
-   export OPENAI_API_KEY=your-api-key  # Required for AI mode
-   
-   # Run the server
-   uvicorn app.main:app --reload --port 8000
-   ```
+### Prerequisites
 
-2. **Start the Frontend:**
-   ```bash
-   cd frontend
-   nvm use 22  # or your Node.js 18+ version
-   npm install
-   npm run dev
-   ```
+- **Python 3.11+**
+- **Node.js 18+** (recommend using `nvm`)
+- **OpenAI API Key** (optional - for AI features)
+- **Clerk Account** (optional - for authentication)
 
-3. **Open the app:** http://localhost:5173
-
-### Docker Mode
+### 1. Clone the Repository
 
 ```bash
-# Set your OpenAI API key
-export OPENAI_API_KEY=your-api-key
-export OPENAI_KARMA=true
-
-# Run both services
-docker-compose up --build
+git clone https://github.com/saandeep241/karma.git
+cd karma
 ```
 
-## Environment Variables
+### 2. Start the Backend
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `OPENAI_API_KEY` | Your OpenAI API key | - |
-| `OPENAI_KARMA` | Enable AI mode (`true`/`false`) | `false` |
-| `OPENAI_MODEL` | OpenAI model to use | `gpt-4o-mini` |
+```bash
+cd backend
 
-## Features
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-- **Quick Wins**: Get AI-suggested micro-tasks for small time blocks
-- **Task Analysis**: AI analyzes and categorizes your tasks
-- **Task Breakdown**: Break complex tasks into actionable subtasks
-- **Task Enrichment**: Get AI-researched tips and resources
-- **Progress Tracking**: View stats and completion history
-- **Dummy Mode**: Works without API key using demo data
+# Install dependencies
+pip install -r requirements.txt
 
-## API Endpoints
+# Run the server
+python -m uvicorn app.main:app --reload --port 8000
+```
 
-### Health
-- `GET /api/health` - Health check
+The backend will be available at: **http://localhost:8000**
+
+### 3. Start the Frontend
+
+```bash
+cd frontend
+
+# Use Node.js 18+ (if using nvm)
+nvm use 22
+
+# Install dependencies
+npm install
+
+# Run the dev server
+npm run dev
+```
+
+The frontend will be available at: **http://localhost:5173**
+
+---
+
+## ⚙️ Configuration
+
+### Environment Variables
+
+Create `.env` files to configure the app:
+
+#### Backend (`backend/.env`)
+
+```env
+# AI Configuration (optional)
+OPENAI_API_KEY=sk-your-openai-api-key
+OPENAI_KARMA=true          # Set to "true" to enable AI, "false" for dummy mode
+OPENAI_MODEL=gpt-4o-mini   # OpenAI model to use
+
+# Authentication (optional)
+CLERK_SECRET_KEY=sk_test_your-clerk-secret-key
+CLERK_PUBLISHABLE_KEY=pk_test_your-clerk-publishable-key
+```
+
+#### Frontend (`frontend/.env`)
+
+```env
+# Authentication (optional)
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_your-clerk-publishable-key
+```
+
+### Configuration Options
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `OPENAI_API_KEY` | Your OpenAI API key | - | No (dummy mode works without) |
+| `OPENAI_KARMA` | Enable AI mode | `false` | No |
+| `OPENAI_MODEL` | OpenAI model | `gpt-4o-mini` | No |
+| `CLERK_SECRET_KEY` | Clerk secret key | - | No (auth disabled without) |
+| `CLERK_PUBLISHABLE_KEY` | Clerk publishable key | - | No |
+| `VITE_CLERK_PUBLISHABLE_KEY` | Clerk key for frontend | - | No |
+
+---
+
+## 🔐 Authentication Setup (Clerk)
+
+1. **Create a Clerk account** at https://clerk.com
+2. **Create a new application** in the Clerk dashboard
+3. **Get your API keys** from the "API Keys" section
+4. **Add keys to `.env` files** (see Configuration above)
+5. **Restart both servers**
+
+When configured, users will see a "Sign In" button in the header.
+
+---
+
+## 🐳 Docker Mode
+
+```bash
+# Build and run both services
+docker-compose up --build
+
+# Or run in background
+docker-compose up -d --build
+```
+
+Services:
+- Frontend: http://localhost:5173
+- Backend: http://localhost:8000
+
+---
+
+## 📡 API Endpoints
+
+### Health & Info
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | API info |
+| GET | `/api/health` | Health check with status |
 
 ### Tasks
-- `GET /api/tasks/all` - Get all tasks
-- `POST /api/tasks/add` - Add a single task
-- `POST /api/tasks/import` - Import multiple tasks
-- `PUT /api/tasks/{id}/status` - Update task status
-- `POST /api/tasks/{id}/breakdown` - Generate subtasks
-- `DELETE /api/tasks/all` - Delete all tasks
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/tasks/all` | Get all tasks |
+| POST | `/api/task/add` | Add a single task |
+| POST | `/api/tasks/add` | Add a single task (alias) |
+| POST | `/api/todo/import` | Import multiple tasks |
+| GET | `/api/tasks/{id}` | Get task by ID |
+| PUT | `/api/tasks/{id}/status` | Update task status |
+| POST | `/api/tasks/{id}/breakdown` | Generate subtasks |
+| POST | `/api/tasks/{id}/reresearch` | Re-research task |
+| DELETE | `/api/tasks/all` | Delete all tasks |
 
 ### Quick Wins
-- `GET /api/quickwin/get` - Get a quick win suggestion
-- `POST /api/quickwin/complete` - Save completed quick win
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/quickwin/get` | Get a quick win suggestion |
+| POST | `/api/quickwin` | Generate quick win |
+| POST | `/api/quickwin/complete` | Save quick win as task |
 
 ### Stats
-- `GET /api/tasks/stats` - Get productivity statistics
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/tasks/stats` | Get productivity statistics |
 
-## Tech Stack
+---
 
-**Backend:**
-- FastAPI
-- Pydantic
-- OpenAI API
-- Python 3.11+
+## 🤖 AI Agents
 
-**Frontend:**
-- React 18
-- TypeScript
-- Vite
-- TailwindCSS
-- React Query
-- React Router
+Karma uses a multi-agent architecture:
 
-## License
+| Agent | Purpose |
+|-------|---------|
+| **TaskAnalyzer** | Analyzes task properties (priority, category, time, energy) |
+| **TaskSuggester** | Matches tasks to user context |
+| **TaskEnricher** | Adds research, tips, and resources |
+| **QuickWin** | Generates micro-tasks for quick productivity |
+| **Breakdown** | Creates step-by-step plans with time estimates |
+| **Orchestrator** | Coordinates all agents |
 
-MIT
+---
 
+## 🛠 Tech Stack
+
+### Backend
+- **FastAPI** - Modern Python web framework
+- **SQLAlchemy** - Database ORM
+- **SQLite** - Lightweight database
+- **Pydantic** - Data validation
+- **OpenAI API** - AI capabilities
+- **Clerk** - Authentication
+
+### Frontend
+- **React 18** - UI framework
+- **TypeScript** - Type safety
+- **Vite** - Fast build tool
+- **TailwindCSS** - Styling
+- **React Query** - Server state management
+- **React Router** - Navigation
+- **Clerk React** - Authentication UI
+
+---
+
+## 🧪 Development
+
+### Running Tests
+
+```bash
+# Backend tests
+cd backend
+pytest
+
+# Frontend tests
+cd frontend
+npm test
+```
+
+### Linting
+
+```bash
+# Backend
+cd backend
+mypy app/
+
+# Frontend
+cd frontend
+npm run lint
+```
+
+---
+
+## 📝 License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+---
+
+## 🙏 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
+
+Made with ❤️ by [Saandeep](https://github.com/saandeep241)
