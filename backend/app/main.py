@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from app.config import get_settings
 from app.routes import tasks_router, suggestions_router, sessions_router
 from app.database.connection import init_db, DATABASE_PATH
+from app.auth import is_auth_enabled, CLERK_ENABLED
 
 
 @asynccontextmanager
@@ -35,6 +36,13 @@ async def lifespan(app: FastAPI):
             print("   → Set OPENAI_API_KEY to your API key")
     
     print(f"🌐 CORS enabled for: {settings.frontend_url}")
+    
+    # Check auth status
+    if CLERK_ENABLED:
+        print("🔐 Authentication: ENABLED (Clerk)")
+    else:
+        print("⚠️  Authentication: DISABLED (dev mode)")
+    
     print("=" * 60)
     yield
     print("👋 Shutting down Karma Backend")
@@ -91,6 +99,7 @@ async def health_check():
         "version": "5.0.0 - SQLite Database",
         "ai_enabled": settings.is_ai_enabled,
         "dummy_mode": not settings.is_ai_enabled,
+        "auth_enabled": CLERK_ENABLED,
         "database": "SQLite",
         "agents": [
             "TaskAnalyzer - Analyzes task properties",
@@ -107,7 +116,8 @@ async def health_check():
             "learning_from_feedback",
             "reasoning_traces",
             "subtask_management",
-            "time_estimates_per_subtask"
+            "time_estimates_per_subtask",
+            "clerk_authentication"
         ]
     }
 
