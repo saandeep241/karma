@@ -112,7 +112,7 @@ export async function deleteTask(taskId: string): Promise<{ success: boolean }> 
 }
 
 export async function deleteAllTasks(): Promise<{ success: boolean; deleted_count: number }> {
-  return apiFetch<{ success: boolean; deleted_count: number }>('/tasks/all', {
+  return apiFetch<{ success: boolean; deleted_count: number }>('/tasks/delete-all', {
     method: 'DELETE',
   });
 }

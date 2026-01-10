@@ -4,6 +4,8 @@ from datetime import datetime
 import uuid
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from typing import Optional
 
 from app.models import (
     Task, TodoList, ImportTodoListRequest, ImportTodoListResponse,
@@ -135,17 +137,21 @@ async def get_task_detail(task_id: str):
     return task
 
 
+class StatusUpdateRequest(BaseModel):
+    status: str
+    date: Optional[str] = None
+
 @router.put("/tasks/{task_id}/status")
-async def update_task_status_endpoint(task_id: str, status: str, date: str = None):
+async def update_task_status_endpoint(task_id: str, request: StatusUpdateRequest):
     """Update a task's status."""
     valid_statuses = ["pending", "in_progress", "completed", "skipped"]
-    if status not in valid_statuses:
+    if request.status not in valid_statuses:
         raise HTTPException(
             status_code=400, 
             detail=f"Invalid status. Must be one of: {valid_statuses}"
         )
     
-    result = await db_service.update_task_status(task_id, status, date)
+    result = await db_service.update_task_status(task_id, request.status, request.date)
     if not result.get("success"):
         raise HTTPException(status_code=404, detail=result.get("error", "Failed to update"))
     return result
@@ -156,6 +162,65 @@ async def complete_task(task_id: str):
     """Mark a task as completed."""
     result = await db_service.update_task_status(task_id, "completed")
     return result
+
+
+@router.post("/tasks/{task_id}/breakdown")
+async def breakdown_task_by_id(task_id: str):
+    """Break down a task into steps by task ID."""
+    # Get task from database
+    task_data = await db_service.get_task(task_id)
+    if not task_data:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    task = Task(**{k: v for k, v in task_data.items() if k in Task.model_fields})
+    
+    print("\n" + "=" * 60)
+    print("🤖 ORCHESTRATOR: Breaking down task...")
+    print(f"   Task: {task.text}")
+    print("=" * 60)
+    
+    # Break task into steps with default 30 min
+    breakdown, reasoning_trace = await karma_orchestrator.break_task_into_steps(
+        task=task,
+        time_available=30
+    )
+    
+    # Save subtasks to database
+    if breakdown and breakdown.subtasks:
+        await db_service.save_subtasks(task_id, [s.model_dump() for s in breakdown.subtasks])
+    
+    return {
+        "task_id": task_id,
+        "subtasks": [s.model_dump() for s in breakdown.subtasks] if breakdown else [],
+        "reasoning": reasoning_trace
+    }
+
+
+@router.post("/tasks/{task_id}/reresearch")
+async def reresearch_task_by_id(task_id: str):
+    """Re-research a task by ID."""
+    # Get task from database
+    task_data = await db_service.get_task(task_id)
+    if not task_data:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    task = Task(**{k: v for k, v in task_data.items() if k in Task.model_fields})
+    
+    print("\n" + "=" * 60)
+    print("🤖 ORCHESTRATOR: Re-researching task...")
+    print(f"   Task: {task.text}")
+    print("=" * 60)
+    
+    # Re-enrich the task
+    enriched_tasks, reasoning_trace = await karma_orchestrator.enrich_tasks([task])
+    
+    if enriched_tasks:
+        enriched_task = enriched_tasks[0]
+        # Update task in database with new enrichment
+        await db_service.update_task_enrichment(task_id, enriched_task.enrichment.model_dump() if enriched_task.enrichment else None)
+        return enriched_task.model_dump()
+    
+    return task_data
 
 
 @router.post("/task/breakdown")

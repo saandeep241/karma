@@ -5,7 +5,7 @@ import { LoadingSpinner } from '../components';
 import { api } from '../api/client';
 import type { TaskCategory, TaskPriority } from '../types';
 
-type EnergyLevel = 'low' | 'medium' | 'high';
+type EnergyLevel = 'very_low' | 'low' | 'medium' | 'high' | 'very_high';
 
 export function AddPage() {
   const navigate = useNavigate();
@@ -136,23 +136,25 @@ export function AddPage() {
             <label className="block text-sm font-medium mb-3">
               ⚡ How's your energy level?
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-5 gap-2">
               {[
-                { value: 'low' as EnergyLevel, label: '😴 Low', desc: 'Tired' },
-                { value: 'medium' as EnergyLevel, label: '😊 Medium', desc: 'Normal' },
-                { value: 'high' as EnergyLevel, label: '🔥 High', desc: 'Energized' },
+                { value: 'very_low' as EnergyLevel, label: '😵', desc: 'Exhausted' },
+                { value: 'low' as EnergyLevel, label: '😴', desc: 'Tired' },
+                { value: 'medium' as EnergyLevel, label: '😊', desc: 'Normal' },
+                { value: 'high' as EnergyLevel, label: '😄', desc: 'Good' },
+                { value: 'very_high' as EnergyLevel, label: '🔥', desc: 'Energized' },
               ].map((option) => (
                 <button
                   key={option.value}
                   type="button"
                   onClick={() => setEnergyLevel(option.value)}
-                  className={`py-3 px-3 rounded-lg border transition-all text-center ${
+                  className={`py-3 px-2 rounded-lg border transition-all text-center ${
                     energyLevel === option.value
                       ? 'bg-[var(--karma-accent)] text-white border-[var(--karma-accent)]'
                       : 'border-[var(--karma-border)] hover:border-[var(--karma-accent)]'
                   }`}
                 >
-                  <div className="text-lg">{option.label.split(' ')[0]}</div>
+                  <div className="text-xl">{option.label}</div>
                   <div className="text-xs mt-1 opacity-80">{option.desc}</div>
                 </button>
               ))}

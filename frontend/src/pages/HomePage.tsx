@@ -5,7 +5,7 @@ import { QuickWinCard, LoadingSpinner, EmptyState } from '../components';
 import { api } from '../api/client';
 import type { QuickWin } from '../types';
 
-type EnergyLevel = 'low' | 'medium' | 'high';
+type EnergyLevel = 'very_low' | 'low' | 'medium' | 'high' | 'very_high';
 
 interface UserContext {
   available_minutes: number;
@@ -17,13 +17,14 @@ export function HomePage() {
   const [currentQuickWin, setCurrentQuickWin] = useState<QuickWin | null>(null);
   const [showAddedMessage, setShowAddedMessage] = useState(false);
   const [showContextForm, setShowContextForm] = useState(false);
+  const [showQuickWin, setShowQuickWin] = useState(false); // Start with landing page
   const [editableTaskText, setEditableTaskText] = useState('');
   const [userContext, setUserContext] = useState<UserContext>({
     available_minutes: 15,
     energy_level: 'medium',
   });
 
-  // Fetch quick win
+  // Fetch quick win - only when showQuickWin is true
   const { 
     data: quickWinData,
     isLoading: isLoadingQuickWin, 
@@ -32,15 +33,15 @@ export function HomePage() {
   } = useQuery({
     queryKey: ['quickwin'],
     queryFn: api.getQuickWin,
-    enabled: !currentQuickWin,
+    enabled: showQuickWin && !currentQuickWin,
   });
 
   // Update current quick win when data changes
   useEffect(() => {
-    if (quickWinData?.quickwin && !currentQuickWin) {
+    if (quickWinData?.quickwin && !currentQuickWin && showQuickWin) {
       setCurrentQuickWin(quickWinData.quickwin);
     }
-  }, [quickWinData, currentQuickWin]);
+  }, [quickWinData, currentQuickWin, showQuickWin]);
 
   // Add task mutation (was complete, now just adds to task list)
   const addTaskMutation = useMutation({
@@ -58,7 +59,20 @@ export function HomePage() {
 
   const handleSkip = () => {
     setCurrentQuickWin(null);
-    refetchQuickWin();
+    // Small delay then refetch
+    setTimeout(() => refetchQuickWin(), 100);
+  };
+
+  const handleSuggestTask = () => {
+    setShowQuickWin(true);
+    setCurrentQuickWin(null);
+    setTimeout(() => refetchQuickWin(), 100);
+  };
+
+  const handleBackToLanding = () => {
+    setShowQuickWin(false);
+    setCurrentQuickWin(null);
+    setShowContextForm(false);
   };
 
   const handleAddTask = () => {
@@ -95,13 +109,36 @@ export function HomePage() {
           <span className="gradient-text">Make every moment count</span>
         </h1>
         <p className="text-[var(--karma-text-muted)] text-lg max-w-xl mx-auto">
-          Got a few minutes? Here's something productive you can accomplish right now.
+          {showQuickWin 
+            ? "Here's a task suggestion for you. Add it or skip to see another!"
+            : "Got a few minutes? Let me suggest something productive you can do right now."
+          }
         </p>
       </div>
 
-      {/* Quick Win Section */}
+      {/* Main Content */}
       <div className="max-w-lg mx-auto">
-        {showContextForm && currentQuickWin ? (
+        {/* Landing Page - Suggest a Task Button */}
+        {!showQuickWin && !showContextForm && (
+          <div className="card text-center animate-fade-in">
+            <div className="text-6xl mb-6">🎯</div>
+            <h2 className="font-serif text-2xl italic mb-4">
+              Ready to be productive?
+            </h2>
+            <p className="text-[var(--karma-text-muted)] mb-6">
+              Click below and I'll suggest a quick task based on your available time and energy.
+            </p>
+            <button
+              onClick={handleSuggestTask}
+              className="btn btn-primary text-lg px-8 py-4"
+            >
+              ✨ Suggest a Task
+            </button>
+          </div>
+        )}
+
+        {/* Quick Win Flow */}
+        {showQuickWin && showContextForm && currentQuickWin ? (
           <div className="card animate-fade-in">
             <h2 className="font-serif text-2xl italic mb-4 text-center">
               📝 Quick Context
@@ -154,22 +191,24 @@ export function HomePage() {
               <label className="block text-sm font-medium mb-3">
                 ⚡ How's your energy level?
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-5 gap-2">
                 {[
-                  { value: 'low' as EnergyLevel, label: '😴 Low', desc: 'Tired' },
-                  { value: 'medium' as EnergyLevel, label: '😊 Medium', desc: 'Normal' },
-                  { value: 'high' as EnergyLevel, label: '🔥 High', desc: 'Energized' },
+                  { value: 'very_low' as EnergyLevel, label: '😵', desc: 'Exhausted' },
+                  { value: 'low' as EnergyLevel, label: '😴', desc: 'Tired' },
+                  { value: 'medium' as EnergyLevel, label: '😊', desc: 'Normal' },
+                  { value: 'high' as EnergyLevel, label: '😄', desc: 'Good' },
+                  { value: 'very_high' as EnergyLevel, label: '🔥', desc: 'Energized' },
                 ].map((option) => (
                   <button
                     key={option.value}
                     onClick={() => setUserContext(prev => ({ ...prev, energy_level: option.value }))}
-                    className={`py-3 px-3 rounded-lg border transition-all text-center ${
+                    className={`py-3 px-2 rounded-lg border transition-all text-center ${
                       userContext.energy_level === option.value
                         ? 'bg-[var(--karma-accent)] text-white border-[var(--karma-accent)]'
                         : 'border-[var(--karma-border)] hover:border-[var(--karma-accent)]'
                     }`}
                   >
-                    <div className="text-lg">{option.label.split(' ')[0]}</div>
+                    <div className="text-xl">{option.label}</div>
                     <div className="text-xs mt-1 opacity-80">{option.desc}</div>
                   </button>
                 ))}
@@ -193,36 +232,50 @@ export function HomePage() {
               </button>
             </div>
           </div>
-        ) : showAddedMessage ? (
+        ) : showQuickWin && showAddedMessage ? (
           <div className="card text-center animate-fade-in border-[var(--karma-success)]">
             <div className="text-5xl mb-4">✅</div>
             <h2 className="font-serif text-2xl italic mb-2 text-[var(--karma-success)]">
               Task Added!
             </h2>
-            <p className="text-[var(--karma-text-muted)]">
+            <p className="text-[var(--karma-text-muted)] mb-4">
               Go to <Link to="/browse" className="text-[var(--karma-accent)] underline">Browse Tasks</Link> to manage and complete it.
             </p>
+            <button
+              onClick={handleBackToLanding}
+              className="btn btn-secondary"
+            >
+              ← Back to Home
+            </button>
           </div>
-        ) : isLoadingQuickWin ? (
-          <LoadingSpinner text="Finding a quick win for you..." />
-        ) : quickWinError ? (
+        ) : showQuickWin && isLoadingQuickWin ? (
+          <LoadingSpinner text="Finding a task for you..." />
+        ) : showQuickWin && quickWinError ? (
           <EmptyState
             icon="⚠️"
-            title="Couldn't load quick win"
+            title="Couldn't load suggestion"
             description="There was an error loading suggestions. Make sure the backend is running."
             actionLabel="Try Again"
             onAction={() => refetchQuickWin()}
           />
-        ) : currentQuickWin ? (
-          <QuickWinCard
-            quickwin={currentQuickWin}
-            onAddTask={handleAddTask}
-            onSkip={handleSkip}
-            isLoading={addTaskMutation.isPending}
-          />
-        ) : (
+        ) : showQuickWin && currentQuickWin ? (
+          <div className="space-y-4">
+            <QuickWinCard
+              quickwin={currentQuickWin}
+              onAddTask={handleAddTask}
+              onSkip={handleSkip}
+              isLoading={addTaskMutation.isPending}
+            />
+            <button
+              onClick={handleBackToLanding}
+              className="w-full btn btn-ghost text-sm"
+            >
+              ← Back to Home
+            </button>
+          </div>
+        ) : showQuickWin ? (
           <LoadingSpinner text="Loading..." />
-        )}
+        ) : null}
       </div>
 
       {/* Quick Actions */}

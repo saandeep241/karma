@@ -139,6 +139,21 @@ async def update_subtask_status(subtask_id: str, status: str) -> dict:
         return {"success": False, "error": "Subtask not found"}
 
 
+async def save_subtasks(task_id: str, subtasks_data: List[dict]) -> List[dict]:
+    """Save subtasks for a task (alias for create_subtasks)."""
+    return await create_subtasks(task_id, subtasks_data)
+
+
+async def update_task_enrichment(task_id: str, enrichment: Optional[dict]) -> dict:
+    """Update a task's enrichment data."""
+    async with async_session() as session:
+        repo = TaskRepository(session)
+        task = await repo.update(task_id, {"enrichment": enrichment})
+        if task:
+            return {"success": True, "task_id": task_id}
+        return {"success": False, "error": "Task not found"}
+
+
 # Feedback operations
 
 async def record_feedback(

@@ -1,0 +1,82 @@
+{
+  "id": "c934c889-d483-4b12-9657-c45de26a89cd",
+  "text": "dome stusdgdf task",
+  "date": "2026-01-09",
+  "status": "pending",
+  "priority": "medium",
+  "category": "other",
+  "tags": [],
+  "created_at": "2026-01-10T04:33:43.365739",
+  "started_at": null,
+  "completed_at": "2026-01-10T04:34:20.872686",
+  "estimated_minutes": 15,
+  "energy_required": "medium",
+  "emotional_fit": null,
+  "task_type": "general",
+  "ai_reasoning": null,
+  "enrichment": {
+    "task_id": "c934c889-d483-4b12-9657-c45de26a89cd",
+    "task_text": "dome stusdgdf task",
+    "enriched_at": "2026-01-09T22:33:43.366158",
+    "enriched_by": "TaskEnricher",
+    "tools_used": [],
+    "estimated_minutes": 15,
+    "steps": [
+      "Step 1: Get started with the task",
+      "Step 2: Work on the main part",
+      "Step 3: Review and finish"
+    ],
+    "probable_questions": [
+      "What resources do I need?",
+      "How long will this take?"
+    ],
+    "suggested_resources": [],
+    "potential_blockers": [],
+    "success_criteria": [
+      "Task is completed"
+    ],
+    "category": "other",
+    "tags": [],
+    "agent_notes": null,
+    "is_dummy": true
+  },
+  "times_suggested": 0,
+  "times_accepted": 0,
+  "times_rejected": 0,
+  "breakdown": null,
+  "feedback_history": [],
+  "subtasks": [
+    {
+      "id": "51337a20-bf04-4554-8e00-dc56f4eb8049",
+      "step_number": 1,
+      "instruction": "Get started by opening/preparing what you need",
+      "estimated_minutes": 10,
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "ai_reasoning": null
+    },
+    {
+      "id": "d28f3d4f-2bec-43dd-b6fc-c957d8f9a9b6",
+      "step_number": 2,
+      "instruction": "Work on the main part of the task",
+      "estimated_minutes": 10,
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "ai_reasoning": null
+    },
+    {
+      "id": "22763813-69ca-4a56-ac84-3dd6544a2f92",
+      "step_number": 3,
+      "instruction": "Review what you've done",
+      "estimated_minutes": 10,
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "ai_reasoning": null
+    }
+  ],
+  "subtasks_generated": true,
+  "is_dummy": true
+}
