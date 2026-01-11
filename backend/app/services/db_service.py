@@ -318,7 +318,7 @@ async def add_subtask(task_id: str, text: str, estimated_minutes: int = 5) -> di
     async with async_session() as session:
         # Check if task exists
         task_repo = TaskRepository(session)
-        task = await task_repo.get(task_id)
+        task = await task_repo.get_by_id(task_id)
         if not task:
             return {"success": False, "error": "Task not found"}
         

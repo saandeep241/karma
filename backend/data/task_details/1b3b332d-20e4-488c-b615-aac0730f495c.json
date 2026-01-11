@@ -1,0 +1,82 @@
+{
+  "id": "1b3b332d-20e4-488c-b615-aac0730f495c",
+  "text": "ok testng the app ",
+  "date": "2026-01-10",
+  "status": "pending",
+  "priority": "medium",
+  "category": "other",
+  "tags": [],
+  "created_at": "2026-01-11T03:50:05.513713",
+  "started_at": null,
+  "completed_at": null,
+  "estimated_minutes": 15,
+  "energy_required": "medium",
+  "emotional_fit": null,
+  "task_type": "general",
+  "ai_reasoning": null,
+  "enrichment": {
+    "task_id": "1b3b332d-20e4-488c-b615-aac0730f495c",
+    "task_text": "ok testng the app ",
+    "enriched_at": "2026-01-10T21:50:05.514184",
+    "enriched_by": "TaskEnricher",
+    "tools_used": [],
+    "estimated_minutes": 15,
+    "steps": [
+      "Step 1: Get started with the task",
+      "Step 2: Work on the main part",
+      "Step 3: Review and finish"
+    ],
+    "probable_questions": [
+      "What resources do I need?",
+      "How long will this take?"
+    ],
+    "suggested_resources": [],
+    "potential_blockers": [],
+    "success_criteria": [
+      "Task is completed"
+    ],
+    "category": "other",
+    "tags": [],
+    "agent_notes": null,
+    "is_dummy": true
+  },
+  "times_suggested": 0,
+  "times_accepted": 0,
+  "times_rejected": 0,
+  "breakdown": null,
+  "feedback_history": [],
+  "subtasks": [
+    {
+      "id": "2a70da98-56d7-452e-9544-27d101978d94",
+      "step_number": 1,
+      "instruction": "Get started by opening/preparing what you need",
+      "estimated_minutes": 10,
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "ai_reasoning": null
+    },
+    {
+      "id": "e9bff568-1c63-481e-9b4e-7d5683e7d7f3",
+      "step_number": 2,
+      "instruction": "Work on the main part of the task",
+      "estimated_minutes": 10,
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "ai_reasoning": null
+    },
+    {
+      "id": "83620a80-9a18-4e8c-a64a-cd1b6e5d9538",
+      "step_number": 3,
+      "instruction": "Review what you've done",
+      "estimated_minutes": 10,
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "ai_reasoning": null
+    }
+  ],
+  "subtasks_generated": true,
+  "is_dummy": true
+}
