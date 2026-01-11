@@ -1,0 +1,64 @@
+2026-01-10 19:35:24,861 | INFO     | karma.main | lifespan:27 | ============================================================
+2026-01-10 19:35:24,861 | INFO     | karma.main | lifespan:28 | Starting Karma - Smart Task Suggestions - BACKEND API
+2026-01-10 19:35:24,861 | INFO     | karma.main | lifespan:29 | ============================================================
+2026-01-10 19:35:24,865 | INFO     | karma.main | lifespan:33 | Database initialized: /Users/sandy/karma/backend/data/karma.db
+2026-01-10 19:35:24,865 | WARNING  | karma.main | lifespan:39 | DUMMY MODE: AI is disabled
+2026-01-10 19:35:24,865 | WARNING  | karma.main | lifespan:41 | Set OPENAI_KARMA=true to enable AI
+2026-01-10 19:35:24,865 | INFO     | karma.main | lifespan:45 | CORS enabled for: http://localhost:5173
+2026-01-10 19:35:24,865 | WARNING  | karma.main | lifespan:51 | Authentication: DISABLED (dev mode)
+2026-01-10 19:35:24,865 | INFO     | karma.main | lifespan:53 | ============================================================
+2026-01-10 19:35:24,865 | INFO     | karma.main | lifespan:54 | Karma Backend is ready to accept requests!
+2026-01-10 19:35:24,865 | INFO     | karma.main | lifespan:55 | ============================================================
+2026-01-10 19:36:22,012 | INFO     | karma.api | dispatch:36 | [b2499e8e] --> GET /api/tasks/all (client: 127.0.0.1)
+2026-01-10 19:36:22,013 | DEBUG    | karma.api | get_all_tasks:116 | Fetching all tasks
+2026-01-10 19:36:22,028 | INFO     | karma.api | get_all_tasks:120 | Retrieved 2 tasks across 2 dates
+2026-01-10 19:36:22,029 | INFO     | karma.api | dispatch:62 | [b2499e8e] <-- ✓ 200 (16.6ms) GET /api/tasks/all
+2026-01-10 19:37:31,441 | INFO     | karma.main | lifespan:59 | Shutting down Karma Backend
+2026-01-10 19:40:31,316 | INFO     | karma.main | lifespan:27 | ============================================================
+2026-01-10 19:40:31,316 | INFO     | karma.main | lifespan:28 | Starting Karma - Smart Task Suggestions - BACKEND API
+2026-01-10 19:40:31,316 | INFO     | karma.main | lifespan:29 | ============================================================
+2026-01-10 19:40:31,320 | INFO     | karma.main | lifespan:33 | Database initialized: /Users/sandy/karma/backend/data/karma.db
+2026-01-10 19:40:31,320 | WARNING  | karma.main | lifespan:39 | DUMMY MODE: AI is disabled
+2026-01-10 19:40:31,320 | WARNING  | karma.main | lifespan:41 | Set OPENAI_KARMA=true to enable AI
+2026-01-10 19:40:31,320 | INFO     | karma.main | lifespan:45 | CORS enabled for: http://localhost:5173
+2026-01-10 19:40:31,320 | WARNING  | karma.main | lifespan:51 | Authentication: DISABLED (dev mode)
+2026-01-10 19:40:31,320 | INFO     | karma.main | lifespan:53 | ============================================================
+2026-01-10 19:40:31,320 | INFO     | karma.main | lifespan:54 | Karma Backend is ready to accept requests!
+2026-01-10 19:40:31,320 | INFO     | karma.main | lifespan:55 | ============================================================
+2026-01-10 19:40:50,121 | INFO     | karma.main | lifespan:27 | ============================================================
+2026-01-10 19:40:50,121 | INFO     | karma.main | lifespan:28 | Starting Karma - Smart Task Suggestions - BACKEND API
+2026-01-10 19:40:50,121 | INFO     | karma.main | lifespan:29 | ============================================================
+2026-01-10 19:40:50,125 | INFO     | karma.main | lifespan:33 | Database initialized: /Users/sandy/karma/backend/data/karma.db
+2026-01-10 19:40:50,125 | WARNING  | karma.main | lifespan:39 | DUMMY MODE: AI is disabled
+2026-01-10 19:40:50,125 | WARNING  | karma.main | lifespan:41 | Set OPENAI_KARMA=true to enable AI
+2026-01-10 19:40:50,125 | INFO     | karma.main | lifespan:45 | CORS enabled for: http://localhost:5173
+2026-01-10 19:40:50,125 | WARNING  | karma.main | lifespan:51 | Authentication: DISABLED (dev mode)
+2026-01-10 19:40:50,125 | INFO     | karma.main | lifespan:53 | ============================================================
+2026-01-10 19:40:50,125 | INFO     | karma.main | lifespan:54 | Karma Backend is ready to accept requests!
+2026-01-10 19:40:50,125 | INFO     | karma.main | lifespan:55 | ============================================================
+2026-01-10 19:41:06,981 | INFO     | karma.api | dispatch:36 | [2d4b81db] --> GET /api/tasks/stats (client: 127.0.0.1)
+2026-01-10 19:41:06,992 | INFO     | karma.api | dispatch:62 | [2d4b81db] <-- ✓ 200 (11.6ms) GET /api/tasks/stats
+2026-01-10 19:41:07,782 | INFO     | karma.api | dispatch:36 | [2160eb8e] --> GET /api/tasks/stats (client: 127.0.0.1)
+2026-01-10 19:41:07,786 | INFO     | karma.api | dispatch:62 | [2160eb8e] <-- ✓ 200 (4.8ms) GET /api/tasks/stats
+2026-01-10 19:41:11,598 | INFO     | karma.api | dispatch:36 | [03fca9ca] --> GET /api/tasks/all (client: 127.0.0.1)
+2026-01-10 19:41:11,599 | DEBUG    | karma.api | get_all_tasks:116 | Fetching all tasks
+2026-01-10 19:41:11,608 | INFO     | karma.api | get_all_tasks:120 | Retrieved 2 tasks across 2 dates
+2026-01-10 19:41:11,609 | INFO     | karma.api | dispatch:62 | [03fca9ca] <-- ✓ 200 (10.6ms) GET /api/tasks/all
+2026-01-10 19:41:15,485 | INFO     | karma.api | dispatch:36 | [7a218f53] --> PUT /api/tasks/e4583d9f-1845-42a7-b0d7-2fe83472396e/status (client: 127.0.0.1)
+2026-01-10 19:41:15,486 | INFO     | karma.api | update_task_status_endpoint:161 | Updating task e4583d9f-1845-42a7-b0d7-2fe83472396e status to: pending
+2026-01-10 19:41:15,495 | INFO     | karma.api | update_task_status_endpoint:174 | Task e4583d9f-1845-42a7-b0d7-2fe83472396e status updated to pending
+2026-01-10 19:41:15,495 | INFO     | karma.api | dispatch:62 | [7a218f53] <-- ✓ 200 (10.2ms) PUT /api/tasks/e4583d9f-1845-42a7-b0d7-2fe83472396e/status
+2026-01-10 19:41:15,505 | INFO     | karma.api | dispatch:36 | [552662c6] --> GET /api/tasks/all (client: 127.0.0.1)
+2026-01-10 19:41:15,505 | DEBUG    | karma.api | get_all_tasks:116 | Fetching all tasks
+2026-01-10 19:41:15,509 | INFO     | karma.api | get_all_tasks:120 | Retrieved 2 tasks across 2 dates
+2026-01-10 19:41:15,509 | INFO     | karma.api | dispatch:62 | [552662c6] <-- ✓ 200 (4.8ms) GET /api/tasks/all
+2026-01-10 19:41:18,963 | INFO     | karma.api | dispatch:36 | [63a1c04a] --> GET /api/quickwin/get (client: 127.0.0.1)
+2026-01-10 19:41:18,965 | INFO     | karma.api | dispatch:62 | [63a1c04a] <-- ✓ 200 (1.6ms) GET /api/quickwin/get
+2026-01-10 19:41:19,061 | INFO     | karma.api | dispatch:36 | [8382d33c] --> GET /api/quickwin/get (client: 127.0.0.1)
+2026-01-10 19:41:19,063 | INFO     | karma.api | dispatch:62 | [8382d33c] <-- ✓ 200 (1.7ms) GET /api/quickwin/get
+2026-01-10 19:41:31,807 | INFO     | karma.api | dispatch:36 | [5295bdb3] --> POST /api/quickwin/complete (client: 127.0.0.1)
+2026-01-10 19:41:31,808 | DEBUG    | karma.database | save_task:31 | Saving task: this is a another test task...
+2026-01-10 19:41:31,814 | INFO     | karma.database | save_task:36 | Task saved: 778275ed-4e9b-45ef-9959-2a0196acfc47
+2026-01-10 19:41:31,815 | INFO     | karma.api | dispatch:62 | [5295bdb3] <-- ✓ 200 (8.3ms) POST /api/quickwin/complete
+2026-01-10 19:41:33,326 | INFO     | karma.api | dispatch:36 | [0d9c5626] --> GET /api/quickwin/get (client: 127.0.0.1)
+2026-01-10 19:41:33,327 | INFO     | karma.api | dispatch:62 | [0d9c5626] <-- ✓ 200 (1.0ms) GET /api/quickwin/get

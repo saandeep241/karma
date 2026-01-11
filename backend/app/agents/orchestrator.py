@@ -18,12 +18,15 @@ from app.services.tools import (
     save_tasks, save_reasoning, record_user_feedback,
     get_learning_insights, save_task_with_details
 )
+from app.logging_config import get_ai_logger
 
 from .task_analyzer import TaskAnalyzerAgent
 from .task_suggester import TaskSuggesterAgent
 from .task_enricher import TaskEnricherAgent
 from .quickwin_agent import QuickWinAgent
 from .breakdown_agent import BreakdownAgent
+
+logger = get_ai_logger()
 
 
 class KarmaOrchestrator:
@@ -42,12 +45,12 @@ class KarmaOrchestrator:
         self.quickwin = QuickWinAgent()
         self.breakdown = BreakdownAgent()
         
-        print("🤖 Karma Orchestrator initialized with 5 specialized agents:")
-        print("   - TaskAnalyzer: Analyzes task properties")
-        print("   - TaskSuggester: Matches tasks to context")
-        print("   - TaskEnricher: Adds research & resources")
-        print("   - QuickWin: Generates micro-tasks")
-        print("   - Breakdown: Creates step-by-step plans")
+        logger.info("Karma Orchestrator initialized with 5 specialized agents")
+        logger.debug("  - TaskAnalyzer: Analyzes task properties")
+        logger.debug("  - TaskSuggester: Matches tasks to context")
+        logger.debug("  - TaskEnricher: Adds research & resources")
+        logger.debug("  - QuickWin: Generates micro-tasks")
+        logger.debug("  - Breakdown: Creates step-by-step plans")
     
     async def analyze_tasks(self, tasks: list[Task]) -> tuple[list[Task], dict]:
         """
@@ -60,7 +63,7 @@ class KarmaOrchestrator:
         Returns:
             Tuple of (analyzed_tasks, reasoning_trace)
         """
-        print(f"\n🎯 Orchestrator: Analyzing {len(tasks)} tasks...")
+        logger.info(f"Orchestrator: Analyzing {len(tasks)} tasks")
         
         analyzed_tasks = []
         all_reasoning = {

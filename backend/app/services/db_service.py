@@ -15,6 +15,9 @@ from app.database.repository import (
     QuickWinHistoryRepository,
 )
 from app.database.models import TaskModel, SubtaskModel
+from app.logging_config import get_db_logger
+
+logger = get_db_logger()
 
 
 async def save_task(task_data: dict, date: str = None) -> dict:
@@ -24,27 +27,36 @@ async def save_task(task_data: dict, date: str = None) -> dict:
     elif not task_data.get("date"):
         task_data["date"] = datetime.now().strftime("%Y-%m-%d")
     
+    task_text = task_data.get("text", "")[:50]
+    logger.debug(f"Saving task: {task_text}...")
+    
     async with async_session() as session:
         repo = TaskRepository(session)
         task = await repo.create(task_data)
+        logger.info(f"Task saved: {task.id}")
         return {"success": True, "task_id": task.id, "task": task.to_dict()}
 
 
 async def get_task(task_id: str) -> Optional[dict]:
     """Get a task by ID."""
+    logger.debug(f"Fetching task: {task_id}")
     async with async_session() as session:
         repo = TaskRepository(session)
         task = await repo.get_by_id(task_id)
         if task:
+            logger.debug(f"Task found: {task_id}")
             return task.to_dict()
+        logger.debug(f"Task not found: {task_id}")
         return None
 
 
 async def get_all_tasks() -> List[dict]:
     """Get all tasks."""
+    logger.debug("Fetching all tasks")
     async with async_session() as session:
         repo = TaskRepository(session)
         tasks = await repo.get_all()
+        logger.debug(f"Retrieved {len(tasks)} tasks")
         return [t.to_dict() for t in tasks]
 
 

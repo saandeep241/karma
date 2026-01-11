@@ -10,6 +10,9 @@ from app.models import (
 from app.services.session_store import session_store
 from app.services.tools import get_all_tasks_by_date
 from app.agents import karma_orchestrator
+from app.logging_config import get_api_logger
+
+logger = get_api_logger()
 
 router = APIRouter(prefix="/api", tags=["suggestions"])
 
@@ -21,10 +24,7 @@ async def get_suggestion_from_storage(request: SuggestFromStorageRequest):
     If a task has subtasks, suggests the next pending subtask.
     Otherwise suggests the full task.
     """
-    print("\n" + "=" * 60)
-    print("🤖 ORCHESTRATOR: Finding best task from storage...")
-    print(f"   Time: {request.time_available}min, Energy: {request.energy_level}")
-    print("=" * 60)
+    logger.info(f"Getting suggestion from storage (time: {request.time_available}min, energy: {request.energy_level})")
     
     # Load all tasks from storage
     tasks_by_date = get_all_tasks_by_date()

@@ -11,41 +11,52 @@ from app.config import get_settings
 from app.routes import tasks_router, suggestions_router, sessions_router
 from app.database.connection import init_db, DATABASE_PATH
 from app.auth import is_auth_enabled, CLERK_ENABLED
+from app.logging_config import setup_logging, get_logger
+from app.middleware import RequestLoggingMiddleware, SlowRequestLoggingMiddleware
+
+# Initialize logging
+setup_logging(level="DEBUG", log_to_file=True)
+logger = get_logger("main")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     settings = get_settings()
-    print(f"\n🚀 Starting {settings.app_name} - BACKEND API")
-    print("=" * 60)
+    
+    logger.info("=" * 60)
+    logger.info(f"Starting {settings.app_name} - BACKEND API")
+    logger.info("=" * 60)
     
     # Initialize database
     await init_db()
-    print(f"📦 Database: {DATABASE_PATH}")
+    logger.info(f"Database initialized: {DATABASE_PATH}")
     
     # Check AI mode
     if settings.is_ai_enabled:
-        print("✅ AI MODE: ENABLED (OPENAI_KARMA=true)")
-        print(f"   Model: {settings.openai_model}")
+        logger.info(f"AI MODE: ENABLED (model: {settings.openai_model})")
     else:
-        print("⚠️  DUMMY MODE: AI is disabled")
+        logger.warning("DUMMY MODE: AI is disabled")
         if not settings.openai_karma.lower() == "true":
-            print("   → Set OPENAI_KARMA=true to enable AI")
+            logger.warning("Set OPENAI_KARMA=true to enable AI")
         if not settings.openai_api_key:
-            print("   → Set OPENAI_API_KEY to your API key")
+            logger.warning("Set OPENAI_API_KEY to your API key")
     
-    print(f"🌐 CORS enabled for: {settings.frontend_url}")
+    logger.info(f"CORS enabled for: {settings.frontend_url}")
     
     # Check auth status
     if CLERK_ENABLED:
-        print("🔐 Authentication: ENABLED (Clerk)")
+        logger.info("Authentication: ENABLED (Clerk)")
     else:
-        print("⚠️  Authentication: DISABLED (dev mode)")
+        logger.warning("Authentication: DISABLED (dev mode)")
     
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("Karma Backend is ready to accept requests!")
+    logger.info("=" * 60)
+    
     yield
-    print("👋 Shutting down Karma Backend")
+    
+    logger.info("Shutting down Karma Backend")
 
 
 app = FastAPI(
@@ -70,6 +81,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add logging middleware (order matters - added after CORS)
+app.add_middleware(SlowRequestLoggingMiddleware)
+app.add_middleware(RequestLoggingMiddleware)
 
 # Include routers
 app.include_router(tasks_router)
