@@ -136,10 +136,38 @@ export async function updateSubtaskStatus(
   status: SubtaskStatus
 ): Promise<{ success: boolean }> {
   return apiFetch<{ success: boolean }>(
-    `/tasks/${taskId}/subtasks/${subtaskId}/status`,
+    `/task/subtask/status`,
     {
-      method: 'PUT',
-      body: JSON.stringify({ status }),
+      method: 'POST',
+      body: JSON.stringify({ task_id: taskId, subtask_id: subtaskId, status }),
+    }
+  );
+}
+
+export async function updateSubtaskProgress(
+  taskId: string,
+  subtaskId: string,
+  progress: number
+): Promise<{ success: boolean; parent_completed: boolean }> {
+  return apiFetch<{ success: boolean; parent_completed: boolean }>(
+    `/task/subtask/progress`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ task_id: taskId, subtask_id: subtaskId, progress }),
+    }
+  );
+}
+
+export async function addSubtask(
+  taskId: string,
+  text: string,
+  estimatedMinutes: number = 5
+): Promise<{ success: boolean; subtask: import('../types').Subtask }> {
+  return apiFetch<{ success: boolean; subtask: import('../types').Subtask }>(
+    `/task/subtask/add`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ task_id: taskId, text, estimated_minutes: estimatedMinutes }),
     }
   );
 }
@@ -222,6 +250,8 @@ export const api = {
   breakdownTask,
   getTaskSubtasks,
   updateSubtaskStatus,
+  updateSubtaskProgress,
+  addSubtask,
   reResearchTask,
   getSuggestion,
   getStoredSuggestion,

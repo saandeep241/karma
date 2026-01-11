@@ -215,18 +215,140 @@ async def get_subtasks(task_id: str) -> List[dict]:
 
 
 async def update_subtask_status(subtask_id: str, status: str) -> dict:
-    """Update a subtask's status."""
+    """Update a subtask's status and auto-complete parent task if all subtasks are done."""
     async with async_session() as session:
-        repo = SubtaskRepository(session)
-        subtask = await repo.update_status(subtask_id, status)
-        if subtask:
-            return {"success": True, "subtask_id": subtask_id, "new_status": status}
-        return {"success": False, "error": "Subtask not found"}
+        subtask_repo = SubtaskRepository(session)
+        subtask = await subtask_repo.update_status(subtask_id, status)
+        
+        if not subtask:
+            return {"success": False, "error": "Subtask not found"}
+        
+        task_id = subtask.task_id
+        parent_completed = False
+        
+        # Check if all subtasks are now completed
+        if status == "completed":
+            all_subtasks = await subtask_repo.get_by_task(task_id)
+            all_completed = all(s.status == "completed" for s in all_subtasks)
+            
+            if all_completed and len(all_subtasks) > 0:
+                # Auto-complete the parent task
+                task_repo = TaskRepository(session)
+                from datetime import datetime
+                await task_repo.update(task_id, {
+                    "status": "completed",
+                    "completed_at": datetime.utcnow()
+                })
+                parent_completed = True
+                logger.info(f"Auto-completed parent task {task_id} - all {len(all_subtasks)} subtasks done")
+        
+        return {
+            "success": True, 
+            "subtask_id": subtask_id, 
+            "new_status": status,
+            "parent_completed": parent_completed,
+            "task_id": task_id
+        }
 
 
 async def save_subtasks(task_id: str, subtasks_data: List[dict]) -> List[dict]:
     """Save subtasks for a task (alias for create_subtasks)."""
     return await create_subtasks(task_id, subtasks_data)
+
+
+async def update_subtask_progress(subtask_id: str, progress: int) -> dict:
+    """Update a subtask's progress (0-100). Auto-completes if progress is 100."""
+    async with async_session() as session:
+        subtask_repo = SubtaskRepository(session)
+        
+        # Get the subtask first
+        from sqlalchemy import select
+        from app.database.models import SubtaskModel
+        result = await session.execute(
+            select(SubtaskModel).where(SubtaskModel.id == subtask_id)
+        )
+        subtask = result.scalar_one_or_none()
+        
+        if not subtask:
+            return {"success": False, "error": "Subtask not found"}
+        
+        task_id = subtask.task_id
+        
+        # Update progress and status based on progress value
+        new_status = "completed" if progress == 100 else ("in_progress" if progress > 0 else "pending")
+        subtask.progress = progress
+        subtask.status = new_status
+        if progress == 100:
+            from datetime import datetime
+            subtask.completed_at = datetime.utcnow()
+        else:
+            subtask.completed_at = None
+        
+        await session.commit()
+        
+        parent_completed = False
+        
+        # Check if all subtasks are now completed
+        if progress == 100:
+            all_subtasks = await subtask_repo.get_by_task(task_id)
+            all_completed = all(s.progress == 100 or s.status == "completed" for s in all_subtasks)
+            
+            if all_completed and len(all_subtasks) > 0:
+                task_repo = TaskRepository(session)
+                from datetime import datetime
+                await task_repo.update(task_id, {
+                    "status": "completed",
+                    "completed_at": datetime.utcnow()
+                })
+                parent_completed = True
+                logger.info(f"Auto-completed parent task {task_id} - all {len(all_subtasks)} subtasks at 100%")
+        
+        return {
+            "success": True,
+            "subtask_id": subtask_id,
+            "progress": progress,
+            "new_status": new_status,
+            "parent_completed": parent_completed,
+            "task_id": task_id
+        }
+
+
+async def add_subtask(task_id: str, text: str, estimated_minutes: int = 5) -> dict:
+    """Add a manual subtask to a task."""
+    async with async_session() as session:
+        # Check if task exists
+        task_repo = TaskRepository(session)
+        task = await task_repo.get(task_id)
+        if not task:
+            return {"success": False, "error": "Task not found"}
+        
+        # Get current subtasks to determine order
+        subtask_repo = SubtaskRepository(session)
+        existing_subtasks = await subtask_repo.get_by_task(task_id)
+        next_order = len(existing_subtasks) + 1
+        
+        # Create the new subtask
+        import uuid
+        subtask_data = {
+            "text": text,
+            "instruction": text,
+            "estimated_minutes": estimated_minutes,
+            "order": next_order,
+            "status": "pending",
+            "progress": 0
+        }
+        
+        subtasks = await subtask_repo.create_many(task_id, [subtask_data])
+        
+        # Mark task as having subtasks
+        await task_repo.update(task_id, {"subtasks_generated": True})
+        
+        logger.info(f"Added manual subtask to task {task_id}: {text[:50]}...")
+        
+        return {
+            "success": True,
+            "subtask": subtasks[0].to_dict() if subtasks else None
+        }
 
 
 async def update_task_enrichment(task_id: str, enrichment: Optional[dict]) -> dict:

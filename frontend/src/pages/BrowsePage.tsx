@@ -90,6 +90,26 @@ export function BrowsePage() {
     },
   });
 
+  // Update subtask progress mutation
+  const updateSubtaskProgressMutation = useMutation({
+    mutationFn: ({ taskId, subtaskId, progress }: { taskId: string; subtaskId: string; progress: number }) => {
+      return api.updateSubtaskProgress(taskId, subtaskId, progress);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
+  });
+
+  // Add subtask mutation
+  const addSubtaskMutation = useMutation({
+    mutationFn: ({ taskId, text }: { taskId: string; text: string }) => {
+      return api.addSubtask(taskId, text);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
+  });
+
   // Re-research mutation
   const reResearchMutation = useMutation({
     mutationFn: (taskId: string) => api.reResearchTask(taskId),
@@ -104,6 +124,14 @@ export function BrowsePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       setShowDeleteConfirm(false);
+    },
+  });
+
+  // Delete single task mutation
+  const deleteTaskMutation = useMutation({
+    mutationFn: (taskId: string) => api.deleteTask(taskId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
     },
   });
 
@@ -376,9 +404,16 @@ export function BrowsePage() {
                       task={task}
                       onStatusChange={handleStatusChange}
                       onSubtaskToggle={handleSubtaskToggle}
+                      onSubtaskProgressChange={(taskId, subtaskId, progress) => 
+                        updateSubtaskProgressMutation.mutate({ taskId, subtaskId, progress })
+                      }
+                      onAddSubtask={(taskId, text) => 
+                        addSubtaskMutation.mutate({ taskId, text })
+                      }
                       onBreakdown={handleBreakdown}
                       onReResearch={handleReResearch}
                       onArchive={() => archiveTaskMutation.mutate(task.id)}
+                      onDelete={(taskId) => deleteTaskMutation.mutate(taskId)}
                       isLoading={breakingDownTaskId === task.id}
                     />
                   ))}
@@ -399,9 +434,16 @@ export function BrowsePage() {
                 task={task}
                 onStatusChange={handleStatusChange}
                 onSubtaskToggle={handleSubtaskToggle}
+                onSubtaskProgressChange={(taskId, subtaskId, progress) => 
+                  updateSubtaskProgressMutation.mutate({ taskId, subtaskId, progress })
+                }
+                onAddSubtask={(taskId, text) => 
+                  addSubtaskMutation.mutate({ taskId, text })
+                }
                 onBreakdown={handleBreakdown}
                 onReResearch={handleReResearch}
                 onArchive={() => archiveTaskMutation.mutate(task.id)}
+                onDelete={(taskId) => deleteTaskMutation.mutate(taskId)}
                 isLoading={breakingDownTaskId === task.id}
               />
             </div>

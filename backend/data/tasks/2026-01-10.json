@@ -135,8 +135,90 @@
       ],
       "subtasks_generated": true,
       "is_dummy": true
+    },
+    {
+      "id": "10ff2750-7997-4515-91ae-21ec08db4a1a",
+      "text": "this is atemp task",
+      "date": "2026-01-10",
+      "status": "pending",
+      "priority": "medium",
+      "category": "other",
+      "tags": [],
+      "created_at": "2026-01-11T03:32:39.657342",
+      "started_at": null,
+      "completed_at": null,
+      "estimated_minutes": 15,
+      "energy_required": "medium",
+      "emotional_fit": null,
+      "task_type": "general",
+      "ai_reasoning": null,
+      "enrichment": {
+        "task_id": "10ff2750-7997-4515-91ae-21ec08db4a1a",
+        "task_text": "this is atemp task",
+        "enriched_at": "2026-01-10T21:32:39.657598",
+        "enriched_by": "TaskEnricher",
+        "tools_used": [],
+        "estimated_minutes": 15,
+        "steps": [
+          "Step 1: Get started with the task",
+          "Step 2: Work on the main part",
+          "Step 3: Review and finish"
+        ],
+        "probable_questions": [
+          "What resources do I need?",
+          "How long will this take?"
+        ],
+        "suggested_resources": [],
+        "potential_blockers": [],
+        "success_criteria": [
+          "Task is completed"
+        ],
+        "category": "other",
+        "tags": [],
+        "agent_notes": null,
+        "is_dummy": true
+      },
+      "times_suggested": 0,
+      "times_accepted": 0,
+      "times_rejected": 0,
+      "breakdown": null,
+      "feedback_history": [],
+      "subtasks": [
+        {
+          "id": "8bf64233-ef9b-4846-bc9f-3d786795c8f3",
+          "step_number": 1,
+          "instruction": "Get started by opening/preparing what you need",
+          "estimated_minutes": 10,
+          "status": "pending",
+          "started_at": null,
+          "completed_at": null,
+          "ai_reasoning": null
+        },
+        {
+          "id": "4e696c5b-2a1b-4db2-98e2-f9c0a619a319",
+          "step_number": 2,
+          "instruction": "Work on the main part of the task",
+          "estimated_minutes": 10,
+          "status": "pending",
+          "started_at": null,
+          "completed_at": null,
+          "ai_reasoning": null
+        },
+        {
+          "id": "df7716c2-a1b0-4d40-bd60-d4184d8c43b3",
+          "step_number": 3,
+          "instruction": "Review what you've done",
+          "estimated_minutes": 10,
+          "status": "pending",
+          "started_at": null,
+          "completed_at": null,
+          "ai_reasoning": null
+        }
+      ],
+      "subtasks_generated": true,
+      "is_dummy": true
     }
   ],
-  "updated_at": "2026-01-10T21:22:04.551911",
-  "count": 2
+  "updated_at": "2026-01-10T21:32:42.259765",
+  "count": 3
 }

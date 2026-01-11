@@ -23,6 +23,7 @@ export interface Subtask {
   status: SubtaskStatus;
   estimated_minutes: number;
   order: number;
+  progress?: number; // 0-100 percentage
 }
 
 // Task Model

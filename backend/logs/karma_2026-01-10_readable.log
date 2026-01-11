@@ -232,3 +232,73 @@
 2026-01-10 21:22:04,550 | DEBUG    | karma.database | get_task:47 | Task found: cf1b2ff8-9c55-49ac-90ed-c377c1062520
 2026-01-10 21:22:04,551 | DEBUG    | karma.api | breakdown_task_by_id:216 | Task to break down: do something that people dont shout ...
 2026-01-10 21:22:04,552 | ERROR    | karma.api | dispatch:75 | [1675d484] <-- 💥 ERROR (4.2ms) POST /api/tasks/cf1b2ff8-9c55-49ac-90ed-c377c1062520/breakdown: AttributeError: 'TaskBreakdown' object has no attribute 'subtasks'
+2026-01-10 21:24:52,507 | INFO     | karma.main | lifespan:59 | Shutting down Karma Backend
+2026-01-10 21:31:46,532 | INFO     | karma.main | lifespan:27 | ============================================================
+2026-01-10 21:31:46,532 | INFO     | karma.main | lifespan:28 | Starting Karma - Smart Task Suggestions - BACKEND API
+2026-01-10 21:31:46,532 | INFO     | karma.main | lifespan:29 | ============================================================
+2026-01-10 21:31:46,535 | INFO     | karma.main | lifespan:33 | Database initialized: /Users/sandy/karma/backend/data/karma.db
+2026-01-10 21:31:46,535 | WARNING  | karma.main | lifespan:39 | DUMMY MODE: AI is disabled
+2026-01-10 21:31:46,535 | WARNING  | karma.main | lifespan:41 | Set OPENAI_KARMA=true to enable AI
+2026-01-10 21:31:46,535 | INFO     | karma.main | lifespan:45 | CORS enabled for: http://localhost:5173
+2026-01-10 21:31:46,535 | WARNING  | karma.main | lifespan:51 | Authentication: DISABLED (dev mode)
+2026-01-10 21:31:46,535 | INFO     | karma.main | lifespan:53 | ============================================================
+2026-01-10 21:31:46,536 | INFO     | karma.main | lifespan:54 | Karma Backend is ready to accept requests!
+2026-01-10 21:31:46,536 | INFO     | karma.main | lifespan:55 | ============================================================
+2026-01-10 21:31:50,073 | INFO     | karma.api | dispatch:36 | [2e8d58e7] --> GET /api/tasks/all (client: 127.0.0.1)
+2026-01-10 21:31:50,074 | DEBUG    | karma.api | get_all_tasks:116 | Fetching all tasks
+2026-01-10 21:31:50,144 | INFO     | karma.api | get_all_tasks:120 | Retrieved 1 tasks across 1 dates
+2026-01-10 21:31:50,145 | INFO     | karma.api | dispatch:62 | [2e8d58e7] <-- ✓ 200 (71.7ms) GET /api/tasks/all
+2026-01-10 21:31:51,356 | INFO     | karma.api | dispatch:36 | [ea327cea] --> GET /api/tasks/all (client: 127.0.0.1)
+2026-01-10 21:31:51,357 | DEBUG    | karma.api | get_all_tasks:116 | Fetching all tasks
+2026-01-10 21:31:51,361 | INFO     | karma.api | get_all_tasks:120 | Retrieved 1 tasks across 1 dates
+2026-01-10 21:31:51,362 | INFO     | karma.api | dispatch:62 | [ea327cea] <-- ✓ 200 (5.7ms) GET /api/tasks/all
+2026-01-10 21:31:55,620 | INFO     | karma.api | dispatch:36 | [eaa1795b] --> GET /api/tasks/continuable (client: 127.0.0.1)
+2026-01-10 21:31:55,622 | INFO     | karma.api | get_continuable_tasks:141 | Fetching continuable tasks
+2026-01-10 21:31:55,622 | DEBUG    | karma.database | get_continuable_tasks:139 | Fetching continuable tasks
+2026-01-10 21:31:55,628 | INFO     | karma.database | get_continuable_tasks:185 | Found 0 in-progress, 0 almost-done tasks
+2026-01-10 21:31:55,629 | INFO     | karma.api | dispatch:62 | [eaa1795b] <-- ✓ 200 (8.4ms) GET /api/tasks/continuable
+2026-01-10 21:32:04,722 | INFO     | karma.api | dispatch:36 | [c57151ff] --> GET /api/quickwin/get (client: 127.0.0.1)
+2026-01-10 21:32:04,723 | INFO     | karma.api | dispatch:62 | [c57151ff] <-- ✓ 200 (1.1ms) GET /api/quickwin/get
+2026-01-10 21:32:04,818 | INFO     | karma.api | dispatch:36 | [1ebbde4e] --> GET /api/quickwin/get (client: 127.0.0.1)
+2026-01-10 21:32:04,819 | INFO     | karma.api | dispatch:62 | [1ebbde4e] <-- ✓ 200 (0.9ms) GET /api/quickwin/get
+2026-01-10 21:32:05,881 | INFO     | karma.api | dispatch:36 | [1b666cd7] --> POST /api/quickwin/complete (client: 127.0.0.1)
+2026-01-10 21:32:05,882 | DEBUG    | karma.database | save_task:31 | Saving task: Clear 5 items from your desk...
+2026-01-10 21:32:05,887 | INFO     | karma.database | save_task:36 | Task saved: ac8abf59-cc35-4b52-8771-a2c3b9bd35ed
+2026-01-10 21:32:05,888 | INFO     | karma.api | dispatch:62 | [1b666cd7] <-- ✓ 200 (7.2ms) POST /api/quickwin/complete
+2026-01-10 21:32:07,396 | INFO     | karma.api | dispatch:36 | [bd6c3dc8] --> GET /api/quickwin/get (client: 127.0.0.1)
+2026-01-10 21:32:07,397 | INFO     | karma.api | dispatch:62 | [bd6c3dc8] <-- ✓ 200 (1.4ms) GET /api/quickwin/get
+2026-01-10 21:32:08,238 | INFO     | karma.api | dispatch:36 | [b0d8290b] --> GET /api/tasks/all (client: 127.0.0.1)
+2026-01-10 21:32:08,239 | DEBUG    | karma.api | get_all_tasks:116 | Fetching all tasks
+2026-01-10 21:32:08,254 | INFO     | karma.api | get_all_tasks:120 | Retrieved 2 tasks across 1 dates
+2026-01-10 21:32:08,255 | INFO     | karma.api | dispatch:62 | [b0d8290b] <-- ✓ 200 (17.9ms) GET /api/tasks/all
+2026-01-10 21:32:27,601 | INFO     | karma.api | dispatch:36 | [e184310c] --> DELETE /api/tasks/delete-all (client: 127.0.0.1)
+2026-01-10 21:32:27,605 | INFO     | karma.api | dispatch:62 | [e184310c] <-- ✓ 200 (4.6ms) DELETE /api/tasks/delete-all
+2026-01-10 21:32:27,613 | INFO     | karma.api | dispatch:36 | [45c1d31a] --> GET /api/tasks/all (client: 127.0.0.1)
+2026-01-10 21:32:27,613 | DEBUG    | karma.api | get_all_tasks:116 | Fetching all tasks
+2026-01-10 21:32:27,618 | INFO     | karma.api | get_all_tasks:120 | Retrieved 0 tasks across 0 dates
+2026-01-10 21:32:27,619 | INFO     | karma.api | dispatch:62 | [45c1d31a] <-- ✓ 200 (5.8ms) GET /api/tasks/all
+2026-01-10 21:32:39,655 | INFO     | karma.api | dispatch:36 | [b89a0b6b] --> POST /api/tasks/add (client: 127.0.0.1)
+2026-01-10 21:32:39,657 | INFO     | karma.api | add_single_task:80 | Adding new task: this is atemp task...
+2026-01-10 21:32:39,657 | DEBUG    | karma.api | add_single_task:87 | Task category set to: other
+2026-01-10 21:32:39,657 | DEBUG    | karma.api | add_single_task:92 | Sending task to orchestrator for analysis
+2026-01-10 21:32:39,657 | INFO     | karma.ai | analyze_tasks:66 | Orchestrator: Analyzing 1 tasks
+2026-01-10 21:32:39,660 | DEBUG    | karma.database | save_task:31 | Saving task: this is atemp task...
+2026-01-10 21:32:39,665 | INFO     | karma.database | save_task:36 | Task saved: 10ff2750-7997-4515-91ae-21ec08db4a1a
+2026-01-10 21:32:39,666 | INFO     | karma.api | add_single_task:102 | Task added successfully: 10ff2750-7997-4515-91ae-21ec08db4a1a
+2026-01-10 21:32:39,667 | INFO     | karma.api | dispatch:62 | [b89a0b6b] <-- ✓ 200 (11.3ms) POST /api/tasks/add
+2026-01-10 21:32:39,683 | INFO     | karma.api | dispatch:36 | [ee37b7da] --> GET /api/tasks/all (client: 127.0.0.1)
+2026-01-10 21:32:39,684 | DEBUG    | karma.api | get_all_tasks:116 | Fetching all tasks
+2026-01-10 21:32:39,693 | INFO     | karma.api | get_all_tasks:120 | Retrieved 1 tasks across 1 dates
+2026-01-10 21:32:39,696 | INFO     | karma.api | dispatch:62 | [ee37b7da] <-- ✓ 200 (13.8ms) GET /api/tasks/all
+2026-01-10 21:32:42,254 | INFO     | karma.api | dispatch:36 | [aea8b6c0] --> POST /api/tasks/10ff2750-7997-4515-91ae-21ec08db4a1a/breakdown (client: 127.0.0.1)
+2026-01-10 21:32:42,255 | INFO     | karma.api | breakdown_task_by_id:207 | Breaking down task: 10ff2750-7997-4515-91ae-21ec08db4a1a
+2026-01-10 21:32:42,255 | DEBUG    | karma.database | get_task:42 | Fetching task: 10ff2750-7997-4515-91ae-21ec08db4a1a
+2026-01-10 21:32:42,258 | DEBUG    | karma.database | get_task:47 | Task found: 10ff2750-7997-4515-91ae-21ec08db4a1a
+2026-01-10 21:32:42,259 | DEBUG    | karma.api | breakdown_task_by_id:216 | Task to break down: this is atemp task...
+2026-01-10 21:32:42,285 | INFO     | karma.api | breakdown_task_by_id:240 | Task 10ff2750-7997-4515-91ae-21ec08db4a1a broken down into 3 subtasks
+2026-01-10 21:32:42,286 | INFO     | karma.api | dispatch:62 | [aea8b6c0] <-- ✓ 200 (31.1ms) POST /api/tasks/10ff2750-7997-4515-91ae-21ec08db4a1a/breakdown
+2026-01-10 21:32:42,293 | INFO     | karma.api | dispatch:36 | [10699fef] --> GET /api/tasks/all (client: 127.0.0.1)
+2026-01-10 21:32:42,294 | DEBUG    | karma.api | get_all_tasks:116 | Fetching all tasks
+2026-01-10 21:32:42,297 | INFO     | karma.api | get_all_tasks:120 | Retrieved 1 tasks across 1 dates
+2026-01-10 21:32:42,298 | INFO     | karma.api | dispatch:62 | [10699fef] <-- ✓ 200 (4.6ms) GET /api/tasks/all
+2026-01-10 21:32:43,868 | INFO     | karma.main | lifespan:59 | Shutting down Karma Backend

@@ -221,18 +221,38 @@ async def breakdown_task_by_id(task_id: str):
         time_available=30
     )
     
-    # Save subtasks to database
+    # Save subtasks to database (TaskBreakdown has 'steps' not 'subtasks')
     subtask_count = 0
-    if breakdown and breakdown.subtasks:
-        subtask_count = len(breakdown.subtasks)
-        await db_service.save_subtasks(task_id, [s.model_dump() for s in breakdown.subtasks])
+    if breakdown and breakdown.steps:
+        subtask_count = len(breakdown.steps)
+        # Convert TaskStep to subtask format
+        subtasks_data = [
+            {
+                "text": step.instruction,
+                "instruction": step.instruction,
+                "estimated_minutes": step.estimated_minutes or 5,
+                "order": step.step_number,
+                "status": "pending"
+            }
+            for step in breakdown.steps
+        ]
+        await db_service.save_subtasks(task_id, subtasks_data)
         logger.info(f"Task {task_id} broken down into {subtask_count} subtasks")
     else:
         logger.warning(f"No subtasks generated for task {task_id}")
     
     return {
         "task_id": task_id,
-        "subtasks": [s.model_dump() for s in breakdown.subtasks] if breakdown else [],
+        "subtasks": [
+            {
+                "text": step.instruction,
+                "instruction": step.instruction,
+                "estimated_minutes": step.estimated_minutes or 5,
+                "order": step.step_number,
+                "status": "pending"
+            }
+            for step in breakdown.steps
+        ] if breakdown and breakdown.steps else [],
         "reasoning": reasoning_trace
     }
 
@@ -391,6 +411,23 @@ async def reresearch_task(request: ReResearchRequest):
     }
 
 
+@router.delete("/tasks/{task_id}")
+async def delete_task(task_id: str):
+    """Delete a single task."""
+    logger.info(f"Deleting task: {task_id}")
+    
+    result = await db_service.delete_task(task_id)
+    
+    if not result.get("success"):
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    return {
+        "success": True,
+        "task_id": task_id,
+        "message": "Task deleted"
+    }
+
+
 @router.delete("/tasks/delete-all")
 async def delete_all_tasks():
     """Delete all tasks - DANGER ZONE."""
@@ -411,7 +448,7 @@ async def delete_all_tasks():
 
 @router.post("/task/subtask/status")
 async def update_subtask_status_endpoint(request: SubtaskStatusRequest):
-    """Update a subtask's status."""
+    """Update a subtask's status. Auto-completes parent task if all subtasks are done."""
     valid_statuses = ["pending", "in_progress", "completed", "skipped"]
     if request.status not in valid_statuses:
         raise HTTPException(
@@ -427,7 +464,55 @@ async def update_subtask_status_endpoint(request: SubtaskStatusRequest):
         "success": True,
         "task_id": request.task_id,
         "subtask_id": request.subtask_id,
-        "new_status": request.status
+        "new_status": request.status,
+        "parent_completed": result.get("parent_completed", False)
+    }
+
+
+class SubtaskProgressRequest(BaseModel):
+    """Request to update subtask progress."""
+    task_id: str
+    subtask_id: str
+    progress: int  # 0-100
+
+
+@router.post("/task/subtask/progress")
+async def update_subtask_progress_endpoint(request: SubtaskProgressRequest):
+    """Update a subtask's progress (0-100). Auto-completes if progress is 100."""
+    if not 0 <= request.progress <= 100:
+        raise HTTPException(status_code=400, detail="Progress must be between 0 and 100")
+    
+    result = await db_service.update_subtask_progress(request.subtask_id, request.progress)
+    if not result.get("success"):
+        raise HTTPException(status_code=404, detail=result.get("error", "Subtask not found"))
+    
+    return {
+        "success": True,
+        "task_id": request.task_id,
+        "subtask_id": request.subtask_id,
+        "progress": request.progress,
+        "parent_completed": result.get("parent_completed", False)
+    }
+
+
+class AddSubtaskRequest(BaseModel):
+    """Request to add a manual subtask."""
+    task_id: str
+    text: str
+    estimated_minutes: int = 5
+
+
+@router.post("/task/subtask/add")
+async def add_subtask_endpoint(request: AddSubtaskRequest):
+    """Add a manual subtask to a task."""
+    result = await db_service.add_subtask(request.task_id, request.text, request.estimated_minutes)
+    if not result.get("success"):
+        raise HTTPException(status_code=404, detail=result.get("error", "Task not found"))
+    
+    return {
+        "success": True,
+        "task_id": request.task_id,
+        "subtask": result.get("subtask")
     }
 
 

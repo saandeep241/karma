@@ -113,6 +113,7 @@ class SubtaskModel(Base):
     # Status and order
     status: Mapped[str] = mapped_column(String(20), default="pending")
     order: Mapped[int] = mapped_column(Integer, default=0)
+    progress: Mapped[int] = mapped_column(Integer, default=0)  # 0-100 percentage
     
     # Time estimate
     estimated_minutes: Mapped[int] = mapped_column(Integer, default=5)
@@ -136,6 +137,7 @@ class SubtaskModel(Base):
             "instruction": self.instruction,
             "status": self.status,
             "order": self.order,
+            "progress": self.progress,
             "estimated_minutes": self.estimated_minutes,
             "ai_reasoning": self.ai_reasoning,
             "created_at": self.created_at.isoformat() if self.created_at else None,
