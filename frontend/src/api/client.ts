@@ -182,6 +182,31 @@ export async function getLearningInsights(): Promise<{ insights: string[] }> {
   return apiFetch<{ insights: string[] }>('/session/insights');
 }
 
+// Continuable Tasks (in-progress and almost done)
+export interface SubtaskProgress {
+  completed: number;
+  total: number;
+  percentage: number;
+}
+
+export interface ContinuableTask extends Task {
+  subtask_progress?: SubtaskProgress;
+}
+
+export interface ContinuableTasksResponse {
+  in_progress: ContinuableTask[];
+  almost_done: ContinuableTask[];
+  total_continuable: number;
+}
+
+export async function getContinuableTasks(): Promise<ContinuableTasksResponse> {
+  return apiFetch<ContinuableTasksResponse>('/tasks/continuable');
+}
+
+export async function getInProgressTasks(): Promise<{ tasks: Task[]; count: number }> {
+  return apiFetch<{ tasks: Task[]; count: number }>('/tasks/in-progress');
+}
+
 // Export all functions as a single API object for convenience
 export const api = {
   checkHealth,
@@ -204,6 +229,8 @@ export const api = {
   completeQuickWin,
   getStats,
   getLearningInsights,
+  getContinuableTasks,
+  getInProgressTasks,
 };
 
 export default api;

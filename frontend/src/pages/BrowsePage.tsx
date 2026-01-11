@@ -8,6 +8,36 @@ type FilterStatus = 'all' | TaskStatus;
 type SortBy = 'created' | 'priority' | 'time' | 'date';
 type ViewTab = 'all' | 'work' | 'personal';
 
+// Status filter options
+const STATUS_FILTERS: { value: FilterStatus; label: string; icon: string }[] = [
+  { value: 'all', label: 'All', icon: '📋' },
+  { value: 'pending', label: 'Pending', icon: '⏳' },
+  { value: 'in_progress', label: 'In Progress', icon: '🔄' },
+  { value: 'completed', label: 'Done', icon: '✅' },
+];
+
+// Category filter options
+const CATEGORY_FILTERS: { value: TaskCategory | 'all'; label: string; icon: string }[] = [
+  { value: 'all', label: 'All', icon: '📁' },
+  { value: 'work', label: 'Work', icon: '💼' },
+  { value: 'personal', label: 'Personal', icon: '🏠' },
+  { value: 'health', label: 'Health', icon: '🏃' },
+  { value: 'learning', label: 'Learning', icon: '📚' },
+  { value: 'errands', label: 'Errands', icon: '🛒' },
+  { value: 'creative', label: 'Creative', icon: '🎨' },
+  { value: 'social', label: 'Social', icon: '👥' },
+  { value: 'finance', label: 'Finance', icon: '💰' },
+  { value: 'home', label: 'Home', icon: '🏡' },
+];
+
+// Sort options
+const SORT_OPTIONS: { value: SortBy; label: string; icon: string }[] = [
+  { value: 'date', label: 'Date', icon: '📅' },
+  { value: 'created', label: 'Newest', icon: '🕐' },
+  { value: 'priority', label: 'Priority', icon: '🎯' },
+  { value: 'time', label: 'Time', icon: '⏱️' },
+];
+
 export function BrowsePage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<ViewTab>('all');
@@ -249,49 +279,67 @@ export function BrowsePage() {
         ))}
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        {/* Status Filter */}
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value as FilterStatus)}
-          className="input w-auto"
-        >
-          <option value="all">All Status</option>
-          <option value="pending">⏳ Pending</option>
-          <option value="in_progress">🔄 In Progress</option>
-          <option value="completed">✅ Completed</option>
-        </select>
+      {/* Status Filter - Chips */}
+      <div className="space-y-2">
+        <label className="text-xs font-medium text-[var(--karma-text-muted)] uppercase tracking-wide">Status</label>
+        <div className="flex flex-wrap gap-2">
+          {STATUS_FILTERS.map((status) => (
+            <button
+              key={status.value}
+              onClick={() => setFilterStatus(status.value)}
+              className={`px-3 py-1.5 rounded-full text-sm flex items-center gap-1.5 transition-all ${
+                filterStatus === status.value
+                  ? 'bg-[var(--karma-accent)] text-white shadow-sm'
+                  : 'bg-[var(--karma-surface)] text-[var(--karma-text-muted)] hover:bg-[var(--karma-bg-secondary)] border border-[var(--karma-border)]'
+              }`}
+            >
+              <span>{status.icon}</span>
+              <span>{status.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
-        {/* Category Filter */}
-        <select
-          value={filterCategory}
-          onChange={(e) => setFilterCategory(e.target.value as TaskCategory | 'all')}
-          className="input w-auto"
-        >
-          <option value="all">All Categories</option>
-          <option value="work">💼 Work</option>
-          <option value="personal">🏠 Personal</option>
-          <option value="health">🏃 Health</option>
-          <option value="learning">📚 Learning</option>
-          <option value="errands">🛒 Errands</option>
-          <option value="creative">🎨 Creative</option>
-          <option value="social">👥 Social</option>
-          <option value="finance">💰 Finance</option>
-          <option value="home">🏡 Home</option>
-        </select>
+      {/* Category Filter - Scrollable Chips */}
+      <div className="space-y-2">
+        <label className="text-xs font-medium text-[var(--karma-text-muted)] uppercase tracking-wide">Category</label>
+        <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+          {CATEGORY_FILTERS.map((cat) => (
+            <button
+              key={cat.value}
+              onClick={() => setFilterCategory(cat.value)}
+              className={`px-3 py-1.5 rounded-full text-sm flex items-center gap-1.5 whitespace-nowrap transition-all ${
+                filterCategory === cat.value
+                  ? 'bg-[var(--karma-accent)] text-white shadow-sm'
+                  : 'bg-[var(--karma-surface)] text-[var(--karma-text-muted)] hover:bg-[var(--karma-bg-secondary)] border border-[var(--karma-border)]'
+              }`}
+            >
+              <span>{cat.icon}</span>
+              <span>{cat.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
-        {/* Sort */}
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as SortBy)}
-          className="input w-auto"
-        >
-          <option value="date">📅 By Date</option>
-          <option value="created">🕐 Newest First</option>
-          <option value="priority">🎯 By Priority</option>
-          <option value="time">⏱️ By Time</option>
-        </select>
+      {/* Sort - Chips */}
+      <div className="space-y-2">
+        <label className="text-xs font-medium text-[var(--karma-text-muted)] uppercase tracking-wide">Sort by</label>
+        <div className="flex flex-wrap gap-2">
+          {SORT_OPTIONS.map((sort) => (
+            <button
+              key={sort.value}
+              onClick={() => setSortBy(sort.value)}
+              className={`px-3 py-1.5 rounded-full text-sm flex items-center gap-1.5 transition-all ${
+                sortBy === sort.value
+                  ? 'bg-[var(--karma-accent)] text-white shadow-sm'
+                  : 'bg-[var(--karma-surface)] text-[var(--karma-text-muted)] hover:bg-[var(--karma-bg-secondary)] border border-[var(--karma-border)]'
+              }`}
+            >
+              <span>{sort.icon}</span>
+              <span>{sort.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Task List */}

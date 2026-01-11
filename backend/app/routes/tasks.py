@@ -132,6 +132,25 @@ async def get_stats():
     return stats
 
 
+@router.get("/tasks/continuable")
+async def get_continuable_tasks():
+    """
+    Get tasks that user can continue working on.
+    Returns in-progress tasks and tasks that are almost done (>50% subtasks completed).
+    """
+    logger.info("Fetching continuable tasks")
+    result = await db_service.get_continuable_tasks()
+    return result
+
+
+@router.get("/tasks/in-progress")
+async def get_in_progress_tasks():
+    """Get all tasks currently in progress."""
+    logger.info("Fetching in-progress tasks")
+    tasks = await db_service.get_in_progress_tasks()
+    return {"tasks": tasks, "count": len(tasks)}
+
+
 @router.get("/tasks/date/{date}")
 async def get_tasks_by_date(date: str):
     """Get tasks for a specific date."""

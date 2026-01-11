@@ -118,6 +118,79 @@ async def get_task_stats() -> dict:
         return await repo.get_stats()
 
 
+async def get_in_progress_tasks() -> List[dict]:
+    """Get all tasks that are in progress, sorted by most recently started."""
+    logger.debug("Fetching in-progress tasks")
+    async with async_session() as session:
+        repo = TaskRepository(session)
+        tasks = await repo.get_by_status("in_progress")
+        result = [t.to_dict() for t in tasks]
+        logger.info(f"Found {len(result)} in-progress tasks")
+        return result
+
+
+async def get_continuable_tasks() -> dict:
+    """
+    Get tasks that user can continue working on.
+    Returns:
+    - in_progress: Tasks currently being worked on
+    - almost_done: Tasks with subtasks where >50% are completed
+    """
+    logger.debug("Fetching continuable tasks")
+    async with async_session() as session:
+        repo = TaskRepository(session)
+        subtask_repo = SubtaskRepository(session)
+        
+        # Get in-progress tasks
+        in_progress_tasks = await repo.get_by_status("in_progress")
+        in_progress_list = []
+        
+        for task in in_progress_tasks:
+            task_dict = task.to_dict()
+            # Get subtasks for this task
+            subtasks = await subtask_repo.get_by_task(task.id)
+            if subtasks:
+                completed = sum(1 for s in subtasks if s.status == "completed")
+                total = len(subtasks)
+                task_dict["subtask_progress"] = {
+                    "completed": completed,
+                    "total": total,
+                    "percentage": round(completed / total * 100) if total > 0 else 0
+                }
+                task_dict["subtasks"] = [s.to_dict() for s in subtasks]
+            in_progress_list.append(task_dict)
+        
+        # Get tasks with subtasks that are >50% done but task not completed
+        almost_done_list = []
+        pending_tasks = await repo.get_by_status("pending")
+        
+        for task in pending_tasks:
+            subtasks = await subtask_repo.get_by_task(task.id)
+            if subtasks:
+                completed = sum(1 for s in subtasks if s.status == "completed")
+                total = len(subtasks)
+                percentage = round(completed / total * 100) if total > 0 else 0
+                
+                # If more than 50% done, it's almost finished
+                if percentage >= 50 and completed < total:
+                    task_dict = task.to_dict()
+                    task_dict["subtask_progress"] = {
+                        "completed": completed,
+                        "total": total,
+                        "percentage": percentage
+                    }
+                    task_dict["subtasks"] = [s.to_dict() for s in subtasks]
+                    almost_done_list.append(task_dict)
+        
+        logger.info(f"Found {len(in_progress_list)} in-progress, {len(almost_done_list)} almost-done tasks")
+        
+        return {
+            "in_progress": in_progress_list,
+            "almost_done": almost_done_list,
+            "total_continuable": len(in_progress_list) + len(almost_done_list)
+        }
+
+
 # Subtask operations
 
 async def create_subtasks(task_id: str, subtasks_data: List[dict]) -> List[dict]:

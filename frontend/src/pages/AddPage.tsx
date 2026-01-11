@@ -5,7 +5,27 @@ import { LoadingSpinner } from '../components';
 import { api } from '../api/client';
 import type { TaskCategory, TaskPriority } from '../types';
 
-type EnergyLevel = 'very_low' | 'low' | 'medium' | 'high' | 'very_high';
+// Category options with icons
+const CATEGORIES: { value: TaskCategory; label: string; icon: string }[] = [
+  { value: 'work', label: 'Work', icon: '💼' },
+  { value: 'personal', label: 'Personal', icon: '🏠' },
+  { value: 'health', label: 'Health', icon: '🏃' },
+  { value: 'learning', label: 'Learning', icon: '📚' },
+  { value: 'errands', label: 'Errands', icon: '🛒' },
+  { value: 'creative', label: 'Creative', icon: '🎨' },
+  { value: 'social', label: 'Social', icon: '👥' },
+  { value: 'finance', label: 'Finance', icon: '💰' },
+  { value: 'home', label: 'Home', icon: '🏡' },
+  { value: 'other', label: 'Other', icon: '📌' },
+];
+
+// Priority options with colors
+const PRIORITIES: { value: TaskPriority; label: string; color: string }[] = [
+  { value: 'low', label: 'Low', color: 'bg-green-500' },
+  { value: 'medium', label: 'Medium', color: 'bg-yellow-500' },
+  { value: 'high', label: 'High', color: 'bg-orange-500' },
+  { value: 'urgent', label: 'Urgent', color: 'bg-red-500' },
+];
 
 export function AddPage() {
   const navigate = useNavigate();
@@ -17,7 +37,7 @@ export function AddPage() {
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [category, setCategory] = useState<TaskCategory>('other');
   const [estimatedMinutes, setEstimatedMinutes] = useState(15);
-  const [energyLevel, setEnergyLevel] = useState<EnergyLevel>('medium');
+  const [dueDate, setDueDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
   // Add single task mutation
   const addTaskMutation = useMutation({
@@ -108,10 +128,63 @@ export function AddPage() {
             />
           </div>
 
-          {/* Time Available */}
+          {/* Due Date - Date Picker */}
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              📅 When do you want to do this?
+            </label>
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="w-full p-3 rounded-lg border border-[var(--karma-border)] bg-white focus:border-[var(--karma-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--karma-accent)]/20"
+              disabled={isLoading}
+            />
+            <div className="flex gap-2 mt-2">
+              <button
+                type="button"
+                onClick={() => setDueDate(new Date().toISOString().split('T')[0])}
+                className={`text-xs px-3 py-1 rounded-full border transition-all ${
+                  dueDate === new Date().toISOString().split('T')[0]
+                    ? 'bg-[var(--karma-accent)] text-white border-[var(--karma-accent)]'
+                    : 'border-[var(--karma-border)] hover:border-[var(--karma-accent)]'
+                }`}
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const tomorrow = new Date();
+                  tomorrow.setDate(tomorrow.getDate() + 1);
+                  setDueDate(tomorrow.toISOString().split('T')[0]);
+                }}
+                className={`text-xs px-3 py-1 rounded-full border transition-all ${
+                  dueDate === (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]; })()
+                    ? 'bg-[var(--karma-accent)] text-white border-[var(--karma-accent)]'
+                    : 'border-[var(--karma-border)] hover:border-[var(--karma-accent)]'
+                }`}
+              >
+                Tomorrow
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const nextWeek = new Date();
+                  nextWeek.setDate(nextWeek.getDate() + 7);
+                  setDueDate(nextWeek.toISOString().split('T')[0]);
+                }}
+                className="text-xs px-3 py-1 rounded-full border border-[var(--karma-border)] hover:border-[var(--karma-accent)] transition-all"
+              >
+                Next Week
+              </button>
+            </div>
+          </div>
+
+          {/* Time Estimate */}
           <div>
             <label className="block text-sm font-medium mb-3">
-              ⏱️ How much time do you have?
+              ⏱️ Estimated time
             </label>
             <div className="grid grid-cols-4 gap-2">
               {[5, 15, 30, 60].map((mins) => (
@@ -131,72 +204,53 @@ export function AddPage() {
             </div>
           </div>
 
-          {/* Energy Level */}
+          {/* Category - Chips/Tags */}
           <div>
             <label className="block text-sm font-medium mb-3">
-              ⚡ How's your energy level?
+              📁 Category
             </label>
-            <div className="grid grid-cols-5 gap-2">
-              {[
-                { value: 'very_low' as EnergyLevel, label: '😵', desc: 'Exhausted' },
-                { value: 'low' as EnergyLevel, label: '😴', desc: 'Tired' },
-                { value: 'medium' as EnergyLevel, label: '😊', desc: 'Normal' },
-                { value: 'high' as EnergyLevel, label: '😄', desc: 'Good' },
-                { value: 'very_high' as EnergyLevel, label: '🔥', desc: 'Energized' },
-              ].map((option) => (
+            <div className="flex flex-wrap gap-2">
+              {CATEGORIES.map((cat) => (
                 <button
-                  key={option.value}
+                  key={cat.value}
                   type="button"
-                  onClick={() => setEnergyLevel(option.value)}
-                  className={`py-3 px-2 rounded-lg border transition-all text-center ${
-                    energyLevel === option.value
+                  onClick={() => setCategory(cat.value)}
+                  disabled={isLoading}
+                  className={`px-3 py-2 rounded-full border transition-all text-sm flex items-center gap-1 ${
+                    category === cat.value
                       ? 'bg-[var(--karma-accent)] text-white border-[var(--karma-accent)]'
-                      : 'border-[var(--karma-border)] hover:border-[var(--karma-accent)]'
+                      : 'border-[var(--karma-border)] hover:border-[var(--karma-accent)] hover:bg-[var(--karma-bg-secondary)]'
                   }`}
                 >
-                  <div className="text-xl">{option.label}</div>
-                  <div className="text-xs mt-1 opacity-80">{option.desc}</div>
+                  <span>{cat.icon}</span>
+                  <span>{cat.label}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Category & Priority Row */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">📁 Category</label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value as TaskCategory)}
-                className="input"
-                disabled={isLoading}
-              >
-                <option value="work">💼 Work</option>
-                <option value="personal">🏠 Personal</option>
-                <option value="health">🏃 Health</option>
-                <option value="learning">📚 Learning</option>
-                <option value="errands">🛒 Errands</option>
-                <option value="creative">🎨 Creative</option>
-                <option value="social">👥 Social</option>
-                <option value="finance">💰 Finance</option>
-                <option value="home">🏡 Home</option>
-                <option value="other">📌 Other</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">🎯 Priority</label>
-              <select
-                value={priority}
-                onChange={(e) => setPriority(e.target.value as TaskPriority)}
-                className="input"
-                disabled={isLoading}
-              >
-                <option value="low">🟢 Low</option>
-                <option value="medium">🟡 Medium</option>
-                <option value="high">🟠 High</option>
-                <option value="urgent">🔴 Urgent</option>
-              </select>
+          {/* Priority - Visual Buttons */}
+          <div>
+            <label className="block text-sm font-medium mb-3">
+              🎯 Priority
+            </label>
+            <div className="grid grid-cols-4 gap-2">
+              {PRIORITIES.map((p) => (
+                <button
+                  key={p.value}
+                  type="button"
+                  onClick={() => setPriority(p.value)}
+                  disabled={isLoading}
+                  className={`py-3 px-4 rounded-lg border transition-all text-center ${
+                    priority === p.value
+                      ? 'border-[var(--karma-accent)] ring-2 ring-[var(--karma-accent)]/30'
+                      : 'border-[var(--karma-border)] hover:border-[var(--karma-accent)]'
+                  }`}
+                >
+                  <div className={`w-3 h-3 rounded-full ${p.color} mx-auto mb-1`} />
+                  <div className="text-sm font-medium">{p.label}</div>
+                </button>
+              ))}
             </div>
           </div>
 

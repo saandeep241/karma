@@ -53,8 +53,90 @@
       "subtasks": [],
       "subtasks_generated": false,
       "is_dummy": true
+    },
+    {
+      "id": "cf1b2ff8-9c55-49ac-90ed-c377c1062520",
+      "text": "do something that people dont shout ",
+      "date": "2026-01-10",
+      "status": "pending",
+      "priority": "medium",
+      "category": "other",
+      "tags": [],
+      "created_at": "2026-01-11T03:21:29.267216",
+      "started_at": null,
+      "completed_at": null,
+      "estimated_minutes": 15,
+      "energy_required": "medium",
+      "emotional_fit": null,
+      "task_type": "general",
+      "ai_reasoning": null,
+      "enrichment": {
+        "task_id": "cf1b2ff8-9c55-49ac-90ed-c377c1062520",
+        "task_text": "do something that people dont shout ",
+        "enriched_at": "2026-01-10T21:21:29.268858",
+        "enriched_by": "TaskEnricher",
+        "tools_used": [],
+        "estimated_minutes": 15,
+        "steps": [
+          "Step 1: Get started with the task",
+          "Step 2: Work on the main part",
+          "Step 3: Review and finish"
+        ],
+        "probable_questions": [
+          "What resources do I need?",
+          "How long will this take?"
+        ],
+        "suggested_resources": [],
+        "potential_blockers": [],
+        "success_criteria": [
+          "Task is completed"
+        ],
+        "category": "other",
+        "tags": [],
+        "agent_notes": null,
+        "is_dummy": true
+      },
+      "times_suggested": 0,
+      "times_accepted": 0,
+      "times_rejected": 0,
+      "breakdown": null,
+      "feedback_history": [],
+      "subtasks": [
+        {
+          "id": "cb60b4b5-f395-4029-8321-0620cd582e6d",
+          "step_number": 1,
+          "instruction": "Get started by opening/preparing what you need",
+          "estimated_minutes": 10,
+          "status": "pending",
+          "started_at": null,
+          "completed_at": null,
+          "ai_reasoning": null
+        },
+        {
+          "id": "6eb50832-edd3-47f3-ac57-65c1c7cf8b8c",
+          "step_number": 2,
+          "instruction": "Work on the main part of the task",
+          "estimated_minutes": 10,
+          "status": "pending",
+          "started_at": null,
+          "completed_at": null,
+          "ai_reasoning": null
+        },
+        {
+          "id": "bd6f7b52-e860-4916-8088-dfe631173782",
+          "step_number": 3,
+          "instruction": "Review what you've done",
+          "estimated_minutes": 10,
+          "status": "pending",
+          "started_at": null,
+          "completed_at": null,
+          "ai_reasoning": null
+        }
+      ],
+      "subtasks_generated": true,
+      "is_dummy": true
     }
   ],
-  "updated_at": "2026-01-10T00:25:50.387434",
-  "count": 1
+  "updated_at": "2026-01-10T21:22:04.551911",
+  "count": 2
 }
