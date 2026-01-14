@@ -197,6 +197,8 @@ class TaskRepository:
     
     async def get_stats(self) -> dict:
         """Get overall task statistics."""
+        from datetime import datetime, timedelta
+        
         # Basic counts
         result = await self.session.execute(
             select(
@@ -212,6 +214,24 @@ class TaskRepository:
         completed = row.completed or 0
         pending = row.pending or 0
         in_progress = row.in_progress or 0
+        
+        # Completed today
+        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_result = await self.session.execute(
+            select(func.count(TaskModel.id))
+            .where(TaskModel.status == "completed")
+            .where(TaskModel.completed_at >= today_start)
+        )
+        completed_today = today_result.scalar() or 0
+        
+        # Completed this week (last 7 days)
+        week_start = today_start - timedelta(days=7)
+        week_result = await self.session.execute(
+            select(func.count(TaskModel.id))
+            .where(TaskModel.status == "completed")
+            .where(TaskModel.completed_at >= week_start)
+        )
+        completed_this_week = week_result.scalar() or 0
         
         # Tasks by category
         category_result = await self.session.execute(
@@ -235,6 +255,8 @@ class TaskRepository:
             "completed": completed,
             "pending": pending,
             "in_progress": in_progress,
+            "completed_today": completed_today,
+            "completed_this_week": completed_this_week,
             "completion_rate": (completed / total * 100) if total > 0 else 0,
             "tasks_by_category": tasks_by_category,
             "tasks_by_priority": tasks_by_priority,

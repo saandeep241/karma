@@ -8,6 +8,46 @@ type Mood = 'enthusiastic' | 'neutral' | 'tired' | 'overwhelmed' | 'low_energy';
 type TimeAvailable = 5 | 10 | 15;
 type FlowStep = 'landing' | 'suggestion' | 'proceed_choice' | 'timer' | 'breakdown_timer' | 'completed';
 
+// Confetti colors
+const CONFETTI_COLORS = ['#0066cc', '#00ccff', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+
+// Confetti component
+function Confetti() {
+  const pieces = Array.from({ length: 50 }, (_, i) => ({
+    id: i,
+    left: Math.random() * 100,
+    delay: Math.random() * 2,
+    color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+    size: 8 + Math.random() * 8,
+  }));
+
+  return (
+    <div className="confetti">
+      {pieces.map((piece) => (
+        <div
+          key={piece.id}
+          className="confetti-piece"
+          style={{
+            left: `${piece.left}%`,
+            animationDelay: `${piece.delay}s`,
+            backgroundColor: piece.color,
+            width: piece.size,
+            height: piece.size,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// Get time-based greeting
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
 interface FocusModeProps {
   onExit: () => void;
 }
@@ -208,9 +248,10 @@ export function FocusMode({ onExit }: FocusModeProps) {
       // ============ LANDING - Time & Mood Selection ============
       case 'landing':
         return (
-          <div className="focus-card animate-fade-in">
+          <div className="focus-card animate-card-entrance">
+            <p className="text-center text-gray-500 mb-1">{getGreeting()} 👋</p>
             <h1 className="text-3xl md:text-4xl font-bold text-center mb-2">
-              <span className="bg-gradient-to-r from-blue-600 via-cyan-500 to-teal-400 bg-clip-text text-transparent">
+              <span className="shimmer-text">
                 Make it count.
               </span>
             </h1>
@@ -264,9 +305,14 @@ export function FocusMode({ onExit }: FocusModeProps) {
             <button
               onClick={fetchSuggestion}
               disabled={isLoadingTask}
-              className="w-full py-4 bg-[var(--karma-accent)] hover:bg-[var(--karma-accent-hover)] text-white font-semibold rounded-full transition-all disabled:opacity-50"
+              className="w-full py-4 bg-[var(--karma-accent)] hover:bg-[var(--karma-accent-hover)] text-white font-semibold rounded-full btn-lift disabled:opacity-50"
             >
-              {isLoadingTask ? 'Finding a task...' : "Let's go →"}
+              {isLoadingTask ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="spinner" style={{ width: '1rem', height: '1rem', borderWidth: '2px' }} />
+                  Finding a task...
+                </span>
+              ) : "Let's go →"}
             </button>
           </div>
         );
@@ -275,31 +321,36 @@ export function FocusMode({ onExit }: FocusModeProps) {
       case 'suggestion':
         if (!currentTask) return null;
         return (
-          <div className="focus-card animate-fade-in">
+          <div className="focus-card animate-card-entrance">
             {/* Sparkle icon */}
             <div className="flex justify-center mb-4">
-              <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center">
-                <span className="text-2xl">✨</span>
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-full flex items-center justify-center shadow-lg">
+                <span className="text-3xl">✨</span>
               </div>
             </div>
 
-            <h2 className="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-2">
+            <h2 className="text-xl md:text-2xl font-bold text-center text-gray-800 mb-3">
               Why don't you take {timeAvailable} minutes to...
             </h2>
             
-            <p className="text-xl text-[var(--karma-accent)] font-semibold text-center mb-3">
+            <p className="text-2xl md:text-3xl text-[var(--karma-accent)] font-bold text-center mb-4 leading-tight">
               {currentTask.text}?
             </p>
             
-            <p className="text-gray-500 text-center mb-8 max-w-sm mx-auto">
-              ~{currentTask.estimated_minutes} minutes • {currentTask.category}
-            </p>
+            <div className="flex items-center justify-center gap-3 mb-8">
+              <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-sm font-medium">
+                ⏱ ~{currentTask.estimated_minutes} min
+              </span>
+              <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm font-medium">
+                {currentTask.category}
+              </span>
+            </div>
 
             {/* Let's go button */}
             <button
               onClick={handleLetsGo}
               disabled={addTaskMutation.isPending}
-              className="w-full py-4 bg-[var(--karma-accent)] hover:bg-[var(--karma-accent-hover)] text-white font-semibold rounded-full transition-all mb-3 disabled:opacity-50"
+              className="w-full py-4 bg-[var(--karma-accent)] hover:bg-[var(--karma-accent-hover)] text-white font-semibold rounded-full btn-lift mb-3 disabled:opacity-50"
             >
               {addTaskMutation.isPending ? 'Adding...' : "Let's go →"}
             </button>
@@ -307,9 +358,9 @@ export function FocusMode({ onExit }: FocusModeProps) {
             {/* Skip button */}
             <button
               onClick={handleSkip}
-              className="w-full py-3 text-gray-500 hover:text-gray-700 font-medium transition-all flex items-center justify-center gap-2"
+              className="w-full py-3 text-gray-500 hover:text-gray-700 font-medium transition-all flex items-center justify-center gap-2 hover:bg-gray-50 rounded-full"
             >
-              <span>↻</span> Skip
+              <span>↻</span> Skip, show me another
             </button>
           </div>
         );
@@ -354,13 +405,16 @@ export function FocusMode({ onExit }: FocusModeProps) {
       // ============ TIMER - Simple countdown ============
       case 'timer':
         return (
-          <div className="focus-card animate-fade-in">
-            <h2 className="text-xl md:text-2xl font-bold text-center text-gray-800 mb-4">
+          <div className="focus-card animate-card-entrance">
+            <div className="flex justify-center mb-4">
+              <span className="text-4xl">🎯</span>
+            </div>
+            <h2 className="text-xl md:text-2xl font-bold text-center text-gray-800 mb-6">
               {activeTask?.text || currentTask?.text}
             </h2>
             
-            {/* Big timer display */}
-            <div className="text-6xl md:text-7xl font-light text-[var(--karma-accent)] text-center mb-8 font-mono">
+            {/* Big timer display with glow */}
+            <div className="text-6xl md:text-7xl font-light text-[var(--karma-accent)] text-center mb-8 font-mono timer-glow">
               {formatTime(timeRemaining)}
             </div>
 
@@ -368,9 +422,9 @@ export function FocusMode({ onExit }: FocusModeProps) {
             <button
               onClick={handleComplete}
               disabled={completeTaskMutation.isPending}
-              className="w-full py-4 bg-[var(--karma-accent)] hover:bg-[var(--karma-accent-hover)] text-white font-semibold rounded-full transition-all disabled:opacity-50"
+              className="w-full py-4 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-full btn-lift disabled:opacity-50"
             >
-              {completeTaskMutation.isPending ? 'Completing...' : 'Done'}
+              {completeTaskMutation.isPending ? 'Completing...' : '✓ Done!'}
             </button>
           </div>
         );
@@ -440,37 +494,40 @@ export function FocusMode({ onExit }: FocusModeProps) {
       // ============ COMPLETED - Celebration ============
       case 'completed':
         return (
-          <div className="focus-card animate-fade-in">
-            {/* Success icon */}
-            <div className="flex justify-center mb-4">
-              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
-                <span className="text-4xl text-green-600">🏆</span>
+          <>
+            <Confetti />
+            <div className="focus-card animate-celebration">
+              {/* Success icon */}
+              <div className="flex justify-center mb-4">
+                <div className="w-24 h-24 bg-gradient-to-br from-green-100 to-emerald-200 rounded-full flex items-center justify-center shadow-lg animate-check-pop">
+                  <span className="text-5xl">🏆</span>
+                </div>
               </div>
+
+              <h2 className="text-3xl font-bold text-center text-gray-800 mb-2">
+                Nice work! 🎉
+              </h2>
+              <p className="text-gray-500 text-center mb-8">
+                You made progress. Every small step counts.
+              </p>
+
+              {/* Get another quick win */}
+              <button
+                onClick={handleGetAnother}
+                className="w-full py-4 bg-[var(--karma-accent)] hover:bg-[var(--karma-accent-hover)] text-white font-semibold rounded-full btn-lift mb-3"
+              >
+                ↻ Get another quick win
+              </button>
+
+              {/* Exit */}
+              <button
+                onClick={onExit}
+                className="w-full py-3 text-gray-500 hover:text-gray-700 font-medium transition-all flex items-center justify-center gap-2 hover:bg-gray-50 rounded-full"
+              >
+                ✕ I'm done for now
+              </button>
             </div>
-
-            <h2 className="text-3xl font-bold text-center text-gray-800 mb-2">
-              Nice work.
-            </h2>
-            <p className="text-gray-500 text-center mb-8">
-              You made progress. Even a small step counts.
-            </p>
-
-            {/* Get another quick win */}
-            <button
-              onClick={handleGetAnother}
-              className="w-full py-4 bg-[var(--karma-accent)] hover:bg-[var(--karma-accent-hover)] text-white font-semibold rounded-full transition-all mb-3"
-            >
-              ↻ Get another quick win
-            </button>
-
-            {/* Exit */}
-            <button
-              onClick={onExit}
-              className="w-full py-3 text-gray-500 hover:text-gray-700 font-medium transition-all flex items-center justify-center gap-2"
-            >
-              ✕ Exit
-            </button>
-          </div>
+          </>
         );
 
       default:

@@ -364,3 +364,113 @@ category
 2026-01-14 00:01:58,558 | DEBUG    | karma.api | get_all_tasks:116 | Fetching all tasks
 2026-01-14 00:01:58,570 | INFO     | karma.api | get_all_tasks:120 | Retrieved 16 tasks across 3 dates
 2026-01-14 00:01:58,574 | INFO     | karma.api | dispatch:62 | [c955a24d] <-- ✓ 200 (17.4ms) GET /api/tasks/all
+2026-01-14 00:02:33,403 | INFO     | karma.api | dispatch:36 | [a0eb2736] --> GET /api/tasks/continuable (client: 127.0.0.1)
+2026-01-14 00:02:33,408 | INFO     | karma.api | get_continuable_tasks:141 | Fetching continuable tasks
+2026-01-14 00:02:33,409 | DEBUG    | karma.database | get_continuable_tasks:139 | Fetching continuable tasks
+2026-01-14 00:02:33,441 | INFO     | karma.database | get_continuable_tasks:185 | Found 0 in-progress, 0 almost-done tasks
+2026-01-14 00:02:33,450 | INFO     | karma.api | dispatch:62 | [a0eb2736] <-- ✓ 200 (47.7ms) GET /api/tasks/continuable
+2026-01-14 00:04:56,480 | INFO     | karma.api | dispatch:36 | [340e446f] --> GET /api/tasks/continuable (client: 127.0.0.1)
+2026-01-14 00:04:56,492 | INFO     | karma.api | get_continuable_tasks:141 | Fetching continuable tasks
+2026-01-14 00:04:56,493 | DEBUG    | karma.database | get_continuable_tasks:139 | Fetching continuable tasks
+2026-01-14 00:04:56,538 | INFO     | karma.database | get_continuable_tasks:185 | Found 0 in-progress, 0 almost-done tasks
+2026-01-14 00:04:56,545 | INFO     | karma.api | dispatch:62 | [340e446f] <-- ✓ 200 (66.1ms) GET /api/tasks/continuable
+2026-01-14 00:05:05,031 | INFO     | karma.api | dispatch:36 | [aea5f0d6] --> GET /api/tasks/stats (client: 127.0.0.1)
+2026-01-14 00:05:05,044 | INFO     | karma.api | dispatch:62 | [aea5f0d6] <-- ✓ 200 (13.1ms) GET /api/tasks/stats
+2026-01-14 00:05:12,973 | INFO     | karma.api | dispatch:36 | [851acb45] --> GET /api/tasks/all (client: 127.0.0.1)
+2026-01-14 00:05:12,976 | DEBUG    | karma.api | get_all_tasks:116 | Fetching all tasks
+2026-01-14 00:05:12,996 | INFO     | karma.api | get_all_tasks:120 | Retrieved 16 tasks across 3 dates
+2026-01-14 00:05:13,001 | INFO     | karma.api | dispatch:62 | [851acb45] <-- ✓ 200 (27.7ms) GET /api/tasks/all
+2026-01-14 00:07:57,401 | INFO     | karma.api | dispatch:36 | [e8133bbf] --> GET /api/tasks/continuable (client: 127.0.0.1)
+2026-01-14 00:07:57,405 | INFO     | karma.api | get_continuable_tasks:141 | Fetching continuable tasks
+2026-01-14 00:07:57,405 | DEBUG    | karma.database | get_continuable_tasks:139 | Fetching continuable tasks
+2026-01-14 00:07:57,419 | INFO     | karma.database | get_continuable_tasks:185 | Found 0 in-progress, 0 almost-done tasks
+2026-01-14 00:07:57,420 | INFO     | karma.api | dispatch:62 | [e8133bbf] <-- ✓ 200 (20.3ms) GET /api/tasks/continuable
+2026-01-14 00:08:30,535 | INFO     | karma.api | dispatch:36 | [d7e38164] --> GET /api/tasks/continuable (client: 127.0.0.1)
+2026-01-14 00:08:30,538 | INFO     | karma.api | get_continuable_tasks:141 | Fetching continuable tasks
+2026-01-14 00:08:30,539 | DEBUG    | karma.database | get_continuable_tasks:139 | Fetching continuable tasks
+2026-01-14 00:08:30,558 | INFO     | karma.database | get_continuable_tasks:185 | Found 0 in-progress, 0 almost-done tasks
+2026-01-14 00:08:30,562 | INFO     | karma.api | dispatch:62 | [d7e38164] <-- ✓ 200 (27.7ms) GET /api/tasks/continuable
+2026-01-14 00:08:33,570 | INFO     | karma.api | dispatch:36 | [de128356] --> GET /api/quickwin/get (client: 127.0.0.1)
+2026-01-14 00:08:33,573 | INFO     | karma.api | dispatch:62 | [de128356] <-- ✓ 200 (3.6ms) GET /api/quickwin/get
+2026-01-14 00:08:34,407 | INFO     | karma.api | dispatch:36 | [5e209cad] --> POST /api/quickwin/complete (client: 127.0.0.1)
+2026-01-14 00:08:34,426 | DEBUG    | karma.database | save_task:31 | Saving task: Make yourself a cup of herbal tea...
+2026-01-14 00:08:34,448 | INFO     | karma.database | save_task:36 | Task saved: 0f514a97-1f85-4895-a2cc-18a1dc151bc1
+2026-01-14 00:08:34,450 | INFO     | karma.api | dispatch:62 | [5e209cad] <-- ✓ 200 (42.6ms) POST /api/quickwin/complete
+2026-01-14 00:08:35,121 | INFO     | karma.api | dispatch:36 | [3f4e4e83] --> POST /api/tasks/0f514a97-1f85-4895-a2cc-18a1dc151bc1/breakdown (client: 127.0.0.1)
+2026-01-14 00:08:35,122 | INFO     | karma.api | breakdown_task_by_id:207 | Breaking down task: 0f514a97-1f85-4895-a2cc-18a1dc151bc1
+2026-01-14 00:08:35,122 | DEBUG    | karma.database | get_task:42 | Fetching task: 0f514a97-1f85-4895-a2cc-18a1dc151bc1
+2026-01-14 00:08:35,124 | DEBUG    | karma.database | get_task:47 | Task found: 0f514a97-1f85-4895-a2cc-18a1dc151bc1
+2026-01-14 00:08:35,125 | DEBUG    | karma.api | breakdown_task_by_id:233 | Mapped invalid category 'hydration' to 'health'
+2026-01-14 00:08:35,125 | DEBUG    | karma.api | breakdown_task_by_id:236 | Task to break down: Make yourself a cup of herbal tea...
+2026-01-14 00:08:35,148 | INFO     | karma.api | breakdown_task_by_id:260 | Task 0f514a97-1f85-4895-a2cc-18a1dc151bc1 broken down into 3 subtasks
+2026-01-14 00:08:35,149 | INFO     | karma.api | dispatch:62 | [3f4e4e83] <-- ✓ 200 (28.1ms) POST /api/tasks/0f514a97-1f85-4895-a2cc-18a1dc151bc1/breakdown
+2026-01-14 00:08:38,633 | INFO     | karma.api | dispatch:36 | [e4322d74] --> PUT /api/tasks/0f514a97-1f85-4895-a2cc-18a1dc151bc1/status (client: 127.0.0.1)
+2026-01-14 00:08:38,634 | INFO     | karma.api | dispatch:36 | [638bb4d7] --> PUT /api/tasks/0f514a97-1f85-4895-a2cc-18a1dc151bc1/status (client: 127.0.0.1)
+2026-01-14 00:08:38,636 | INFO     | karma.api | update_task_status_endpoint:180 | Updating task 0f514a97-1f85-4895-a2cc-18a1dc151bc1 status to: completed
+2026-01-14 00:08:38,641 | INFO     | karma.api | update_task_status_endpoint:180 | Updating task 0f514a97-1f85-4895-a2cc-18a1dc151bc1 status to: completed
+2026-01-14 00:08:38,657 | INFO     | karma.api | update_task_status_endpoint:193 | Task 0f514a97-1f85-4895-a2cc-18a1dc151bc1 status updated to completed
+2026-01-14 00:08:38,659 | INFO     | karma.api | dispatch:62 | [e4322d74] <-- ✓ 200 (26.3ms) PUT /api/tasks/0f514a97-1f85-4895-a2cc-18a1dc151bc1/status
+2026-01-14 00:08:38,670 | INFO     | karma.api | update_task_status_endpoint:193 | Task 0f514a97-1f85-4895-a2cc-18a1dc151bc1 status updated to completed
+2026-01-14 00:08:38,670 | INFO     | karma.api | dispatch:62 | [638bb4d7] <-- ✓ 200 (36.0ms) PUT /api/tasks/0f514a97-1f85-4895-a2cc-18a1dc151bc1/status
+2026-01-14 00:08:59,168 | INFO     | karma.api | dispatch:36 | [36d85dcf] --> GET /api/tasks/all (client: 127.0.0.1)
+2026-01-14 00:08:59,174 | DEBUG    | karma.api | get_all_tasks:116 | Fetching all tasks
+2026-01-14 00:08:59,213 | INFO     | karma.api | get_all_tasks:120 | Retrieved 17 tasks across 3 dates
+2026-01-14 00:08:59,217 | INFO     | karma.api | dispatch:62 | [36d85dcf] <-- ✓ 200 (60.4ms) GET /api/tasks/all
+2026-01-14 00:09:02,382 | INFO     | karma.api | dispatch:36 | [fd070e39] --> POST /api/task/subtask/progress (client: 127.0.0.1)
+2026-01-14 00:09:02,398 | INFO     | karma.api | dispatch:36 | [431c3646] --> POST /api/task/subtask/progress (client: 127.0.0.1)
+2026-01-14 00:09:02,407 | INFO     | karma.api | dispatch:62 | [fd070e39] <-- ✓ 200 (25.5ms) POST /api/task/subtask/progress
+2026-01-14 00:09:02,413 | INFO     | karma.api | dispatch:62 | [431c3646] <-- ✓ 200 (15.4ms) POST /api/task/subtask/progress
+2026-01-14 00:09:02,423 | INFO     | karma.api | dispatch:36 | [949494ec] --> GET /api/tasks/all (client: 127.0.0.1)
+2026-01-14 00:09:02,430 | DEBUG    | karma.api | get_all_tasks:116 | Fetching all tasks
+2026-01-14 00:09:02,437 | INFO     | karma.api | get_all_tasks:120 | Retrieved 17 tasks across 3 dates
+2026-01-14 00:09:02,439 | INFO     | karma.api | dispatch:62 | [949494ec] <-- ✓ 200 (15.2ms) GET /api/tasks/all
+2026-01-14 00:09:02,442 | INFO     | karma.api | dispatch:36 | [b38a7351] --> GET /api/tasks/all (client: 127.0.0.1)
+2026-01-14 00:09:02,443 | DEBUG    | karma.api | get_all_tasks:116 | Fetching all tasks
+2026-01-14 00:09:02,447 | INFO     | karma.api | get_all_tasks:120 | Retrieved 17 tasks across 3 dates
+2026-01-14 00:09:02,449 | INFO     | karma.api | dispatch:62 | [b38a7351] <-- ✓ 200 (7.1ms) GET /api/tasks/all
+2026-01-14 00:09:03,149 | INFO     | karma.api | dispatch:36 | [ff97861e] --> POST /api/task/subtask/progress (client: 127.0.0.1)
+2026-01-14 00:09:03,158 | INFO     | karma.api | dispatch:62 | [ff97861e] <-- ✓ 200 (9.1ms) POST /api/task/subtask/progress
+2026-01-14 00:09:03,160 | INFO     | karma.api | dispatch:36 | [1e03e3b8] --> POST /api/task/subtask/progress (client: 127.0.0.1)
+2026-01-14 00:09:03,163 | INFO     | karma.api | dispatch:62 | [1e03e3b8] <-- ✓ 200 (3.7ms) POST /api/task/subtask/progress
+2026-01-14 00:09:03,168 | INFO     | karma.api | dispatch:36 | [00e21ed0] --> GET /api/tasks/all (client: 127.0.0.1)
+2026-01-14 00:09:03,170 | DEBUG    | karma.api | get_all_tasks:116 | Fetching all tasks
+2026-01-14 00:09:03,175 | INFO     | karma.api | get_all_tasks:120 | Retrieved 17 tasks across 3 dates
+2026-01-14 00:09:03,177 | INFO     | karma.api | dispatch:62 | [00e21ed0] <-- ✓ 200 (9.1ms) GET /api/tasks/all
+2026-01-14 00:09:03,181 | INFO     | karma.api | dispatch:36 | [8f10a4d4] --> GET /api/tasks/all (client: 127.0.0.1)
+2026-01-14 00:09:03,181 | DEBUG    | karma.api | get_all_tasks:116 | Fetching all tasks
+2026-01-14 00:09:03,186 | INFO     | karma.api | get_all_tasks:120 | Retrieved 17 tasks across 3 dates
+2026-01-14 00:09:03,188 | INFO     | karma.api | dispatch:62 | [8f10a4d4] <-- ✓ 200 (7.4ms) GET /api/tasks/all
+2026-01-14 00:09:03,706 | INFO     | karma.api | dispatch:36 | [ec9798ca] --> POST /api/task/subtask/progress (client: 127.0.0.1)
+2026-01-14 00:09:03,712 | INFO     | karma.api | dispatch:62 | [ec9798ca] <-- ✓ 200 (5.2ms) POST /api/task/subtask/progress
+2026-01-14 00:09:03,714 | INFO     | karma.api | dispatch:36 | [6610af0e] --> POST /api/task/subtask/progress (client: 127.0.0.1)
+2026-01-14 00:09:03,717 | INFO     | karma.api | dispatch:62 | [6610af0e] <-- ✓ 200 (2.7ms) POST /api/task/subtask/progress
+2026-01-14 00:09:03,722 | INFO     | karma.api | dispatch:36 | [0e9fbe44] --> GET /api/tasks/all (client: 127.0.0.1)
+2026-01-14 00:09:03,723 | DEBUG    | karma.api | get_all_tasks:116 | Fetching all tasks
+2026-01-14 00:09:03,729 | INFO     | karma.api | get_all_tasks:120 | Retrieved 17 tasks across 3 dates
+2026-01-14 00:09:03,730 | INFO     | karma.api | dispatch:62 | [0e9fbe44] <-- ✓ 200 (8.3ms) GET /api/tasks/all
+2026-01-14 00:09:03,733 | INFO     | karma.api | dispatch:36 | [ee191047] --> GET /api/tasks/all (client: 127.0.0.1)
+2026-01-14 00:09:03,733 | DEBUG    | karma.api | get_all_tasks:116 | Fetching all tasks
+2026-01-14 00:09:03,738 | INFO     | karma.api | get_all_tasks:120 | Retrieved 17 tasks across 3 dates
+2026-01-14 00:09:03,740 | INFO     | karma.api | dispatch:62 | [ee191047] <-- ✓ 200 (6.7ms) GET /api/tasks/all
+2026-01-14 00:09:09,083 | INFO     | karma.api | dispatch:36 | [539fa1b0] --> GET /api/tasks/stats (client: 127.0.0.1)
+2026-01-14 00:09:09,090 | INFO     | karma.api | dispatch:62 | [539fa1b0] <-- ✓ 200 (6.3ms) GET /api/tasks/stats
+2026-01-14 00:09:20,772 | INFO     | karma.api | dispatch:36 | [eecb157b] --> GET /api/tasks/continuable (client: 127.0.0.1)
+2026-01-14 00:09:20,779 | INFO     | karma.api | get_continuable_tasks:141 | Fetching continuable tasks
+2026-01-14 00:09:20,783 | DEBUG    | karma.database | get_continuable_tasks:139 | Fetching continuable tasks
+2026-01-14 00:09:20,813 | INFO     | karma.database | get_continuable_tasks:185 | Found 0 in-progress, 0 almost-done tasks
+2026-01-14 00:09:20,815 | INFO     | karma.api | dispatch:62 | [eecb157b] <-- ✓ 200 (42.8ms) GET /api/tasks/continuable
+2026-01-14 00:09:53,690 | INFO     | karma.api | dispatch:36 | [e4d11ff1] --> GET /api/tasks/continuable (client: 127.0.0.1)
+2026-01-14 00:09:53,693 | INFO     | karma.api | get_continuable_tasks:141 | Fetching continuable tasks
+2026-01-14 00:09:53,694 | DEBUG    | karma.database | get_continuable_tasks:139 | Fetching continuable tasks
+2026-01-14 00:09:53,714 | INFO     | karma.database | get_continuable_tasks:185 | Found 0 in-progress, 0 almost-done tasks
+2026-01-14 00:09:53,715 | INFO     | karma.api | dispatch:62 | [e4d11ff1] <-- ✓ 200 (26.0ms) GET /api/tasks/continuable
+2026-01-14 00:10:10,060 | INFO     | karma.api | dispatch:36 | [eab60000] --> GET /api/tasks/stats (client: 127.0.0.1)
+2026-01-14 00:10:10,149 | INFO     | karma.api | dispatch:62 | [eab60000] <-- ✓ 200 (89.8ms) GET /api/tasks/stats
+2026-01-14 00:11:16,399 | INFO     | karma.api | dispatch:36 | [b13d3057] --> GET /api/tasks/stats (client: 127.0.0.1)
+2026-01-14 00:11:16,404 | INFO     | karma.api | dispatch:36 | [cb012fc1] --> GET /api/tasks/continuable (client: 127.0.0.1)
+2026-01-14 00:11:16,418 | INFO     | karma.api | get_continuable_tasks:141 | Fetching continuable tasks
+2026-01-14 00:11:16,418 | DEBUG    | karma.database | get_continuable_tasks:139 | Fetching continuable tasks
+2026-01-14 00:11:16,432 | INFO     | karma.api | dispatch:62 | [b13d3057] <-- ✓ 200 (33.2ms) GET /api/tasks/stats
+2026-01-14 00:11:16,446 | INFO     | karma.database | get_continuable_tasks:185 | Found 0 in-progress, 0 almost-done tasks
+2026-01-14 00:11:16,448 | INFO     | karma.api | dispatch:62 | [cb012fc1] <-- ✓ 200 (43.5ms) GET /api/tasks/continuable
+2026-01-14 00:11:16,909 | INFO     | karma.main | lifespan:60 | Shutting down Karma Backend

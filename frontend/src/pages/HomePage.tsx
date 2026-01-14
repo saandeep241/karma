@@ -1,18 +1,43 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { FocusMode } from '../components';
 import { api, type ContinuableTask } from '../api/client';
 
+// Get time-based greeting
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
 export function HomePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [showFocusMode, setShowFocusMode] = useState(false);
+
+  // Reset focus mode when navigating to home (e.g., clicking logo)
+  useEffect(() => {
+    // If we're on home page and there's no hash/search indicating focus mode
+    // reset the focus mode state
+    if (location.pathname === '/' && !location.search.includes('focus')) {
+      setShowFocusMode(false);
+    }
+  }, [location.key]); // location.key changes on every navigation
 
   // Fetch continuable tasks (in-progress and almost done)
   const { data: continuableData } = useQuery({
     queryKey: ['continuable-tasks'],
     queryFn: api.getContinuableTasks,
     refetchInterval: 30000,
+  });
+
+  // Fetch stats for the dashboard
+  const { data: statsData } = useQuery({
+    queryKey: ['stats'],
+    queryFn: api.getStats,
+    refetchInterval: 60000,
   });
 
   const handleContinueTask = (taskId: string) => {
@@ -32,14 +57,20 @@ export function HomePage() {
     );
   }
 
+  // Calculate stats
+  const completedToday = (statsData as any)?.completed_today || 0;
+  const completedThisWeek = (statsData as any)?.completed_this_week || 0;
+  const pendingTasks = statsData?.pending_tasks || 0;
+
   return (
     <div className="flex gap-6 animate-fade-in">
       {/* Main Content - Always centered */}
-      <div className="flex-1 space-y-8">
+      <div className="flex-1 space-y-6">
         {/* Hero Section */}
-        <div className="text-center py-8">
+        <div className="text-center py-4">
+          <p className="text-[var(--karma-text-muted)] text-lg mb-2">{getGreeting()} 👋</p>
           <h1 className="font-serif text-4xl md:text-5xl mb-4">
-            <span className="bg-gradient-to-r from-blue-600 via-cyan-500 to-teal-400 bg-clip-text text-transparent font-bold">
+            <span className="shimmer-text font-bold">
               Make it count.
             </span>
           </h1>
@@ -48,23 +79,61 @@ export function HomePage() {
           </p>
         </div>
 
+        {/* Stats Row */}
+        <div className="max-w-2xl mx-auto">
+          <div className="grid grid-cols-3 gap-4">
+            {/* Today's Progress */}
+            <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm text-center hover:shadow-md transition-shadow">
+              <div className="text-3xl font-bold text-[var(--karma-accent)]">{completedToday}</div>
+              <div className="text-sm text-gray-500 mt-1">Done today</div>
+              <div className="text-lg mt-1">🔥</div>
+            </div>
+
+            {/* Weekly Progress */}
+            <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm text-center hover:shadow-md transition-shadow">
+              <div className="text-3xl font-bold text-green-500">{completedThisWeek}</div>
+              <div className="text-sm text-gray-500 mt-1">This week</div>
+              <div className="text-lg mt-1">📈</div>
+            </div>
+
+            {/* Pending Tasks */}
+            <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm text-center hover:shadow-md transition-shadow">
+              <div className="text-3xl font-bold text-amber-500">{pendingTasks}</div>
+              <div className="text-sm text-gray-500 mt-1">To do</div>
+              <div className="text-lg mt-1">📋</div>
+            </div>
+          </div>
+        </div>
+
         {/* Main CTA Card */}
         <div className="max-w-md mx-auto">
-          <div className="focus-card text-center">
-            <div className="text-5xl mb-4">✨</div>
-            <h2 className="font-bold text-2xl mb-3 text-gray-800">
+          <div className="focus-card text-center animate-card-entrance">
+            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-full flex items-center justify-center shadow-lg">
+              <span className="text-3xl">✨</span>
+            </div>
+            <h2 className="font-bold text-xl mb-2 text-gray-800">
               Ready to be productive?
             </h2>
-            <p className="text-gray-500 mb-6">
+            <p className="text-gray-500 mb-5 text-sm">
               Tell me how much time you have and I'll suggest the perfect task.
             </p>
             <button
               onClick={() => setShowFocusMode(true)}
-              className="w-full py-4 bg-[var(--karma-accent)] hover:bg-[var(--karma-accent-hover)] text-white font-semibold rounded-full transition-all text-lg"
+              className="w-full py-3 bg-[var(--karma-accent)] hover:bg-[var(--karma-accent-hover)] text-white font-semibold rounded-full btn-lift text-lg"
             >
               Let's go →
             </button>
           </div>
+        </div>
+
+        {/* Quick Links */}
+        <div className="max-w-md mx-auto flex justify-center gap-4 text-sm">
+          <Link to="/browse" className="text-gray-500 hover:text-[var(--karma-accent)] transition-colors">
+            Browse all tasks →
+          </Link>
+          <Link to="/add" className="text-gray-500 hover:text-[var(--karma-accent)] transition-colors">
+            Add a task →
+          </Link>
         </div>
       </div>
 

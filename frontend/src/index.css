@@ -284,11 +284,105 @@ select.input {
   background: white;
   border-radius: 1.5rem;
   padding: 2rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 102, 204, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 102, 204, 0.08);
 }
 
 /* Focus Mode Background */
 .focus-bg {
-  background: linear-gradient(135deg, #f8f4ff 0%, #fef3f2 50%, #f0f9ff 100%);
+  background: linear-gradient(135deg, #f0f7ff 0%, #f8fafc 50%, #f0fdfa 100%);
   min-height: 100vh;
+}
+
+/* Button hover lift effect */
+.btn-lift {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 102, 204, 0.25);
+}
+
+.btn-lift:active {
+  transform: translateY(0);
+}
+
+/* Confetti animation */
+@keyframes confetti-fall {
+  0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+.confetti {
+  position: fixed;
+  width: 10px;
+  height: 10px;
+  top: 0;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.confetti-piece {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  animation: confetti-fall 3s ease-out forwards;
+}
+
+/* Celebration pulse */
+@keyframes celebration-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.animate-celebration {
+  animation: celebration-pulse 0.6s ease-in-out;
+}
+
+/* Smooth card entrance */
+@keyframes card-entrance {
+  0% { opacity: 0; transform: translateY(20px) scale(0.95); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-card-entrance {
+  animation: card-entrance 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Timer glow effect */
+@keyframes timer-glow {
+  0%, 100% { text-shadow: 0 0 20px rgba(0, 102, 204, 0.3); }
+  50% { text-shadow: 0 0 40px rgba(0, 102, 204, 0.5); }
+}
+
+.timer-glow {
+  animation: timer-glow 2s ease-in-out infinite;
+}
+
+/* Checkmark pop animation */
+@keyframes check-pop {
+  0% { transform: scale(0); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.animate-check-pop {
+  animation: check-pop 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Gradient shimmer effect */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.shimmer-text {
+  background: linear-gradient(90deg, #0066cc 0%, #00ccff 25%, #0066cc 50%, #00ccff 75%, #0066cc 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s linear infinite;
 }

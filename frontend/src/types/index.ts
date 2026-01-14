@@ -132,11 +132,13 @@ export interface StatsData {
   total_tasks: number;
   completed_tasks: number;
   pending_tasks: number;
+  completed_today: number;
+  completed_this_week: number;
   completion_rate: number;
   tasks_by_category: Record<TaskCategory, number>;
   tasks_by_priority: Record<TaskPriority, number>;
   average_completion_time_minutes: number;
-  recent_completions: Task[];
+  recent_completions?: Task[];
 }
 
 // Form Types
