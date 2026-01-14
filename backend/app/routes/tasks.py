@@ -11,7 +11,7 @@ from app.models import (
     Task, TodoList, ImportTodoListRequest, ImportTodoListResponse,
     TaskBreakdownRequest, TaskStatusRequest, ReResearchRequest,
     CompleteQuickWinRequest, SubtaskStatusRequest, AddTaskRequest,
-    Session, UserContext, TimeAvailable, EnergyLevel
+    Session, UserContext, TimeAvailable, EnergyLevel, TaskCategory
 )
 from app.services.session_store import session_store
 from app.services import db_service
@@ -212,7 +212,27 @@ async def breakdown_task_by_id(task_id: str):
         logger.warning(f"Task not found for breakdown: {task_id}")
         raise HTTPException(status_code=404, detail="Task not found")
     
-    task = Task(**{k: v for k, v in task_data.items() if k in Task.model_fields})
+    # Filter task data and handle invalid category values
+    filtered_data = {k: v for k, v in task_data.items() if k in Task.model_fields}
+    
+    # Validate category - map invalid categories to valid ones or use OTHER
+    if "category" in filtered_data and filtered_data["category"]:
+        category_value = filtered_data["category"].lower()
+        valid_categories = {c.value for c in TaskCategory}
+        if category_value not in valid_categories:
+            # Map common invalid categories to valid ones
+            category_mapping = {
+                "exercise": "health",
+                "hydration": "health",
+                "wellness": "health",
+                "mindfulness": "health",
+                "organization": "home",
+                "quickwin": "other",
+            }
+            filtered_data["category"] = category_mapping.get(category_value, "other")
+            logger.debug(f"Mapped invalid category '{category_value}' to '{filtered_data['category']}'")
+    
+    task = Task(**filtered_data)
     logger.debug(f"Task to break down: {task.text[:50]}...")
     
     # Break task into steps with default 30 min

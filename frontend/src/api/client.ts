@@ -193,8 +193,8 @@ export async function getQuickWin(): Promise<QuickWinResponse> {
   return apiFetch<QuickWinResponse>('/quickwin/get');
 }
 
-export async function completeQuickWin(quickwin: QuickWin): Promise<Task> {
-  return apiFetch<Task>('/quickwin/complete', {
+export async function completeQuickWin(quickwin: QuickWin): Promise<{ success: boolean; task_id: string; message: string }> {
+  return apiFetch<{ success: boolean; task_id: string; message: string }>('/quickwin/complete', {
     method: 'POST',
     body: JSON.stringify(quickwin),
   });
@@ -235,6 +235,46 @@ export async function getInProgressTasks(): Promise<{ tasks: Task[]; count: numb
   return apiFetch<{ tasks: Task[]; count: number }>('/tasks/in-progress');
 }
 
+// Presentation API
+export interface Slide {
+  id: number;
+  title: string;
+  type: string;
+  content: string;
+  code: string | null;
+  notes: string | null;
+}
+
+export interface Presentation {
+  title: string;
+  subtitle: string;
+  slides: Slide[];
+}
+
+export interface CodeExecutionResult {
+  success: boolean;
+  output: string;
+  error: string | null;
+  figures: string[];
+}
+
+export async function getPresentation(): Promise<Presentation> {
+  return apiFetch<Presentation>('/presentation/slides');
+}
+
+export async function executeCode(code: string, sessionId: string = 'default'): Promise<CodeExecutionResult> {
+  return apiFetch<CodeExecutionResult>('/presentation/execute', {
+    method: 'POST',
+    body: JSON.stringify({ code, session_id: sessionId }),
+  });
+}
+
+export async function resetPresentationSession(sessionId: string = 'default'): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/presentation/reset?session_id=${sessionId}`, {
+    method: 'POST',
+  });
+}
+
 // Export all functions as a single API object for convenience
 export const api = {
   checkHealth,
@@ -261,6 +301,10 @@ export const api = {
   getLearningInsights,
   getContinuableTasks,
   getInProgressTasks,
+  // Presentation
+  getPresentation,
+  executeCode,
+  resetPresentationSession,
 };
 
 export default api;

@@ -4,4 +4,5 @@ export { SubtaskList } from './SubtaskList';
 export { QuickWinCard } from './QuickWinCard';
 export { EmptyState } from './EmptyState';
 export { LoadingSpinner } from './LoadingSpinner';
+export { FocusMode } from './FocusMode';
 

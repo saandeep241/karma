@@ -2,47 +2,14 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { TaskCard, LoadingSpinner, EmptyState } from '../components';
 import { api } from '../api/client';
-import type { Task, TaskStatus, TaskCategory, TaskPriority } from '../types';
+import type { Task, TaskStatus, TaskPriority } from '../types';
 
 type FilterStatus = 'all' | TaskStatus;
 type SortBy = 'created' | 'priority' | 'time' | 'date';
-type ViewTab = 'all' | 'work' | 'personal';
-
-// Status filter options
-const STATUS_FILTERS: { value: FilterStatus; label: string; icon: string }[] = [
-  { value: 'all', label: 'All', icon: '📋' },
-  { value: 'pending', label: 'Pending', icon: '⏳' },
-  { value: 'in_progress', label: 'In Progress', icon: '🔄' },
-  { value: 'completed', label: 'Done', icon: '✅' },
-];
-
-// Category filter options
-const CATEGORY_FILTERS: { value: TaskCategory | 'all'; label: string; icon: string }[] = [
-  { value: 'all', label: 'All', icon: '📁' },
-  { value: 'work', label: 'Work', icon: '💼' },
-  { value: 'personal', label: 'Personal', icon: '🏠' },
-  { value: 'health', label: 'Health', icon: '🏃' },
-  { value: 'learning', label: 'Learning', icon: '📚' },
-  { value: 'errands', label: 'Errands', icon: '🛒' },
-  { value: 'creative', label: 'Creative', icon: '🎨' },
-  { value: 'social', label: 'Social', icon: '👥' },
-  { value: 'finance', label: 'Finance', icon: '💰' },
-  { value: 'home', label: 'Home', icon: '🏡' },
-];
-
-// Sort options
-const SORT_OPTIONS: { value: SortBy; label: string; icon: string }[] = [
-  { value: 'date', label: 'Date', icon: '📅' },
-  { value: 'created', label: 'Newest', icon: '🕐' },
-  { value: 'priority', label: 'Priority', icon: '🎯' },
-  { value: 'time', label: 'Time', icon: '⏱️' },
-];
 
 export function BrowsePage() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<ViewTab>('all');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
-  const [filterCategory, setFilterCategory] = useState<TaskCategory | 'all'>('all');
   const [sortBy, setSortBy] = useState<SortBy>('date');
   const [breakingDownTaskId, setBreakingDownTaskId] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -143,23 +110,10 @@ export function BrowsePage() {
     },
   });
 
-  // Helper to check if task is work-related
-  const isWorkTask = (task: Task) => 
-    task.category === 'work' || task.category === 'finance';
-
-  // Helper to check if task is personal
-  const isPersonalTask = (task: Task) => 
-    !isWorkTask(task);
-
   // Filter and sort tasks
   const filteredTasks = tasks
     .filter((task: Task) => {
-      // Tab filter (Work/Personal)
-      if (activeTab === 'work' && !isWorkTask(task)) return false;
-      if (activeTab === 'personal' && !isPersonalTask(task)) return false;
-      
       if (filterStatus !== 'all' && task.status !== filterStatus) return false;
-      if (filterCategory !== 'all' && task.category !== filterCategory) return false;
       return true;
     })
     .sort((a: Task, b: Task) => {
@@ -263,9 +217,9 @@ export function BrowsePage() {
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 max-w-md mx-4 shadow-2xl">
-            <h3 className="text-xl font-semibold mb-2">⚠️ Delete All Tasks?</h3>
+            <h3 className="text-xl font-semibold mb-2">Delete All Tasks?</h3>
             <p className="text-gray-600 mb-6">
-              This will permanently delete all {tasks.length} tasks. This action cannot be undone.
+              This will permanently delete all {tasks.length} tasks.
             </p>
             <div className="flex gap-3">
               <button
@@ -286,87 +240,43 @@ export function BrowsePage() {
         </div>
       )}
 
-      {/* Work / Personal Tabs */}
-      <div className="flex gap-1 p-1 bg-[var(--karma-surface)] rounded-lg w-fit">
-        {[
-          { value: 'all' as ViewTab, label: '📋 All', count: tasks.length },
-          { value: 'work' as ViewTab, label: '💼 Work', count: tasks.filter(isWorkTask).length },
-          { value: 'personal' as ViewTab, label: '🏠 Personal', count: tasks.filter(isPersonalTask).length },
-        ].map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => setActiveTab(tab.value)}
-            className={`px-4 py-2 rounded-md transition-all text-sm font-medium ${
-              activeTab === tab.value
-                ? 'bg-[var(--karma-accent)] text-white shadow'
-                : 'text-[var(--karma-text-muted)] hover:text-[var(--karma-text)]'
-            }`}
-          >
-            {tab.label} ({tab.count})
-          </button>
-        ))}
-      </div>
-
-      {/* Status Filter - Chips */}
-      <div className="space-y-2">
-        <label className="text-xs font-medium text-[var(--karma-text-muted)] uppercase tracking-wide">Status</label>
-        <div className="flex flex-wrap gap-2">
-          {STATUS_FILTERS.map((status) => (
+      {/* Simple Filter Bar */}
+      <div className="flex items-center gap-3 flex-wrap">
+        {/* Status Tabs */}
+        <div className="flex gap-1 p-1 bg-gray-100 rounded-lg">
+          {[
+            { value: 'all' as FilterStatus, label: 'All' },
+            { value: 'pending' as FilterStatus, label: 'To Do' },
+            { value: 'in_progress' as FilterStatus, label: 'Doing' },
+            { value: 'completed' as FilterStatus, label: 'Done' },
+          ].map((status) => (
             <button
               key={status.value}
               onClick={() => setFilterStatus(status.value)}
-              className={`px-3 py-1.5 rounded-full text-sm flex items-center gap-1.5 transition-all ${
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
                 filterStatus === status.value
-                  ? 'bg-[var(--karma-accent)] text-white shadow-sm'
-                  : 'bg-[var(--karma-surface)] text-[var(--karma-text-muted)] hover:bg-[var(--karma-bg-secondary)] border border-[var(--karma-border)]'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              <span>{status.icon}</span>
-              <span>{status.label}</span>
+              {status.label}
             </button>
           ))}
         </div>
-      </div>
 
-      {/* Category Filter - Scrollable Chips */}
-      <div className="space-y-2">
-        <label className="text-xs font-medium text-[var(--karma-text-muted)] uppercase tracking-wide">Category</label>
-        <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
-          {CATEGORY_FILTERS.map((cat) => (
-            <button
-              key={cat.value}
-              onClick={() => setFilterCategory(cat.value)}
-              className={`px-3 py-1.5 rounded-full text-sm flex items-center gap-1.5 whitespace-nowrap transition-all ${
-                filterCategory === cat.value
-                  ? 'bg-[var(--karma-accent)] text-white shadow-sm'
-                  : 'bg-[var(--karma-surface)] text-[var(--karma-text-muted)] hover:bg-[var(--karma-bg-secondary)] border border-[var(--karma-border)]'
-              }`}
-            >
-              <span>{cat.icon}</span>
-              <span>{cat.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Sort - Chips */}
-      <div className="space-y-2">
-        <label className="text-xs font-medium text-[var(--karma-text-muted)] uppercase tracking-wide">Sort by</label>
-        <div className="flex flex-wrap gap-2">
-          {SORT_OPTIONS.map((sort) => (
-            <button
-              key={sort.value}
-              onClick={() => setSortBy(sort.value)}
-              className={`px-3 py-1.5 rounded-full text-sm flex items-center gap-1.5 transition-all ${
-                sortBy === sort.value
-                  ? 'bg-[var(--karma-accent)] text-white shadow-sm'
-                  : 'bg-[var(--karma-surface)] text-[var(--karma-text-muted)] hover:bg-[var(--karma-bg-secondary)] border border-[var(--karma-border)]'
-              }`}
-            >
-              <span>{sort.icon}</span>
-              <span>{sort.label}</span>
-            </button>
-          ))}
+        {/* Sort Toggle */}
+        <div className="flex items-center gap-2 ml-auto text-sm text-gray-500">
+          <span>Sort:</span>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortBy)}
+            className="bg-transparent border-none text-gray-700 font-medium cursor-pointer focus:outline-none"
+          >
+            <option value="date">Date</option>
+            <option value="priority">Priority</option>
+            <option value="time">Duration</option>
+            <option value="created">Newest</option>
+          </select>
         </div>
       </div>
 
@@ -376,9 +286,9 @@ export function BrowsePage() {
           icon="📭"
           title="No tasks found"
           description={
-            filterStatus === 'all' && filterCategory === 'all' && activeTab === 'all'
+            filterStatus === 'all'
               ? "You haven't added any tasks yet. Start by adding some!"
-              : "No tasks match your current filters."
+              : "No tasks match your current filter."
           }
           actionLabel="Add Tasks"
           actionPath="/add"

@@ -278,3 +278,17 @@ body {
 select.input {
   cursor: pointer;
 }
+
+/* Focus Mode Card */
+.focus-card {
+  background: white;
+  border-radius: 1.5rem;
+  padding: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+/* Focus Mode Background */
+.focus-bg {
+  background: linear-gradient(135deg, #f8f4ff 0%, #fef3f2 50%, #f0f9ff 100%);
+  min-height: 100vh;
+}

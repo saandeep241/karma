@@ -1,0 +1,59 @@
+{
+  "id": "0ce949ec-4fb6-4ae1-806c-326fade0197f",
+  "text": "Learn one new word and use it in a sentence",
+  "date": "2026-01-14",
+  "status": "pending",
+  "priority": "medium",
+  "category": "learning",
+  "tags": [
+    "quick-win"
+  ],
+  "created_at": "2026-01-14T00:01:47.909699",
+  "started_at": null,
+  "completed_at": null,
+  "estimated_minutes": 5,
+  "energy_required": "low",
+  "emotional_fit": null,
+  "task_type": "quick_win",
+  "ai_reasoning": null,
+  "enrichment": null,
+  "times_suggested": 0,
+  "times_accepted": 0,
+  "times_rejected": 0,
+  "breakdown": null,
+  "feedback_history": [],
+  "subtasks": [
+    {
+      "id": "b13051e0-692e-4ce9-8871-6c333fa4cb0f",
+      "step_number": 1,
+      "instruction": "Get started by opening/preparing what you need",
+      "estimated_minutes": 10,
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "ai_reasoning": null
+    },
+    {
+      "id": "985a7197-5438-46c1-aef8-6c98724762bb",
+      "step_number": 2,
+      "instruction": "Work on the main part of the task",
+      "estimated_minutes": 10,
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "ai_reasoning": null
+    },
+    {
+      "id": "32f02eed-9e5e-4fcc-95ea-3b5b7c059255",
+      "step_number": 3,
+      "instruction": "Review what you've done",
+      "estimated_minutes": 10,
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "ai_reasoning": null
+    }
+  ],
+  "subtasks_generated": true,
+  "is_dummy": true
+}

@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SignedIn, SignedOut, SignIn } from '@clerk/clerk-react';
 import { Layout } from './components';
-import { HomePage, BrowsePage, AddPage, StatsPage } from './pages';
+import { HomePage, BrowsePage, AddPage, StatsPage, PresentationPage } from './pages';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -51,6 +51,7 @@ function App() {
                 <Route path="add" element={<AddPage />} />
                 <Route path="stats" element={<StatsPage />} />
               </Route>
+              <Route path="presentation" element={<PresentationPage />} />
             </Routes>
           </BrowserRouter>
         </SignedIn>
@@ -69,6 +70,7 @@ function App() {
             <Route path="add" element={<AddPage />} />
             <Route path="stats" element={<StatsPage />} />
           </Route>
+          <Route path="presentation" element={<PresentationPage />} />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>

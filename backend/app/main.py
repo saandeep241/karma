@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 
 from app.config import get_settings
 from app.routes import tasks_router, suggestions_router, sessions_router
+from app.routes.presentation import router as presentation_router
 from app.database.connection import init_db, DATABASE_PATH
 from app.auth import is_auth_enabled, CLERK_ENABLED
 from app.logging_config import setup_logging, get_logger
@@ -90,6 +91,7 @@ app.add_middleware(RequestLoggingMiddleware)
 app.include_router(tasks_router)
 app.include_router(suggestions_router)
 app.include_router(sessions_router)
+app.include_router(presentation_router)
 
 
 @app.get("/")

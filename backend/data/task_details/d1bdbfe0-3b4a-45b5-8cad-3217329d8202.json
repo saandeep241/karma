@@ -1,0 +1,59 @@
+{
+  "id": "d1bdbfe0-3b4a-45b5-8cad-3217329d8202",
+  "text": "Watch a 3-minute educational video",
+  "date": "2026-01-13",
+  "status": "pending",
+  "priority": "medium",
+  "category": "learning",
+  "tags": [
+    "quick-win"
+  ],
+  "created_at": "2026-01-13T23:51:27.353867",
+  "started_at": null,
+  "completed_at": null,
+  "estimated_minutes": 5,
+  "energy_required": "low",
+  "emotional_fit": null,
+  "task_type": "quick_win",
+  "ai_reasoning": null,
+  "enrichment": null,
+  "times_suggested": 0,
+  "times_accepted": 0,
+  "times_rejected": 0,
+  "breakdown": null,
+  "feedback_history": [],
+  "subtasks": [
+    {
+      "id": "68da0b44-8421-4ff8-85f7-a35b4f173e72",
+      "step_number": 1,
+      "instruction": "Get started by opening/preparing what you need",
+      "estimated_minutes": 10,
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "ai_reasoning": null
+    },
+    {
+      "id": "0ae39fa8-5815-4479-9e66-ffe715625af4",
+      "step_number": 2,
+      "instruction": "Work on the main part of the task",
+      "estimated_minutes": 10,
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "ai_reasoning": null
+    },
+    {
+      "id": "52e86ba5-667c-4227-9bd8-5f745866555c",
+      "step_number": 3,
+      "instruction": "Review what you've done",
+      "estimated_minutes": 10,
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "ai_reasoning": null
+    }
+  ],
+  "subtasks_generated": true,
+  "is_dummy": true
+}
