@@ -379,7 +379,7 @@ export function FocusMode({ onExit }: FocusModeProps) {
               onClick={handleDirectStart}
               className="w-full p-5 mb-3 bg-blue-50 hover:bg-blue-100 rounded-2xl text-left transition-all border-2 border-transparent hover:border-blue-200"
             >
-              <p className="text-blue-700 font-bold text-lg">Let's go (Direct)</p>
+              <p className="text-blue-700 font-bold text-lg">Let's go</p>
               <p className="text-gray-500 text-sm">Start the timer and dive right in.</p>
             </button>
 
