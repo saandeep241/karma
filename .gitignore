@@ -22,7 +22,10 @@ ENV/
 
 # Data (user-specific)
 # Ignore all subfolders and files in data directory
-backend/data/*/
+backend/data/tasks/
+backend/data/task_details/
+backend/data/reasoning/
+backend/data/memory/
 backend/data/**/*
 # Keep the data directory structure and karma.db
 !backend/data/.gitkeep
