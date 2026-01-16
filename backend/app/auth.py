@@ -4,29 +4,38 @@ Provides JWT verification for protected routes.
 """
 
 import os
-from typing import Optional
-from fastapi import Depends, HTTPException, status
+import httpx
+import time
+from typing import Optional, Dict, Any
+from pathlib import Path
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import jwt, jwk
+from jose.utils import base64url_decode
 
-# Try to import Clerk auth, but make it optional
+# Load environment variables from .env file
 try:
-    from fastapi_clerk_auth import ClerkConfig, ClerkHTTPBearer
-    CLERK_AVAILABLE = True
+    from dotenv import load_dotenv
+    # Load .env file from backend directory
+    env_path = Path(__file__).parent.parent / ".env"
+    load_dotenv(env_path)
 except ImportError:
-    CLERK_AVAILABLE = False
-    ClerkConfig = None
-    ClerkHTTPBearer = None
+    pass
 
 # Get Clerk configuration from environment
 CLERK_SECRET_KEY = os.getenv("CLERK_SECRET_KEY")
-CLERK_PUBLISHABLE_KEY = os.getenv("CLERK_PUBLISHABLE_KEY")
+CLERK_DOMAIN = os.getenv("CLERK_DOMAIN")  # e.g., "moving-flamingo-53.clerk.accounts.dev"
+CLERK_JWKS_URL = os.getenv("CLERK_JWKS_URL")
 
-# Check if Clerk is configured
-CLERK_ENABLED = bool(CLERK_SECRET_KEY and CLERK_PUBLISHABLE_KEY and CLERK_AVAILABLE)
+# Construct JWKS URL if domain is provided but JWKS URL is not
+if CLERK_DOMAIN and not CLERK_JWKS_URL:
+    domain = CLERK_DOMAIN.replace("https://", "").replace("http://", "").rstrip("/")
+    CLERK_JWKS_URL = f"https://{domain}/.well-known/jwks.json"
 
-# Security scheme for optional auth
+CLERK_ENABLED = bool(CLERK_SECRET_KEY and (CLERK_JWKS_URL or CLERK_DOMAIN))
+
+# Security scheme
 security = HTTPBearer(auto_error=False)
-
 
 class AuthUser:
     """Represents an authenticated user."""
@@ -35,99 +44,152 @@ class AuthUser:
         self.email = email
         self.name = name
 
+# Cache for JWKS keys to avoid fetching on every request
+_jwks_cache: Dict[str, Any] = {}
+_last_jwks_fetch = 0
 
-# Set up Clerk auth guard if available
-clerk_auth_guard = None
-if CLERK_ENABLED and ClerkHTTPBearer:
+async def get_jwks():
+    """Fetch and cache JWKS from Clerk."""
+    global _jwks_cache, _last_jwks_fetch
+    
+    # Refresh cache every hour
+    if not _jwks_cache or (time.time() - _last_jwks_fetch > 3600):
+        try:
+            print(f"🔄 Fetching JWKS from: {CLERK_JWKS_URL}")
+            async with httpx.AsyncClient() as client:
+                response = await client.get(CLERK_JWKS_URL)
+                response.raise_for_status()
+                _jwks_cache = response.json()
+                _last_jwks_fetch = time.time()
+                print("✅ JWKS fetched successfully")
+        except Exception as e:
+            print(f"❌ Failed to fetch JWKS: {e}")
+            if not _jwks_cache:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Could not verify authentication: JWKS unavailable"
+                )
+    return _jwks_cache
+
+async def verify_token(token: str) -> Dict[str, Any]:
+    """Verify a Clerk JWT token manually."""
     try:
-        # Extract the frontend API from publishable key
-        # Format: pk_test_xxx or pk_live_xxx
-        clerk_config = ClerkConfig(
-            secret_key=CLERK_SECRET_KEY,
+        # Get public keys
+        jwks = await get_jwks()
+        
+        # Unverified header to find the correct key (kid)
+        unverified_header = jwt.get_unverified_header(token)
+        kid = unverified_header.get("kid")
+        if not kid:
+            raise ValueError("No kid in token header")
+        
+        # Find matching key in JWKS
+        key_data = next((key for key in jwks["keys"] if key["kid"] == kid), None)
+        if not key_data:
+            raise ValueError(f"No matching key for kid: {kid}")
+            
+        # Verify signature and standard claims
+        # IMPORTANT: We skip 'aud' (audience) verification because Clerk session tokens don't include it
+        # We still verify issuer (iss) and expiration (exp)
+        issuer = f"https://{CLERK_DOMAIN}" if "https://" not in CLERK_DOMAIN else CLERK_DOMAIN
+        
+        decoded = jwt.decode(
+            token,
+            key_data,
+            algorithms=["RS256"],
+            options={
+                "verify_aud": False,  # Skip audience check
+                "verify_iss": True,   # Verify issuer
+                "verify_exp": True,   # Verify expiration
+                "at_hash": False,
+            },
+            issuer=issuer
         )
-        clerk_auth_guard = ClerkHTTPBearer(config=clerk_config)
-        print("✅ Clerk authentication enabled")
+        return decoded
+        
     except Exception as e:
-        print(f"⚠️ Clerk setup failed: {e}")
-        CLERK_ENABLED = False
-else:
-    if not CLERK_AVAILABLE:
-        print("⚠️ fastapi-clerk-auth not installed - auth disabled")
-    elif not CLERK_SECRET_KEY:
-        print("⚠️ CLERK_SECRET_KEY not set - auth disabled")
+        print(f"❌ Token verification failed: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Invalid authentication: {str(e)}",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
-
-async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
-) -> Optional[AuthUser]:
-    """
-    Get the current authenticated user.
-    Returns None if not authenticated (for optional auth routes).
-    """
+async def _auth_dependency(request: Request) -> Optional[Dict[str, Any]]:
+    """Dependency that handles token extraction and custom verification."""
     if not CLERK_ENABLED:
-        # Auth disabled - return a dummy user for development
-        return AuthUser(user_id="dev-user", email="dev@karma.local", name="Dev User")
-    
-    if not credentials:
         return None
-    
-    try:
-        if clerk_auth_guard:
-            # Verify the token with Clerk
-            decoded = await clerk_auth_guard.verify(credentials)
-            return AuthUser(
-                user_id=decoded.get("sub", "unknown"),
-                email=decoded.get("email"),
-                name=decoded.get("name")
-            )
-    except Exception as e:
-        print(f"Auth error: {e}")
-        return None
-    
-    return None
-
-
-async def require_auth(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-) -> AuthUser:
-    """
-    Require authentication for a route.
-    Raises 401 if not authenticated.
-    """
-    if not CLERK_ENABLED:
-        # Auth disabled - return a dummy user for development
-        return AuthUser(user_id="dev-user", email="dev@karma.local", name="Dev User")
-    
-    if not credentials:
+        
+    auth_header = request.headers.get("authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required",
             headers={"WWW-Authenticate": "Bearer"},
         )
+        
+    token = auth_header.split(" ")[1]
+    return await verify_token(token)
+
+async def require_auth(
+    decoded: Optional[dict] = Depends(_auth_dependency)
+) -> AuthUser:
+    """
+    Require authentication for a route.
+    """
+    if not CLERK_ENABLED:
+        return AuthUser(user_id="legacy-user", email="legacy@karma.local", name="Legacy User")
     
-    try:
-        if clerk_auth_guard:
-            decoded = await clerk_auth_guard.verify(credentials)
-            return AuthUser(
-                user_id=decoded.get("sub", "unknown"),
-                email=decoded.get("email"),
-                name=decoded.get("name")
+    if decoded:
+        try:
+            user_id = decoded.get("sub")
+            if not user_id:
+                raise ValueError("No user ID (sub) in JWT payload")
+            
+            email = decoded.get("email")
+            if not email and decoded.get("email_addresses"):
+                email = decoded["email_addresses"][0].get("email_address")
+            
+            name = decoded.get("name")
+            if not name:
+                first = decoded.get("first_name", "")
+                last = decoded.get("last_name", "")
+                name = f"{first} {last}".strip() or None
+            
+            return AuthUser(user_id=user_id, email=email, name=name)
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Invalid user payload: {str(e)}",
             )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid authentication: {str(e)}",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
     
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Authentication failed",
-        headers={"WWW-Authenticate": "Bearer"},
+        detail="Authentication required",
     )
 
+async def get_current_user(
+    request: Request
+) -> Optional[AuthUser]:
+    """Optional authentication."""
+    if not CLERK_ENABLED:
+        return AuthUser(user_id="legacy-user", email="legacy@karma.local", name="Legacy User")
+        
+    auth_header = request.headers.get("authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return None
+        
+    try:
+        token = auth_header.split(" ")[1]
+        decoded = await verify_token(token)
+        return AuthUser(
+            user_id=decoded.get("sub", "unknown"),
+            email=decoded.get("email"),
+            name=decoded.get("name")
+        )
+    except:
+        return None
 
 def is_auth_enabled() -> bool:
-    """Check if authentication is enabled."""
     return CLERK_ENABLED
 

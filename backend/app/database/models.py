@@ -16,6 +16,7 @@ class TaskModel(Base):
     __tablename__ = "tasks"
     
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)  # User who owns this task
     text: Mapped[str] = mapped_column(Text, nullable=False)
     date: Mapped[str] = mapped_column(String(10), nullable=False, index=True)  # YYYY-MM-DD
     
@@ -75,6 +76,7 @@ class TaskModel(Base):
         
         return {
             "id": self.id,
+            "user_id": self.user_id,
             "text": self.text,
             "date": self.date,
             "status": self.status,
@@ -104,6 +106,7 @@ class SubtaskModel(Base):
     __tablename__ = "subtasks"
     
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)  # User who owns this subtask
     task_id: Mapped[str] = mapped_column(String(36), ForeignKey("tasks.id"), nullable=False, index=True)
     
     # Subtask content
@@ -132,6 +135,7 @@ class SubtaskModel(Base):
         """Convert model to dictionary."""
         return {
             "id": self.id,
+            "user_id": self.user_id,
             "task_id": self.task_id,
             "text": self.text,
             "instruction": self.instruction,
@@ -150,6 +154,7 @@ class FeedbackModel(Base):
     __tablename__ = "feedback"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)  # User who provided feedback
     task_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     task_text: Mapped[str] = mapped_column(Text, nullable=False)
     accepted: Mapped[bool] = mapped_column(Boolean, nullable=False)
@@ -166,6 +171,7 @@ class FeedbackModel(Base):
         """Convert model to dictionary."""
         return {
             "id": self.id,
+            "user_id": self.user_id,
             "task_id": self.task_id,
             "task_text": self.task_text,
             "accepted": self.accepted,
@@ -184,6 +190,7 @@ class QuickWinHistoryModel(Base):
     __tablename__ = "quickwin_history"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)  # User who saw this quick win
     quickwin_text: Mapped[str] = mapped_column(Text, nullable=False)
     category: Mapped[str] = mapped_column(String(50), default="other")
     shown_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -193,6 +200,7 @@ class QuickWinHistoryModel(Base):
         """Convert model to dictionary."""
         return {
             "id": self.id,
+            "user_id": self.user_id,
             "quickwin_text": self.quickwin_text,
             "category": self.category,
             "shown_at": self.shown_at.isoformat() if self.shown_at else None,

@@ -3,7 +3,7 @@
 from datetime import datetime
 import uuid
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
 
@@ -13,6 +13,7 @@ from app.models import (
     CompleteQuickWinRequest, SubtaskStatusRequest, AddTaskRequest,
     Session, UserContext, TimeAvailable, EnergyLevel, TaskCategory
 )
+from app.auth import require_auth, AuthUser
 from app.services.session_store import session_store
 from app.services import db_service
 from app.agents import karma_orchestrator
@@ -24,13 +25,13 @@ router = APIRouter(prefix="/api", tags=["tasks"])
 
 
 @router.post("/todo/import", response_model=ImportTodoListResponse)
-async def import_todo_list(request: ImportTodoListRequest):
+async def import_todo_list(request: ImportTodoListRequest, user: AuthUser = Depends(require_auth)):
     """
     Import a todo list from text content.
     Uses TaskAnalyzer and TaskEnricher agents to process tasks.
     """
     logger.info("Importing todo list from text content")
-    session = session_store.create_session()
+    session = session_store.create_session(user.user_id)
     
     # Parse tasks from text
     lines = [line.strip() for line in request.text_content.strip().split("\n")]
@@ -55,7 +56,7 @@ async def import_todo_list(request: ImportTodoListRequest):
     for task in analyzed_tasks:
         task_dict = task.model_dump()
         task_dict["date"] = today
-        await db_service.save_task(task_dict)
+        await db_service.save_task(user.user_id, task_dict)
         logger.debug(f"Saved task: {task.id} - {task.text[:50]}...")
     
     # Create todo list and attach to session
@@ -75,7 +76,7 @@ async def import_todo_list(request: ImportTodoListRequest):
 
 @router.post("/task/add")
 @router.post("/tasks/add")
-async def add_single_task(request: AddTaskRequest):
+async def add_single_task(request: AddTaskRequest, user: AuthUser = Depends(require_auth)):
     """Add a single task and analyze it."""
     logger.info(f"Adding new task: {request.text[:50]}...")
     task = Task(text=request.text)
@@ -97,7 +98,7 @@ async def add_single_task(request: AddTaskRequest):
         today = datetime.now().strftime("%Y-%m-%d")
         task_dict = analyzed_tasks[0].model_dump()
         task_dict["date"] = today
-        await db_service.save_task(task_dict)
+        await db_service.save_task(user.user_id, task_dict)
         
         logger.info(f"Task added successfully: {task_dict['id']}")
         return {
@@ -111,11 +112,11 @@ async def add_single_task(request: AddTaskRequest):
 
 
 @router.get("/tasks/all")
-async def get_all_tasks():
-    """Get all tasks organized by date."""
+async def get_all_tasks(user: AuthUser = Depends(require_auth)):
+    """Get all tasks organized by date for the authenticated user."""
     logger.debug("Fetching all tasks")
-    tasks_by_date = await db_service.get_all_tasks_by_date()
-    stats = await db_service.get_task_stats()
+    tasks_by_date = await db_service.get_all_tasks_by_date(user.user_id)
+    stats = await db_service.get_task_stats(user.user_id)
     total_tasks = stats.get("total", 0)
     logger.info(f"Retrieved {total_tasks} tasks across {len(tasks_by_date)} dates")
     return {
@@ -126,43 +127,43 @@ async def get_all_tasks():
 
 
 @router.get("/tasks/stats")
-async def get_stats():
+async def get_stats(user: AuthUser = Depends(require_auth)):
     """Get overall task statistics for UI badges."""
-    stats = await db_service.get_task_stats()
+    stats = await db_service.get_task_stats(user.user_id)
     return stats
 
 
 @router.get("/tasks/continuable")
-async def get_continuable_tasks():
+async def get_continuable_tasks(user: AuthUser = Depends(require_auth)):
     """
     Get tasks that user can continue working on.
     Returns in-progress tasks and tasks that are almost done (>50% subtasks completed).
     """
     logger.info("Fetching continuable tasks")
-    result = await db_service.get_continuable_tasks()
+    result = await db_service.get_continuable_tasks(user.user_id)
     return result
 
 
 @router.get("/tasks/in-progress")
-async def get_in_progress_tasks():
-    """Get all tasks currently in progress."""
+async def get_in_progress_tasks(user: AuthUser = Depends(require_auth)):
+    """Get all tasks currently in progress for the authenticated user."""
     logger.info("Fetching in-progress tasks")
-    tasks = await db_service.get_in_progress_tasks()
+    tasks = await db_service.get_in_progress_tasks(user.user_id)
     return {"tasks": tasks, "count": len(tasks)}
 
 
 @router.get("/tasks/date/{date}")
-async def get_tasks_by_date(date: str):
-    """Get tasks for a specific date."""
-    tasks = await db_service.get_tasks_by_date(date)
+async def get_tasks_by_date(date: str, user: AuthUser = Depends(require_auth)):
+    """Get tasks for a specific date for the authenticated user."""
+    tasks = await db_service.get_tasks_by_date(user.user_id, date)
     return {"date": date, "tasks": tasks}
 
 
 @router.get("/tasks/{task_id}")
-async def get_task_detail(task_id: str):
+async def get_task_detail(task_id: str, user: AuthUser = Depends(require_auth)):
     """Get full details for a specific task including enrichment."""
     logger.debug(f"Fetching task details: {task_id}")
-    task = await db_service.get_task(task_id)
+    task = await db_service.get_task(user.user_id, task_id)
     if not task:
         logger.warning(f"Task not found: {task_id}")
         raise HTTPException(status_code=404, detail="Task not found")
@@ -175,7 +176,7 @@ class StatusUpdateRequest(BaseModel):
     date: Optional[str] = None
 
 @router.put("/tasks/{task_id}/status")
-async def update_task_status_endpoint(task_id: str, request: StatusUpdateRequest):
+async def update_task_status_endpoint(task_id: str, request: StatusUpdateRequest, user: AuthUser = Depends(require_auth)):
     """Update a task's status."""
     logger.info(f"Updating task {task_id} status to: {request.status}")
     valid_statuses = ["pending", "in_progress", "completed", "skipped"]
@@ -186,7 +187,7 @@ async def update_task_status_endpoint(task_id: str, request: StatusUpdateRequest
             detail=f"Invalid status. Must be one of: {valid_statuses}"
         )
     
-    result = await db_service.update_task_status(task_id, request.status, request.date)
+    result = await db_service.update_task_status(user.user_id, task_id, request.status, request.date)
     if not result.get("success"):
         logger.error(f"Failed to update task {task_id}: {result.get('error')}")
         raise HTTPException(status_code=404, detail=result.get("error", "Failed to update"))
@@ -195,19 +196,19 @@ async def update_task_status_endpoint(task_id: str, request: StatusUpdateRequest
 
 
 @router.post("/tasks/{task_id}/complete")
-async def complete_task(task_id: str):
+async def complete_task(task_id: str, user: AuthUser = Depends(require_auth)):
     """Mark a task as completed."""
-    result = await db_service.update_task_status(task_id, "completed")
+    result = await db_service.update_task_status(user.user_id, task_id, "completed")
     return result
 
 
 @router.post("/tasks/{task_id}/breakdown")
-async def breakdown_task_by_id(task_id: str):
+async def breakdown_task_by_id(task_id: str, user: AuthUser = Depends(require_auth)):
     """Break down a task into steps by task ID."""
     logger.info(f"Breaking down task: {task_id}")
     
     # Get task from database
-    task_data = await db_service.get_task(task_id)
+    task_data = await db_service.get_task(user.user_id, task_id)
     if not task_data:
         logger.warning(f"Task not found for breakdown: {task_id}")
         raise HTTPException(status_code=404, detail="Task not found")
@@ -256,7 +257,7 @@ async def breakdown_task_by_id(task_id: str):
             }
             for step in breakdown.steps
         ]
-        await db_service.save_subtasks(task_id, subtasks_data)
+        await db_service.save_subtasks(user.user_id, task_id, subtasks_data)
         logger.info(f"Task {task_id} broken down into {subtask_count} subtasks")
     else:
         logger.warning(f"No subtasks generated for task {task_id}")
@@ -278,10 +279,10 @@ async def breakdown_task_by_id(task_id: str):
 
 
 @router.post("/tasks/{task_id}/reresearch")
-async def reresearch_task_by_id(task_id: str):
+async def reresearch_task_by_id(task_id: str, user: AuthUser = Depends(require_auth)):
     """Re-research a task by ID."""
     # Get task from database
-    task_data = await db_service.get_task(task_id)
+    task_data = await db_service.get_task(user.user_id, task_id)
     if not task_data:
         raise HTTPException(status_code=404, detail="Task not found")
     
@@ -298,20 +299,20 @@ async def reresearch_task_by_id(task_id: str):
     if enriched_tasks:
         enriched_task = enriched_tasks[0]
         # Update task in database with new enrichment
-        await db_service.update_task_enrichment(task_id, enriched_task.enrichment.model_dump() if enriched_task.enrichment else None)
+        await db_service.update_task_enrichment(user.user_id, task_id, enriched_task.enrichment.model_dump() if enriched_task.enrichment else None)
         return enriched_task.model_dump()
     
     return task_data
 
 
 @router.post("/task/breakdown")
-async def breakdown_task_from_browse(request: TaskBreakdownRequest):
+async def breakdown_task_from_browse(request: TaskBreakdownRequest, user: AuthUser = Depends(require_auth)):
     """Break down a task into steps (called from browse view)."""
     # Get or create session
-    session = session_store.get_session(request.session_id)
+    session = session_store.get_session(user.user_id, request.session_id)
     if not session:
         # Create a minimal session for this operation
-        session = Session(id=request.session_id)
+        session = Session(id=request.session_id, user_id=user.user_id)
         session.context = UserContext(
             time_available=TimeAvailable.THIRTY,
             energy_level=EnergyLevel.MEDIUM
@@ -319,7 +320,7 @@ async def breakdown_task_from_browse(request: TaskBreakdownRequest):
         session_store.update_session(session)
     
     # Get task details from database
-    task_data = await db_service.get_task(request.task_id)
+    task_data = await db_service.get_task(user.user_id, request.task_id)
     if not task_data:
         # Create task from text if not found
         task = Task(id=request.task_id, text=request.task_text)
@@ -359,7 +360,7 @@ async def breakdown_task_from_browse(request: TaskBreakdownRequest):
         }
         for step in breakdown.steps
     ]
-    await db_service.create_subtasks(request.task_id, subtasks_data)
+    await db_service.create_subtasks(user.user_id, request.task_id, subtasks_data)
     
     print(f"\n✅ Breakdown Agent: Created {breakdown.total_steps} steps")
     
@@ -373,7 +374,7 @@ async def breakdown_task_from_browse(request: TaskBreakdownRequest):
 
 
 @router.post("/task/status")
-async def update_task_status_post(request: TaskStatusRequest):
+async def update_task_status_post(request: TaskStatusRequest, user: AuthUser = Depends(require_auth)):
     """Update task status (POST version for easier frontend calls)."""
     valid_statuses = ["pending", "in_progress", "completed", "skipped"]
     if request.status not in valid_statuses:
@@ -382,14 +383,14 @@ async def update_task_status_post(request: TaskStatusRequest):
             detail=f"Invalid status. Must be one of: {valid_statuses}"
         )
     
-    result = await db_service.update_task_status(request.task_id, request.status)
+    result = await db_service.update_task_status(user.user_id, request.task_id, request.status)
     if not result.get("success"):
         raise HTTPException(status_code=404, detail=result.get("error", "Failed to update"))
     return result
 
 
 @router.post("/task/reresearch")
-async def reresearch_task(request: ReResearchRequest):
+async def reresearch_task(request: ReResearchRequest, user: AuthUser = Depends(require_auth)):
     """Re-research a task, optionally with user correction/feedback."""
     print("\n" + "=" * 60)
     print("🤖 ORCHESTRATOR: Re-researching task with user feedback...")
@@ -401,7 +402,7 @@ async def reresearch_task(request: ReResearchRequest):
     print("=" * 60)
     
     # Get existing task from database
-    task_data = await db_service.get_task(request.task_id)
+    task_data = await db_service.get_task(user.user_id, request.task_id)
     if not task_data:
         task = Task(id=request.task_id, text=request.task_text)
     else:
@@ -419,7 +420,7 @@ async def reresearch_task(request: ReResearchRequest):
     enrichment = await karma_orchestrator.enrich_task(temp_task)
     
     # Save enrichment to database
-    await db_service.save_enrichment(request.task_id, enrichment)
+    await db_service.save_enrichment(user.user_id, request.task_id, enrichment)
     
     print(f"\n✅ TaskEnricher: Re-researched with {len(enrichment.get('steps', []))} steps")
     
@@ -432,11 +433,11 @@ async def reresearch_task(request: ReResearchRequest):
 
 
 @router.delete("/tasks/{task_id}")
-async def delete_task(task_id: str):
+async def delete_task(task_id: str, user: AuthUser = Depends(require_auth)):
     """Delete a single task."""
     logger.info(f"Deleting task: {task_id}")
     
-    result = await db_service.delete_task(task_id)
+    result = await db_service.delete_task(user.user_id, task_id)
     
     if not result.get("success"):
         raise HTTPException(status_code=404, detail="Task not found")
@@ -449,13 +450,13 @@ async def delete_task(task_id: str):
 
 
 @router.delete("/tasks/delete-all")
-async def delete_all_tasks():
-    """Delete all tasks - DANGER ZONE."""
+async def delete_all_tasks(user: AuthUser = Depends(require_auth)):
+    """Delete all tasks for the authenticated user - DANGER ZONE."""
     print("\n" + "=" * 60)
     print("⚠️  DELETING ALL TASKS...")
     print("=" * 60)
     
-    result = await db_service.delete_all_tasks()
+    result = await db_service.delete_all_tasks(user.user_id)
     
     print(f"✅ Deleted {result['deleted_count']} tasks")
     
@@ -467,7 +468,7 @@ async def delete_all_tasks():
 
 
 @router.post("/task/subtask/status")
-async def update_subtask_status_endpoint(request: SubtaskStatusRequest):
+async def update_subtask_status_endpoint(request: SubtaskStatusRequest, user: AuthUser = Depends(require_auth)):
     """Update a subtask's status. Auto-completes parent task if all subtasks are done."""
     valid_statuses = ["pending", "in_progress", "completed", "skipped"]
     if request.status not in valid_statuses:
@@ -476,7 +477,7 @@ async def update_subtask_status_endpoint(request: SubtaskStatusRequest):
             detail=f"Invalid status. Must be one of: {valid_statuses}"
         )
     
-    result = await db_service.update_subtask_status(request.subtask_id, request.status)
+    result = await db_service.update_subtask_status(user.user_id, request.subtask_id, request.status)
     if not result.get("success"):
         raise HTTPException(status_code=404, detail=result.get("error", "Subtask not found"))
     
@@ -497,12 +498,12 @@ class SubtaskProgressRequest(BaseModel):
 
 
 @router.post("/task/subtask/progress")
-async def update_subtask_progress_endpoint(request: SubtaskProgressRequest):
+async def update_subtask_progress_endpoint(request: SubtaskProgressRequest, user: AuthUser = Depends(require_auth)):
     """Update a subtask's progress (0-100). Auto-completes if progress is 100."""
     if not 0 <= request.progress <= 100:
         raise HTTPException(status_code=400, detail="Progress must be between 0 and 100")
     
-    result = await db_service.update_subtask_progress(request.subtask_id, request.progress)
+    result = await db_service.update_subtask_progress(user.user_id, request.subtask_id, request.progress)
     if not result.get("success"):
         raise HTTPException(status_code=404, detail=result.get("error", "Subtask not found"))
     
@@ -523,9 +524,9 @@ class AddSubtaskRequest(BaseModel):
 
 
 @router.post("/task/subtask/add")
-async def add_subtask_endpoint(request: AddSubtaskRequest):
+async def add_subtask_endpoint(request: AddSubtaskRequest, user: AuthUser = Depends(require_auth)):
     """Add a manual subtask to a task."""
-    result = await db_service.add_subtask(request.task_id, request.text, request.estimated_minutes)
+    result = await db_service.add_subtask(user.user_id, request.task_id, request.text, request.estimated_minutes)
     if not result.get("success"):
         raise HTTPException(status_code=404, detail=result.get("error", "Task not found"))
     
@@ -537,9 +538,9 @@ async def add_subtask_endpoint(request: AddSubtaskRequest):
 
 
 @router.get("/task/{task_id}/subtasks")
-async def get_task_subtasks(task_id: str):
+async def get_task_subtasks(task_id: str, user: AuthUser = Depends(require_auth)):
     """Get subtasks for a specific task."""
-    task = await db_service.get_task(task_id)
+    task = await db_service.get_task(user.user_id, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     
@@ -571,7 +572,7 @@ async def get_task_subtasks(task_id: str):
 
 
 @router.post("/quickwin/complete")
-async def add_quickwin_as_task(request: CompleteQuickWinRequest):
+async def add_quickwin_as_task(request: CompleteQuickWinRequest, user: AuthUser = Depends(require_auth)):
     """Save a quick win as a pending task to the task list."""
     today = datetime.now().strftime("%Y-%m-%d")
     
@@ -592,7 +593,7 @@ async def add_quickwin_as_task(request: CompleteQuickWinRequest):
         "subtasks_generated": False
     }
     
-    result = await db_service.save_task(task_data)
+    result = await db_service.save_task(user.user_id, task_data)
     
     print(f"➕ Quick win added to tasks: {request.text[:50]}...")
     

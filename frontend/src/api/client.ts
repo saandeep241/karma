@@ -17,24 +17,57 @@ import type {
 
 const API_BASE = '/api';
 
-// Generic fetch wrapper with error handling
+// Import token getter
+import { getAuthToken } from './authToken';
+
+// Generic fetch wrapper with error handling and authentication
 async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
   
+  // Get auth token
+  const token = await getAuthToken();
+  
+  // Build headers with auth token if available
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
   const response = await fetch(url, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers,
   });
 
   if (!response.ok) {
+    // Handle 401 Unauthorized - authentication required
+    if (response.status === 401) {
+      const errorData = await response.json().catch(() => ({}));
+      const error = new Error(errorData.detail || 'Authentication required');
+      (error as any).status = 401;
+      (error as any).code = 'UNAUTHORIZED';
+      throw error;
+    }
+    
+    // Handle 403 Forbidden - usually means token is invalid/expired
+    if (response.status === 403) {
+      const errorData = await response.json().catch(() => ({}));
+      const error = new Error(errorData.detail || 'Invalid or expired authentication token');
+      (error as any).status = 403;
+      (error as any).code = 'FORBIDDEN';
+      throw error;
+    }
+    
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.detail || errorData.message || `API Error: ${response.status}`);
+    const error = new Error(errorData.detail || errorData.message || `API Error: ${response.status}`);
+    (error as any).status = response.status;
+    throw error;
   }
 
   return response.json();

@@ -1,14 +1,15 @@
 """Suggestion and quick win routes."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 
 from app.models import (
     Task, TodoList, TaskSuggestion, UserContext,
     GetSuggestionRequest, SuggestFromStorageRequest,
     TimeAvailable, EnergyLevel, EmotionalState
 )
+from app.auth import require_auth, AuthUser
 from app.services.session_store import session_store
-from app.services.tools import get_all_tasks_by_date
+from app.services import db_service
 from app.agents import karma_orchestrator
 from app.logging_config import get_api_logger
 
@@ -18,7 +19,7 @@ router = APIRouter(prefix="/api", tags=["suggestions"])
 
 
 @router.post("/suggestion/from-storage")
-async def get_suggestion_from_storage(request: SuggestFromStorageRequest):
+async def get_suggestion_from_storage(request: SuggestFromStorageRequest, user: AuthUser = Depends(require_auth)):
     """Get a task suggestion directly from stored tasks without re-importing.
     
     If a task has subtasks, suggests the next pending subtask.
@@ -26,8 +27,8 @@ async def get_suggestion_from_storage(request: SuggestFromStorageRequest):
     """
     logger.info(f"Getting suggestion from storage (time: {request.time_available}min, energy: {request.energy_level})")
     
-    # Load all tasks from storage
-    tasks_by_date = get_all_tasks_by_date()
+    # Load all tasks from storage for this user
+    tasks_by_date = await db_service.get_all_tasks_by_date(user.user_id)
     
     # Collect pending tasks and tasks with pending subtasks
     all_tasks = []
@@ -141,7 +142,7 @@ async def get_suggestion_from_storage(request: SuggestFromStorageRequest):
     )
     
     # Create/update session
-    session = session_store.create_session()
+    session = session_store.create_session(user.user_id)
     session.context = context
     session.todo_list = TodoList(tasks=all_tasks)
     session.suggested_task_ids = request.excluded_task_ids
@@ -197,9 +198,9 @@ async def get_suggestion_from_storage(request: SuggestFromStorageRequest):
 
 
 @router.post("/suggestion/get")
-async def get_task_suggestion(request: GetSuggestionRequest):
+async def get_task_suggestion(request: GetSuggestionRequest, user: AuthUser = Depends(require_auth)):
     """Get a task suggestion using the TaskSuggester agent."""
-    session = session_store.get_session(request.session_id)
+    session = session_store.get_session(user.user_id, request.session_id)
     
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -295,18 +296,18 @@ async def get_task_suggestion(request: GetSuggestionRequest):
 
 
 @router.post("/quickwin")
-async def post_ai_quickwin(request: dict = None):
+async def post_ai_quickwin(request: dict = None, user: AuthUser = Depends(require_auth)):
     """Get an AI-generated quick win from the QuickWin agent (POST version)."""
-    return await _generate_quickwin(request)
+    return await _generate_quickwin(request, user.user_id)
 
 
 @router.get("/quickwin/get")
-async def get_ai_quickwin():
+async def get_ai_quickwin(user: AuthUser = Depends(require_auth)):
     """Get an AI-generated quick win from the QuickWin agent (GET version)."""
-    return await _generate_quickwin(None)
+    return await _generate_quickwin(None, user.user_id)
 
 
-async def _generate_quickwin(request: dict = None):
+async def _generate_quickwin(request: dict = None, user_id: str = None):
     """Internal helper to generate a quick win."""
     try:
         # Get context from request or use defaults
@@ -329,6 +330,15 @@ async def _generate_quickwin(request: dict = None):
         # Get AI-generated quick win
         quickwin = await karma_orchestrator.generate_quickwin(context)
         
+        # Record quickwin shown to user (if user_id provided)
+        if user_id:
+            await db_service.record_quickwin_shown(
+                user_id,
+                quickwin["text"],
+                quickwin.get("category", "other"),
+                was_added=False
+            )
+        
         return {
             "success": True,
             "quickwin": quickwin,
@@ -342,7 +352,7 @@ async def _generate_quickwin(request: dict = None):
 
 
 @router.get("/options")
-async def get_options():
+async def get_options(user: AuthUser = Depends(require_auth)):
     """Get available options for time, energy, and emotional state."""
     return {
         "time_options": [
@@ -361,9 +371,9 @@ async def get_options():
 
 
 @router.get("/agent/insights")
-async def get_agent_insights():
-    """Get learning insights from all agents."""
-    insights = karma_orchestrator.get_learning_insights()
+async def get_agent_insights(user: AuthUser = Depends(require_auth)):
+    """Get learning insights from all agents for the authenticated user."""
+    insights = await db_service.get_learning_insights(user.user_id)
     return {
         "insights": insights,
         "message": "Learning insights from agent interactions",

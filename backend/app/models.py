@@ -182,6 +182,7 @@ class QuickWinTask(BaseModel):
 class Session(BaseModel):
     """User session tracking."""
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str  # User who owns this session
     todo_list: Optional[TodoList] = None
     context: Optional[UserContext] = None
     suggested_task_ids: list[str] = []  # Track suggested tasks to avoid repeats
