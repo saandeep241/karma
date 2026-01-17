@@ -189,28 +189,46 @@ class TaskRepository:
         return task
     
     async def delete(self, user_id: str, task_id: str) -> bool:
-        """Delete a task, only if it belongs to the user."""
-        result = await self.session.execute(
-            delete(TaskModel)
-            .where(TaskModel.id == task_id)
-            .where(TaskModel.user_id == user_id)  # Verify ownership
-        )
+        """Delete a task and its subtasks, only if it belongs to the user."""
+        # Load the task with subtasks to ensure cascade delete works
+        task = await self.get_by_id(user_id, task_id)
+        if not task:
+            return False
+        
+        # Delete the task - this will cascade delete subtasks due to the relationship
+        # First, explicitly delete subtasks to avoid foreign key constraint issues
+        if task.subtasks:
+            for subtask in task.subtasks:
+                await self.session.delete(subtask)
+        
+        # Now delete the task
+        await self.session.delete(task)
         await self.session.commit()
         
-        deleted = result.rowcount > 0
-        if deleted:
-            print(f"📦 [DB] Deleted task: {task_id}")
-        return deleted
+        print(f"📦 [DB] Deleted task: {task_id} (and {len(task.subtasks) if task.subtasks else 0} subtasks)")
+        return True
     
     async def delete_all(self, user_id: str) -> int:
-        """Delete all tasks for a specific user."""
-        result = await self.session.execute(
-            delete(TaskModel).where(TaskModel.user_id == user_id)
-        )
+        """Delete all tasks and their subtasks for a specific user."""
+        # First, get all tasks with their subtasks
+        tasks = await self.get_all(user_id)
+        
+        # Delete all subtasks first
+        subtask_count = 0
+        for task in tasks:
+            if task.subtasks:
+                for subtask in task.subtasks:
+                    await self.session.delete(subtask)
+                    subtask_count += 1
+        
+        # Now delete all tasks
+        for task in tasks:
+            await self.session.delete(task)
+        
         await self.session.commit()
         
-        print(f"📦 [DB] Deleted all tasks for user: {result.rowcount}")
-        return result.rowcount
+        print(f"📦 [DB] Deleted all tasks for user: {len(tasks)} tasks and {subtask_count} subtasks")
+        return len(tasks)
     
     async def get_stats(self, user_id: str) -> dict:
         """Get overall task statistics for a specific user."""
