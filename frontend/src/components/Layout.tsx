@@ -24,7 +24,7 @@ export function Layout() {
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <NavLink to="/" className="flex items-center gap-2 no-underline">
             <span className="text-2xl">✨</span>
-            <h1 className="font-serif text-2xl gradient-text">Karma</h1>
+            <h1 className="font-serif text-2xl gradient-text">Nudge</h1>
           </NavLink>
           
           <div className="flex items-center gap-4">
@@ -85,7 +85,7 @@ export function Layout() {
       {/* Footer */}
       <footer className="border-t border-[var(--karma-border)] py-6">
         <div className="max-w-6xl mx-auto px-4 text-center text-[var(--karma-text-muted)] text-sm">
-          <p>Karma — AI-powered task suggestions</p>
+          <p>Nudge — AI-powered task suggestions</p>
         </div>
       </footer>
     </div>

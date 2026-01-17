@@ -199,7 +199,7 @@ export function BrowsePage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-serif gradient-text">Your Tasks</h1>
         <div className="flex items-center gap-3">
-          <span className="badge badge-accent">
+          <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-sm font-medium">
             {filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''}
           </span>
           {tasks.length > 0 && (
@@ -255,8 +255,8 @@ export function BrowsePage() {
               onClick={() => setFilterStatus(status.value)}
               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
                 filterStatus === status.value
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'bg-blue-50 text-blue-700 shadow-sm border border-blue-200'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
               }`}
             >
               {status.label}
@@ -270,7 +270,7 @@ export function BrowsePage() {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortBy)}
-            className="bg-transparent border-none text-gray-700 font-medium cursor-pointer focus:outline-none"
+            className="bg-transparent border-none text-blue-600 font-medium cursor-pointer focus:outline-none hover:text-blue-700"
           >
             <option value="date">Date</option>
             <option value="priority">Priority</option>
@@ -300,10 +300,10 @@ export function BrowsePage() {
             .sort(([a], [b]) => b.localeCompare(a))
             .map(([date, dateTasks]) => (
               <div key={date}>
-                <h2 className="text-lg font-semibold text-[var(--karma-text-muted)] mb-3 flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-blue-600 mb-3 flex items-center gap-2">
                   <span>📅</span>
                   {formatDate(date)}
-                  <span className="text-sm font-normal">
+                  <span className="text-sm font-normal text-gray-500">
                     ({dateTasks.length} task{dateTasks.length !== 1 ? 's' : ''})
                   </span>
                 </h2>

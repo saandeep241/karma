@@ -1,4 +1,4 @@
-// Karma API Client
+// Nudge API Client
 import type {
   Task,
   QuickWin,

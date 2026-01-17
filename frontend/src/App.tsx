@@ -27,7 +27,7 @@ function App() {
           <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
             <div className="text-center">
               <h1 className="text-4xl font-serif italic mb-6 text-gray-800">
-                ✨ Welcome to Karma
+                ✨ Welcome to Nudge
               </h1>
               <p className="text-gray-600 mb-8 max-w-md mx-auto">
                 AI-powered task suggestions for productive moments. Sign in to get started.

@@ -88,7 +88,7 @@ export function AddPage() {
       {/* Header */}
       <div className="text-center">
         <h1 className="text-2xl font-serif gradient-text mb-2">Add Tasks</h1>
-        <p className="text-[var(--karma-text-muted)]">
+        <p className="text-gray-500">
           Add tasks individually or import multiple at once
         </p>
       </div>
@@ -97,13 +97,21 @@ export function AddPage() {
       <div className="flex justify-center gap-2">
         <button
           onClick={() => setMode('single')}
-          className={`btn ${mode === 'single' ? 'btn-primary' : 'btn-secondary'}`}
+          className={`px-4 py-2 rounded-lg font-medium transition-all ${
+            mode === 'single'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
         >
           Single Task
         </button>
         <button
           onClick={() => setMode('bulk')}
-          className={`btn ${mode === 'bulk' ? 'btn-primary' : 'btn-secondary'}`}
+          className={`px-4 py-2 rounded-lg font-medium transition-all ${
+            mode === 'bulk'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
         >
           Bulk Import
         </button>
@@ -257,7 +265,7 @@ export function AddPage() {
           <button
             type="submit"
             disabled={!taskText.trim() || isLoading}
-            className="btn btn-primary w-full"
+            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? <LoadingSpinner size="sm" /> : '✓ Add Task'}
           </button>
@@ -291,7 +299,7 @@ Send invoice to client`}
           <button
             type="submit"
             disabled={!bulkTasks.trim() || isLoading}
-            className="btn btn-primary w-full"
+            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? (
               <LoadingSpinner size="sm" text="Analyzing tasks..." />
