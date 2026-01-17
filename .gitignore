@@ -21,15 +21,20 @@ ENV/
 *.swo
 
 # Data (user-specific)
-karma/data/tasks/
-karma/data/task_details/
-karma/data/reasoning/
-karma/data/memory/
-
-# Keep the data directory structure
-!karma/data/.gitkeep
+# Ignore all subfolders and files in data directory
+backend/data/tasks/
+backend/data/task_details/
+backend/data/reasoning/
+backend/data/memory/
+backend/data/**/*
+# Keep the data directory structure and karma.db
+!backend/data/.gitkeep
+!backend/data/karma.db
 
 # OS
 .DS_Store
 Thumbs.db
 
+
+backend/logs/karma_2026-01-14_readable.log
+backend/logs/karma_2026-01-14.log
