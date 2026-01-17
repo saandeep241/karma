@@ -1,0 +1,126 @@
+{
+  "date": "2026-01-15",
+  "tasks": [
+    {
+      "id": "c796cd7d-703f-4eff-9a98-af0373c989b9",
+      "text": "Hold a plank for 30 seconds",
+      "date": "2026-01-15",
+      "status": "pending",
+      "priority": "medium",
+      "category": "health",
+      "tags": [
+        "quick-win"
+      ],
+      "created_at": "2026-01-15T03:48:58.614608",
+      "started_at": null,
+      "completed_at": null,
+      "estimated_minutes": 5,
+      "energy_required": "low",
+      "emotional_fit": null,
+      "task_type": "quick_win",
+      "ai_reasoning": null,
+      "enrichment": null,
+      "times_suggested": 0,
+      "times_accepted": 0,
+      "times_rejected": 0,
+      "breakdown": null,
+      "feedback_history": [],
+      "subtasks": [
+        {
+          "id": "97605b1f-58ba-43e9-b81c-30b255189be2",
+          "step_number": 1,
+          "instruction": "Get started by opening/preparing what you need",
+          "estimated_minutes": 10,
+          "status": "pending",
+          "started_at": null,
+          "completed_at": null,
+          "ai_reasoning": null
+        },
+        {
+          "id": "4c68a145-318d-4880-9d38-2fb682f6816b",
+          "step_number": 2,
+          "instruction": "Work on the main part of the task",
+          "estimated_minutes": 10,
+          "status": "pending",
+          "started_at": null,
+          "completed_at": null,
+          "ai_reasoning": null
+        },
+        {
+          "id": "ad27f3f1-ff78-4a3a-8a2e-90bdfce14b7d",
+          "step_number": 3,
+          "instruction": "Review what you've done",
+          "estimated_minutes": 10,
+          "status": "pending",
+          "started_at": null,
+          "completed_at": null,
+          "ai_reasoning": null
+        }
+      ],
+      "subtasks_generated": true,
+      "is_dummy": true
+    },
+    {
+      "id": "3ad84caa-a683-44bd-b49c-c1eb77c1e022",
+      "text": "Doodle something random for 2 minutes",
+      "date": "2026-01-15",
+      "status": "pending",
+      "priority": "medium",
+      "category": "creative",
+      "tags": [
+        "quick-win"
+      ],
+      "created_at": "2026-01-15T03:50:45.208074",
+      "started_at": null,
+      "completed_at": null,
+      "estimated_minutes": 5,
+      "energy_required": "low",
+      "emotional_fit": null,
+      "task_type": "quick_win",
+      "ai_reasoning": null,
+      "enrichment": null,
+      "times_suggested": 0,
+      "times_accepted": 0,
+      "times_rejected": 0,
+      "breakdown": null,
+      "feedback_history": [],
+      "subtasks": [
+        {
+          "id": "6dd9e847-9c70-45f4-ab8c-003164895e00",
+          "step_number": 1,
+          "instruction": "Get started by opening/preparing what you need",
+          "estimated_minutes": 10,
+          "status": "pending",
+          "started_at": null,
+          "completed_at": null,
+          "ai_reasoning": null
+        },
+        {
+          "id": "94d9b249-7623-4d1f-b3a8-dbead9abed8a",
+          "step_number": 2,
+          "instruction": "Work on the main part of the task",
+          "estimated_minutes": 10,
+          "status": "pending",
+          "started_at": null,
+          "completed_at": null,
+          "ai_reasoning": null
+        },
+        {
+          "id": "c50f9c0b-7ff8-4543-8af2-ec6a69545731",
+          "step_number": 3,
+          "instruction": "Review what you've done",
+          "estimated_minutes": 10,
+          "status": "pending",
+          "started_at": null,
+          "completed_at": null,
+          "ai_reasoning": null
+        }
+      ],
+      "subtasks_generated": true,
+      "is_dummy": true
+    }
+  ],
+  "created_at": "2026-01-15T03:49:02.978840",
+  "updated_at": "2026-01-15T03:50:57.036996",
+  "count": 2
+}
