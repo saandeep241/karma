@@ -27,9 +27,10 @@ backend/data/task_details/
 backend/data/reasoning/
 backend/data/memory/
 backend/data/**/*
-# Keep the data directory structure and karma.db
+# Keep the data directory structure but NOT the database
 !backend/data/.gitkeep
-!backend/data/karma.db
+# Database is local to each developer - never commit it
+*.db
 
 # OS
 .DS_Store
