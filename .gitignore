@@ -36,5 +36,4 @@ backend/data/**/*
 Thumbs.db
 
 
-backend/logs/karma_2026-01-14_readable.log
-backend/logs/karma_2026-01-14.log
+backend/logs/

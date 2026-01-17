@@ -432,23 +432,6 @@ async def reresearch_task(request: ReResearchRequest, user: AuthUser = Depends(r
     }
 
 
-@router.delete("/tasks/{task_id}")
-async def delete_task(task_id: str, user: AuthUser = Depends(require_auth)):
-    """Delete a single task."""
-    logger.info(f"Deleting task: {task_id}")
-    
-    result = await db_service.delete_task(user.user_id, task_id)
-    
-    if not result.get("success"):
-        raise HTTPException(status_code=404, detail="Task not found")
-    
-    return {
-        "success": True,
-        "task_id": task_id,
-        "message": "Task deleted"
-    }
-
-
 @router.delete("/tasks/delete-all")
 async def delete_all_tasks(user: AuthUser = Depends(require_auth)):
     """Delete all tasks for the authenticated user - DANGER ZONE."""
@@ -464,6 +447,23 @@ async def delete_all_tasks(user: AuthUser = Depends(require_auth)):
         "success": True,
         "deleted_count": result["deleted_count"],
         "message": "All tasks have been deleted"
+    }
+
+
+@router.delete("/tasks/{task_id}")
+async def delete_task(task_id: str, user: AuthUser = Depends(require_auth)):
+    """Delete a single task."""
+    logger.info(f"Deleting task: {task_id}")
+    
+    result = await db_service.delete_task(user.user_id, task_id)
+    
+    if not result.get("success"):
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    return {
+        "success": True,
+        "task_id": task_id,
+        "message": "Task deleted"
     }
 
 
