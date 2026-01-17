@@ -3,8 +3,7 @@ import {
   SignedIn, 
   SignedOut, 
   SignInButton, 
-  UserButton,
-  useAuth 
+  UserButton
 } from '@clerk/clerk-react';
 
 const navItems = [
