@@ -18,13 +18,6 @@ const CATEGORIES: { value: TaskCategory; label: string; icon: string }[] = [
   { value: 'other', label: 'Other', icon: '📌' },
 ];
 
-const PRIORITIES: { value: TaskPriority; label: string; color: string }[] = [
-  { value: 'low', label: 'Low', color: 'bg-green-500' },
-  { value: 'medium', label: 'Medium', color: 'bg-yellow-500' },
-  { value: 'high', label: 'High', color: 'bg-orange-500' },
-  { value: 'urgent', label: 'Urgent', color: 'bg-red-500' },
-];
-
 export function AddPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -32,7 +25,6 @@ export function AddPage() {
   const [mode, setMode] = useState<'single' | 'bulk'>('single');
   const [taskText, setTaskText] = useState('');
   const [bulkTasks, setBulkTasks] = useState('');
-  const [priority, setPriority] = useState<TaskPriority>('medium');
   const [category, setCategory] = useState<TaskCategory>('other');
   const [estimatedMinutes, setEstimatedMinutes] = useState(15);
   const [dueDate, setDueDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -40,7 +32,7 @@ export function AddPage() {
   const addTaskMutation = useMutation({
     mutationFn: () => api.addTask({
       text: taskText,
-      priority,
+      priority: 'medium',
       category,
       estimated_minutes: estimatedMinutes,
     }),
