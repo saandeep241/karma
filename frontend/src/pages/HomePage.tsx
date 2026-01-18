@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { FocusMode } from '../components';
 import { api } from '../api/client';
 
@@ -13,7 +13,6 @@ function getGreeting(): string {
 }
 
 export function HomePage() {
-  const navigate = useNavigate();
   const location = useLocation();
   const [showFocusMode, setShowFocusMode] = useState(false);
 
