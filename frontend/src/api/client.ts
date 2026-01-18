@@ -27,7 +27,7 @@ async function apiFetch<T>(
 ): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
   
-  // Get auth token
+  // Get auth token tettestestes
   const token = await getAuthToken();
   
   // Build headers with auth token if available
