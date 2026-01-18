@@ -18,14 +18,15 @@ export function Layout() {
           <div className="flex items-center gap-8">
             <nav className="flex items-center gap-8">
               <NavLink to="/browse" className="flex items-center gap-2 text-[#4b5563] hover:text-[#0066cc] transition-colors no-underline text-[15px] font-medium">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                  <line x1="9" y1="3" x2="9" y2="21"></line>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 7H2V11H22V7Z" />
+                  <path d="M2 11V21H22V11" />
+                  <path d="M10 15H14" />
                 </svg>
                 <span>Browse</span>
               </NavLink>
               <NavLink to="/stats" className="flex items-center gap-2 text-[#4b5563] hover:text-[#0066cc] transition-colors no-underline text-[15px] font-medium">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="20" x2="18" y2="10"></line>
                   <line x1="12" y1="20" x2="12" y2="4"></line>
                   <line x1="6" y1="20" x2="6" y2="14"></line>

@@ -91,8 +91,9 @@ export function HomePage() {
         <div className="flex flex-col items-center group">
           <div className="w-12 h-12 mb-6 rounded-full border border-gray-100 flex items-center justify-center text-[#9ca3af]">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="9" y1="3" x2="9" y2="21"></line>
+              <path d="M22 7H2V11H22V7Z" />
+              <path d="M2 11V21H22V11" />
+              <path d="M10 15H14" />
             </svg>
           </div>
           <div className="text-[44px] font-bold text-[#1a1a1a] mb-1 leading-none">{pendingTasks}</div>
