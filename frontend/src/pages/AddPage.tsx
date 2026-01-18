@@ -5,7 +5,6 @@ import { LoadingSpinner } from '../components';
 import { api } from '../api/client';
 import type { TaskCategory, TaskPriority } from '../types';
 
-// Category options with icons
 const CATEGORIES: { value: TaskCategory; label: string; icon: string }[] = [
   { value: 'work', label: 'Work', icon: '💼' },
   { value: 'personal', label: 'Personal', icon: '🏠' },
@@ -19,7 +18,6 @@ const CATEGORIES: { value: TaskCategory; label: string; icon: string }[] = [
   { value: 'other', label: 'Other', icon: '📌' },
 ];
 
-// Priority options with colors
 const PRIORITIES: { value: TaskPriority; label: string; color: string }[] = [
   { value: 'low', label: 'Low', color: 'bg-green-500' },
   { value: 'medium', label: 'Medium', color: 'bg-yellow-500' },
@@ -39,7 +37,6 @@ export function AddPage() {
   const [estimatedMinutes, setEstimatedMinutes] = useState(15);
   const [dueDate, setDueDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
-  // Add single task mutation
   const addTaskMutation = useMutation({
     mutationFn: () => api.addTask({
       text: taskText,
@@ -49,17 +46,14 @@ export function AddPage() {
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      setTaskText('');
       navigate('/browse');
     },
   });
 
-  // Import bulk tasks mutation
   const importTasksMutation = useMutation({
     mutationFn: (texts: string[]) => api.importTasks(texts),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      setBulkTasks('');
       navigate('/browse');
     },
   });
@@ -72,11 +66,7 @@ export function AddPage() {
 
   const handleSubmitBulk = (e: React.FormEvent) => {
     e.preventDefault();
-    const tasks = bulkTasks
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 0);
-    
+    const tasks = bulkTasks.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     if (tasks.length === 0) return;
     importTasksMutation.mutate(tasks);
   };
@@ -84,142 +74,86 @@ export function AddPage() {
   const isLoading = addTaskMutation.isPending || importTasksMutation.isPending;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8 animate-fade-in">
-      {/* Header */}
+    <div className="max-w-xl mx-auto space-y-10 animate-fade-in py-8">
       <div className="text-center">
-        <h1 className="text-2xl font-serif gradient-text mb-2">Add Tasks</h1>
-        <p className="text-[var(--karma-text-muted)]">
-          Add tasks individually or import multiple at once
-        </p>
+        <h1 className="text-4xl font-serif text-gray-900 mb-2">New Task</h1>
+        <p className="text-gray-500">What's on your mind?</p>
       </div>
 
-      {/* Mode Toggle */}
-      <div className="flex justify-center gap-2">
+      <div className="flex justify-center gap-1 p-1 bg-gray-50 rounded-xl border border-gray-100 max-w-xs mx-auto">
         <button
           onClick={() => setMode('single')}
-          className={`btn ${mode === 'single' ? 'btn-primary' : 'btn-secondary'}`}
+          className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+            mode === 'single' ? 'bg-white text-blue-600 shadow-sm border border-gray-100' : 'text-gray-500 hover:text-gray-700'
+          }`}
         >
-          Single Task
+          Single
         </button>
         <button
           onClick={() => setMode('bulk')}
-          className={`btn ${mode === 'bulk' ? 'btn-primary' : 'btn-secondary'}`}
+          className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+            mode === 'bulk' ? 'bg-white text-blue-600 shadow-sm border border-gray-100' : 'text-gray-500 hover:text-gray-700'
+          }`}
         >
           Bulk Import
         </button>
       </div>
 
-      {/* Single Task Form */}
-      {mode === 'single' && (
-        <form onSubmit={handleSubmitSingle} className="card space-y-6">
-          {/* Task Description */}
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              ✏️ What do you need to do?
-            </label>
+      {mode === 'single' ? (
+        <form onSubmit={handleSubmitSingle} className="space-y-8 bg-white p-8 rounded-3xl border border-gray-100 shadow-xl shadow-gray-100/50">
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">The task</label>
             <textarea
               value={taskText}
               onChange={(e) => setTaskText(e.target.value)}
-              placeholder="e.g., Review quarterly report"
-              className="w-full p-3 rounded-lg border border-[var(--karma-border)] bg-white focus:border-[var(--karma-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--karma-accent)]/20 resize-none"
+              placeholder="What needs to be done?"
+              className="w-full p-4 rounded-2xl border border-gray-100 bg-gray-50 focus:bg-white focus:border-blue-200 focus:outline-none focus:ring-4 focus:ring-blue-50 transition-all resize-none text-lg"
               rows={2}
               disabled={isLoading}
               autoFocus
             />
           </div>
 
-          {/* Due Date - Date Picker */}
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              📅 When do you want to do this?
-            </label>
-            <input
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              className="w-full p-3 rounded-lg border border-[var(--karma-border)] bg-white focus:border-[var(--karma-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--karma-accent)]/20"
-              disabled={isLoading}
-            />
-            <div className="flex gap-2 mt-2">
-              <button
-                type="button"
-                onClick={() => setDueDate(new Date().toISOString().split('T')[0])}
-                className={`text-xs px-3 py-1 rounded-full border transition-all ${
-                  dueDate === new Date().toISOString().split('T')[0]
-                    ? 'bg-[var(--karma-accent)] text-white border-[var(--karma-accent)]'
-                    : 'border-[var(--karma-border)] hover:border-[var(--karma-accent)]'
-                }`}
-              >
-                Today
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const tomorrow = new Date();
-                  tomorrow.setDate(tomorrow.getDate() + 1);
-                  setDueDate(tomorrow.toISOString().split('T')[0]);
-                }}
-                className={`text-xs px-3 py-1 rounded-full border transition-all ${
-                  dueDate === (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]; })()
-                    ? 'bg-[var(--karma-accent)] text-white border-[var(--karma-accent)]'
-                    : 'border-[var(--karma-border)] hover:border-[var(--karma-accent)]'
-                }`}
-              >
-                Tomorrow
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const nextWeek = new Date();
-                  nextWeek.setDate(nextWeek.getDate() + 7);
-                  setDueDate(nextWeek.toISOString().split('T')[0]);
-                }}
-                className="text-xs px-3 py-1 rounded-full border border-[var(--karma-border)] hover:border-[var(--karma-accent)] transition-all"
-              >
-                Next Week
-              </button>
+          <div className="grid grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">When</label>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="w-full p-3 rounded-xl border border-gray-100 bg-gray-50 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-50 transition-all text-sm"
+                disabled={isLoading}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Time (mins)</label>
+              <div className="flex gap-2">
+                {[15, 30, 60].map(mins => (
+                  <button
+                    key={mins}
+                    type="button"
+                    onClick={() => setEstimatedMinutes(mins)}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all ${
+                      estimatedMinutes === mins ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-500 border-gray-100 hover:border-blue-200'
+                    }`}
+                  >
+                    {mins}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* Time Estimate */}
-          <div>
-            <label className="block text-sm font-medium mb-3">
-              ⏱️ Estimated time
-            </label>
-            <div className="grid grid-cols-4 gap-2">
-              {[5, 15, 30, 60].map((mins) => (
-                <button
-                  key={mins}
-                  type="button"
-                  onClick={() => setEstimatedMinutes(mins)}
-                  className={`py-2 px-3 rounded-lg border transition-all ${
-                    estimatedMinutes === mins
-                      ? 'bg-[var(--karma-accent)] text-white border-[var(--karma-accent)]'
-                      : 'border-[var(--karma-border)] hover:border-[var(--karma-accent)]'
-                  }`}
-                >
-                  {mins} min
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Category - Chips/Tags */}
-          <div>
-            <label className="block text-sm font-medium mb-3">
-              📁 Category
-            </label>
+          <div className="space-y-3">
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Category</label>
             <div className="flex flex-wrap gap-2">
-              {CATEGORIES.map((cat) => (
+              {CATEGORIES.slice(0, 5).map(cat => (
                 <button
                   key={cat.value}
                   type="button"
                   onClick={() => setCategory(cat.value)}
-                  disabled={isLoading}
-                  className={`px-3 py-2 rounded-full border transition-all text-sm flex items-center gap-1 ${
-                    category === cat.value
-                      ? 'bg-[var(--karma-accent)] text-white border-[var(--karma-accent)]'
-                      : 'border-[var(--karma-border)] hover:border-[var(--karma-accent)] hover:bg-[var(--karma-bg-secondary)]'
+                  className={`px-4 py-2 rounded-full border text-sm transition-all flex items-center gap-2 ${
+                    category === cat.value ? 'bg-gray-900 text-white border-gray-900' : 'bg-gray-50 text-gray-500 border-gray-100 hover:border-gray-200'
                   }`}
                 >
                   <span>{cat.icon}</span>
@@ -229,86 +163,39 @@ export function AddPage() {
             </div>
           </div>
 
-          {/* Priority - Visual Buttons */}
-          <div>
-            <label className="block text-sm font-medium mb-3">
-              🎯 Priority
-            </label>
-            <div className="grid grid-cols-4 gap-2">
-              {PRIORITIES.map((p) => (
-                <button
-                  key={p.value}
-                  type="button"
-                  onClick={() => setPriority(p.value)}
-                  disabled={isLoading}
-                  className={`py-3 px-4 rounded-lg border transition-all text-center ${
-                    priority === p.value
-                      ? 'border-[var(--karma-accent)] ring-2 ring-[var(--karma-accent)]/30'
-                      : 'border-[var(--karma-border)] hover:border-[var(--karma-accent)]'
-                  }`}
-                >
-                  <div className={`w-3 h-3 rounded-full ${p.color} mx-auto mb-1`} />
-                  <div className="text-sm font-medium">{p.label}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-
           <button
             type="submit"
             disabled={!taskText.trim() || isLoading}
-            className="btn btn-primary w-full"
+            className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            {isLoading ? <LoadingSpinner size="sm" /> : '✓ Add Task'}
+            {isLoading ? <LoadingSpinner size="sm" /> : 'Create task'}
           </button>
         </form>
-      )}
-
-      {/* Bulk Import Form */}
-      {mode === 'bulk' && (
-        <form onSubmit={handleSubmitBulk} className="card space-y-6">
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Enter tasks (one per line)
-            </label>
+      ) : (
+        <form onSubmit={handleSubmitBulk} className="space-y-6 bg-white p-8 rounded-3xl border border-gray-100 shadow-xl shadow-gray-100/50">
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Bulk entry</label>
             <textarea
               value={bulkTasks}
               onChange={(e) => setBulkTasks(e.target.value)}
-              placeholder={`Review quarterly report
-Schedule team meeting
-Update project documentation
-Send invoice to client`}
+              placeholder="Task one&#10;Task two&#10;Task three..."
               rows={8}
-              className="input resize-none"
+              className="w-full p-4 rounded-2xl border border-gray-100 bg-gray-50 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-50 transition-all resize-none font-mono text-sm"
               disabled={isLoading}
               autoFocus
             />
-            <p className="text-xs text-[var(--karma-text-muted)] mt-2">
-              AI will analyze each task and suggest priority, category, and time estimates
-            </p>
+            <p className="text-[10px] text-gray-400 italic ml-1">AI will automatically categorize and prioritize these for you.</p>
           </div>
 
           <button
             type="submit"
             disabled={!bulkTasks.trim() || isLoading}
-            className="btn btn-primary w-full"
+            className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            {isLoading ? (
-              <LoadingSpinner size="sm" text="Analyzing tasks..." />
-            ) : (
-              `Import ${bulkTasks.split('\n').filter(l => l.trim()).length || 0} Tasks`
-            )}
+            {isLoading ? <LoadingSpinner size="sm" /> : `Import ${bulkTasks.split('\n').filter(l => l.trim()).length} tasks`}
           </button>
         </form>
-      )}
-
-      {/* Error Display */}
-      {(addTaskMutation.error || importTasksMutation.error) && (
-        <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400">
-          {(addTaskMutation.error || importTasksMutation.error)?.message || 'An error occurred'}
-        </div>
       )}
     </div>
   );
 }
-
