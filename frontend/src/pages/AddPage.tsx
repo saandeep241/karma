@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { LoadingSpinner } from '../components';
 import { api } from '../api/client';
-import type { TaskCategory, TaskPriority } from '../types';
+import type { TaskCategory } from '../types';
 
 const CATEGORIES: { value: TaskCategory; label: string; icon: string }[] = [
   { value: 'work', label: 'Work', icon: '💼' },
