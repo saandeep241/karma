@@ -27,13 +27,13 @@ async function apiFetch<T>(
 ): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
   
-  // Get auth token
+  // Get auth token ssss
   const token = await getAuthToken();
   
   // Build headers with auth token if available
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...options.headers,
+    ...(options.headers as Record<string, string> || {}),
   };
   
   if (token) {
