@@ -17,7 +17,14 @@ export function Layout() {
           
           <div className="flex items-center gap-8">
             <nav className="flex items-center gap-8">
-              <NavLink to="/browse" className="flex items-center gap-2 text-[#4b5563] hover:text-[#0066cc] transition-colors no-underline text-[15px] font-medium">
+              <NavLink to="/" className={({ isActive }) => `flex items-center gap-2 transition-colors no-underline text-[15px] font-medium ${isActive ? 'text-[#0066cc]' : 'text-[#4b5563] hover:text-[#0066cc]'}`}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                  <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+                <span>Home</span>
+              </NavLink>
+              <NavLink to="/browse" className={({ isActive }) => `flex items-center gap-2 transition-colors no-underline text-[15px] font-medium ${isActive ? 'text-[#0066cc]' : 'text-[#4b5563] hover:text-[#0066cc]'}`}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M22 7H2V11H22V7Z" />
                   <path d="M2 11V21H22V11" />

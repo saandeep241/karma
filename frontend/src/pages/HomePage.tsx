@@ -21,7 +21,7 @@ export function HomePage() {
     if (location.pathname === '/' && !location.search.includes('focus')) {
       setShowFocusMode(false);
     }
-  }, [location.key]);
+  }, [location.key, location.pathname, location.search]);
 
   const { data: statsData } = useQuery({
     queryKey: ['stats'],
@@ -31,7 +31,7 @@ export function HomePage() {
 
   if (showFocusMode) {
     return (
-      <div className="focus-bg -mx-6 -my-8 px-6 py-8 min-h-[calc(100vh-120px)]">
+      <div className="-mx-6 -my-8 px-6 py-8 min-h-[calc(100vh-120px)] flex items-center justify-center animate-fade-in">
         <FocusMode onExit={() => setShowFocusMode(false)} />
       </div>
     );

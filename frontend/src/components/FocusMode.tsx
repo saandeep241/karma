@@ -5,48 +5,10 @@ import type { QuickWin, Task } from '../types';
 
 // Types
 type Mood = 'enthusiastic' | 'neutral' | 'tired' | 'overwhelmed' | 'low_energy';
-type TimeAvailable = 5 | 10 | 15;
+type TimeAvailable = number;
 type FlowStep = 'landing' | 'suggestion' | 'proceed_choice' | 'timer' | 'breakdown_timer' | 'completed';
 
-// Confetti colors
-const CONFETTI_COLORS = ['#0066cc', '#00ccff', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
-
-// Confetti component
-function Confetti() {
-  const pieces = Array.from({ length: 50 }, (_, i) => ({
-    id: i,
-    left: Math.random() * 100,
-    delay: Math.random() * 2,
-    color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
-    size: 8 + Math.random() * 8,
-  }));
-
-  return (
-    <div className="confetti">
-      {pieces.map((piece) => (
-        <div
-          key={piece.id}
-          className="confetti-piece"
-          style={{
-            left: `${piece.left}%`,
-            animationDelay: `${piece.delay}s`,
-            backgroundColor: piece.color,
-            width: piece.size,
-            height: piece.size,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
-// Get time-based greeting
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
-}
+// Confetti component removed as themed celebration icon is preferred
 
 interface FocusModeProps {
   onExit: () => void;
@@ -84,7 +46,7 @@ export function FocusMode({ onExit }: FocusModeProps) {
   const fetchSuggestion = useCallback(async () => {
     setIsLoadingTask(true);
     try {
-      const data = await api.getQuickWin();
+      const data = await api.getQuickWin(timeAvailable, mood);
       if (data?.quickwin) {
         setCurrentTask(data.quickwin);
         setStep('suggestion');
@@ -94,7 +56,7 @@ export function FocusMode({ onExit }: FocusModeProps) {
     } finally {
       setIsLoadingTask(false);
     }
-  }, []);
+  }, [timeAvailable, mood]);
 
   // Add task mutation
   const addTaskMutation = useMutation({
@@ -150,10 +112,8 @@ export function FocusMode({ onExit }: FocusModeProps) {
     if (!currentTask) return;
     
     try {
-      // Add the task - API returns { success, task_id, message }
       const result = await addTaskMutation.mutateAsync(currentTask);
       if (result?.success && result?.task_id) {
-        // Create a minimal task object for the flow
         setActiveTask({
           id: result.task_id,
           text: currentTask.text,
@@ -193,7 +153,6 @@ export function FocusMode({ onExit }: FocusModeProps) {
     
     try {
       const data = await breakdownMutation.mutateAsync(activeTask.id);
-      // Set subtasks from the response - generate IDs if not present
       if (data?.subtasks && data.subtasks.length > 0) {
         setSubtasks(data.subtasks.map((s: any, index: number) => ({
           id: s.id || `subtask-${index}`,
@@ -218,14 +177,12 @@ export function FocusMode({ onExit }: FocusModeProps) {
     }
   };
 
-  // Handle subtask toggle - auto-complete when all done
+  // Handle subtask toggle
   const toggleSubtask = (id: string) => {
     setSubtasks((prev) => {
       const updated = prev.map((s) => (s.id === id ? { ...s, completed: !s.completed } : s));
-      // Check if all subtasks are now completed
       const allCompleted = updated.length > 0 && updated.every((s) => s.completed);
       if (allCompleted && activeTask) {
-        // Auto-complete the task after a brief delay for visual feedback
         setTimeout(() => {
           completeTaskMutation.mutate(activeTask.id);
         }, 500);
@@ -245,57 +202,109 @@ export function FocusMode({ onExit }: FocusModeProps) {
   // Render based on current step
   const renderStep = () => {
     switch (step) {
-      // ============ LANDING - Time & Mood Selection ============
       case 'landing':
         return (
-          <div className="focus-card animate-card-entrance">
-            <p className="text-center text-gray-500 mb-1">{getGreeting()} 👋</p>
-            <h1 className="text-3xl md:text-4xl font-bold text-center mb-2">
-              <span className="shimmer-text">
-                Make it count.
-              </span>
+          <div className="w-full max-w-lg flex flex-col items-center">
+            <p className="text-center text-[18px] text-gray-500 mb-4">Good Afternoon</p>
+            <h1 className="text-[42px] font-sans font-bold text-center mb-2 text-[#1a1a1a] leading-none tracking-tight">
+              Make it count.
             </h1>
-            <p className="text-gray-500 text-center mb-8">What's your vibe right now?</p>
+            <p className="text-gray-400 text-[18px] text-center mb-12">What's your vibe right now?</p>
 
             {/* Time Available */}
-            <div className="mb-6">
-              <p className="text-xs font-semibold text-blue-500 uppercase tracking-wider text-center mb-3">
-                Time Available
-              </p>
-              <div className="flex justify-center gap-3">
-                {([5, 10, 15] as TimeAvailable[]).map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setTimeAvailable(t)}
-                    className={`px-6 py-3 rounded-xl text-lg font-semibold transition-all ${
-                      timeAvailable === t
-                        ? 'bg-blue-50 border-2 border-blue-400 text-blue-700'
-                        : 'bg-gray-50 border-2 border-transparent text-gray-600 hover:bg-gray-100'
-                    }`}
-                  >
-                    {t}m
-                  </button>
-                ))}
+            <div className="mb-10 w-full px-4">
+              <div className="flex justify-between items-center mb-6">
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">
+                  TIME AVAILABLE: {timeAvailable}m
+                </p>
+              </div>
+              <div className="relative pt-2 pb-2">
+                <input
+                  type="range"
+                  min="2"
+                  max="30"
+                  step="1"
+                  value={timeAvailable}
+                  onChange={(e) => setTimeAvailable(Number(e.target.value))}
+                  className="w-full h-[2px] bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#0066cc]"
+                />
+                <div className="flex justify-between mt-6 px-1">
+                  <span className="text-[11px] font-bold text-gray-400">2m</span>
+                  <span className="text-[11px] font-bold text-gray-400">15m</span>
+                  <span className="text-[11px] font-bold text-gray-400">30m+</span>
+                </div>
               </div>
             </div>
 
             {/* Current Mood */}
-            <div className="mb-8">
-              <p className="text-xs font-semibold text-blue-500 uppercase tracking-wider text-center mb-3">
-                Current Mood
+            <div className="mb-12 w-full px-4">
+              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest text-center mb-8">
+                CURRENT MOOD
               </p>
-              <div className="flex flex-wrap justify-center gap-2">
-                {MOODS.map((m) => (
+              <div className="grid grid-cols-3 gap-4 mb-4">
+                {MOODS.slice(0, 3).map((m) => (
                   <button
                     key={m.value}
                     onClick={() => setMood(m.value)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-full text-[14px] font-medium transition-all border ${
                       mood === m.value
-                        ? 'bg-amber-50 border-2 border-amber-400 text-amber-700'
-                        : 'bg-gray-50 border-2 border-transparent text-gray-600 hover:bg-gray-100'
+                        ? 'bg-white border-gray-300 text-gray-900 shadow-sm scale-[1.02]'
+                        : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'
                     }`}
                   >
-                    {m.label} {m.emoji}
+                    <span>{m.label}</span>
+                    <span className={mood === m.value ? 'text-gray-900' : 'text-gray-400'}>
+                      {m.value === 'enthusiastic' ? (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                          <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                          <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                        </svg>
+                      ) : m.value === 'neutral' ? (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <line x1="8" y1="15" x2="16" y2="15"></line>
+                          <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                          <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                        </svg>
+                      ) : (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M16 16s-1.5-2-4-2-4 2-4 2"></path>
+                          <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                          <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                        </svg>
+                      )}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div className="flex justify-center gap-4">
+                {MOODS.slice(3).map((m) => (
+                  <button
+                    key={m.value}
+                    onClick={() => setMood(m.value)}
+                    className={`flex items-center justify-center gap-2 px-8 py-3 rounded-full text-[14px] font-medium transition-all border ${
+                      mood === m.value
+                        ? 'bg-white border-gray-300 text-gray-900 shadow-sm scale-[1.02]'
+                        : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'
+                    }`}
+                  >
+                    <span>{m.label}</span>
+                    <span className={mood === m.value ? 'text-gray-900' : 'text-gray-400'}>
+                      {m.value === 'overwhelmed' ? (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polyline>
+                        </svg>
+                      ) : (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="2" y="7" width="18" height="10" rx="2" ry="2"></rect>
+                          <line x1="22" y1="11" x2="22" y2="13"></line>
+                          <line x1="6" y1="11" x2="10" y2="11"></line>
+                        </svg>
+                      )}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -305,11 +314,11 @@ export function FocusMode({ onExit }: FocusModeProps) {
             <button
               onClick={fetchSuggestion}
               disabled={isLoadingTask}
-              className="w-full py-4 bg-[var(--karma-accent)] hover:bg-[var(--karma-accent-hover)] text-white font-semibold rounded-full btn-lift disabled:opacity-50"
+              className="w-full py-5 bg-[#0066cc] hover:bg-[#0052a3] text-white font-bold rounded-full transition-all disabled:opacity-50 text-[17px] shadow-lg shadow-blue-100"
             >
               {isLoadingTask ? (
                 <span className="flex items-center justify-center gap-2">
-                  <span className="spinner" style={{ width: '1rem', height: '1rem', borderWidth: '2px' }} />
+                  <span className="spinner" style={{ width: '1.2rem', height: '1.2rem', borderWidth: '2px' }} />
                   Finding a task...
                 </span>
               ) : "Let's go →"}
@@ -317,64 +326,50 @@ export function FocusMode({ onExit }: FocusModeProps) {
           </div>
         );
 
-      // ============ SUGGESTION - Task Card ============
       case 'suggestion':
         if (!currentTask) return null;
         return (
-          <div className="focus-card animate-card-entrance">
-            {/* Sparkle icon */}
-            <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-full flex items-center justify-center shadow-lg">
-                <span className="text-3xl">✨</span>
-              </div>
-            </div>
-
-            <h2 className="text-xl md:text-2xl font-bold text-center text-gray-800 mb-3">
-              Why don't you take {timeAvailable} minutes to...
+          <div className="w-full max-w-lg flex flex-col items-center animate-card-entrance">
+            <h2 className="text-[18px] text-gray-500 mb-6 text-center">
+              Why don't you take {currentTask.estimated_minutes || timeAvailable} minutes to...
             </h2>
             
-            <p className="text-2xl md:text-3xl text-[var(--karma-accent)] font-bold text-center mb-4 leading-tight">
+            <h1 className="text-[42px] font-sans font-bold text-center mb-4 text-[#1a1a1a] leading-tight tracking-tight">
               {currentTask.text}?
-            </p>
-            
-            <div className="flex items-center justify-center gap-3 mb-8">
-              <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-sm font-medium">
-                ⏱ ~{currentTask.estimated_minutes} min
-              </span>
-              <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm font-medium">
+            </h1>
+
+            {currentTask.category && (
+              <p className="text-gray-400 text-[16px] text-center mb-12">
                 {currentTask.category}
-              </span>
+              </p>
+            )}
+            
+            <div className="flex gap-4 w-full px-4">
+              <button
+                onClick={handleSkip}
+                className="flex-1 py-4 px-6 border border-gray-100 hover:border-gray-200 text-gray-500 font-bold rounded-full transition-all text-[15px] flex items-center justify-center gap-2"
+              >
+                <span>↻</span> Skip
+              </button>
+              
+              <button
+                onClick={handleLetsGo}
+                disabled={addTaskMutation.isPending}
+                className="flex-[2] py-4 px-8 bg-[#0066cc] hover:bg-[#0052a3] text-white font-bold rounded-full transition-all disabled:opacity-50 text-[15px] shadow-lg shadow-blue-100 flex items-center justify-center gap-2"
+              >
+                {addTaskMutation.isPending ? 'Adding...' : "Start Task →"}
+              </button>
             </div>
-
-            {/* Let's go button */}
-            <button
-              onClick={handleLetsGo}
-              disabled={addTaskMutation.isPending}
-              className="w-full py-4 bg-[var(--karma-accent)] hover:bg-[var(--karma-accent-hover)] text-white font-semibold rounded-full btn-lift mb-3 disabled:opacity-50"
-            >
-              {addTaskMutation.isPending ? 'Adding...' : "Let's go →"}
-            </button>
-
-            {/* Skip button */}
-            <button
-              onClick={handleSkip}
-              className="w-full py-3 text-gray-500 hover:text-gray-700 font-medium transition-all flex items-center justify-center gap-2 hover:bg-gray-50 rounded-full"
-            >
-              <span>↻</span> Skip, show me another
-            </button>
           </div>
         );
 
-      // ============ PROCEED CHOICE - Direct vs Breakdown ============
       case 'proceed_choice':
         return (
-          <div className="focus-card animate-fade-in">
+          <div className="w-full max-w-lg flex flex-col items-center animate-fade-in">
             <h2 className="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-2">
               How would you like to proceed?
             </h2>
             <p className="text-gray-500 text-center mb-8">Choose the path that feels right.</p>
-
-            {/* Option 1: Direct */}
             <button
               onClick={handleDirectStart}
               className="w-full p-5 mb-3 bg-blue-50 hover:bg-blue-100 rounded-2xl text-left transition-all border-2 border-transparent hover:border-blue-200"
@@ -382,8 +377,6 @@ export function FocusMode({ onExit }: FocusModeProps) {
               <p className="text-blue-700 font-bold text-lg">Let's go</p>
               <p className="text-gray-500 text-sm">Start the timer and dive right in.</p>
             </button>
-
-            {/* Option 2: Break down */}
             <button
               onClick={handleBreakdown}
               disabled={breakdownMutation.isPending}
@@ -402,132 +395,106 @@ export function FocusMode({ onExit }: FocusModeProps) {
           </div>
         );
 
-      // ============ TIMER - Simple countdown ============
       case 'timer':
         return (
-          <div className="focus-card animate-card-entrance">
-            <div className="flex justify-center mb-4">
-              <span className="text-4xl">🎯</span>
-            </div>
-            <h2 className="text-xl md:text-2xl font-bold text-center text-gray-800 mb-6">
+          <div className="w-full max-w-lg flex flex-col items-center animate-card-entrance">
+            <h2 className="text-[24px] font-sans font-bold text-center text-[#001a41] mb-8 leading-tight">
               {activeTask?.text || currentTask?.text}
             </h2>
-            
-            {/* Big timer display with glow */}
-            <div className="text-6xl md:text-7xl font-light text-[var(--karma-accent)] text-center mb-8 font-mono timer-glow">
+            <div className="text-[120px] font-sans font-bold text-[#0066cc] mb-12 tabular-nums leading-none">
               {formatTime(timeRemaining)}
             </div>
-
-            {/* Done button */}
             <button
               onClick={handleComplete}
               disabled={completeTaskMutation.isPending}
-              className="w-full py-4 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-full btn-lift disabled:opacity-50"
+              className="px-12 py-4 bg-[#10b981] text-white rounded-full font-bold text-[16px] hover:bg-[#059669] transition-all shadow-lg shadow-green-100 flex items-center gap-2"
             >
               {completeTaskMutation.isPending ? 'Completing...' : '✓ Done!'}
             </button>
           </div>
         );
 
-      // ============ BREAKDOWN TIMER - With subtasks ============
       case 'breakdown_timer':
         const completedCount = subtasks.filter((s) => s.completed).length;
         return (
-          <div className="focus-card animate-fade-in">
-            <h2 className="text-xl md:text-2xl font-bold text-center text-gray-800 mb-2">
+          <div className="w-full max-w-lg flex flex-col items-center animate-fade-in">
+            <h2 className="text-[24px] font-sans font-bold text-center text-[#001a41] mb-8 leading-tight">
               {activeTask?.text || currentTask?.text}
             </h2>
-            
-            {/* Timer display */}
-            <div className="text-5xl md:text-6xl font-light text-[var(--karma-accent)] text-center mb-4 font-mono">
+            <div className="text-[80px] font-sans font-bold text-[#0066cc] mb-8 tabular-nums leading-none">
               {formatTime(timeRemaining)}
             </div>
-
-            {/* Progress */}
-            <div className="flex items-center justify-between text-sm text-gray-500 mb-2">
+            <div className="flex items-center justify-between text-[13px] font-medium text-gray-500 mb-2 w-full">
               <span>Progress</span>
               <span>{completedCount} of {subtasks.length}</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2 mb-6">
+            <div className="w-full bg-gray-100 rounded-full h-1.5 mb-8">
               <div
-                className="bg-[var(--karma-accent)] h-2 rounded-full transition-all"
+                className="bg-[#10b981] h-1.5 rounded-full transition-all duration-500"
                 style={{ width: `${subtasks.length > 0 ? (completedCount / subtasks.length) * 100 : 0}%` }}
               />
             </div>
-
-            {/* Subtask list */}
-            <div className="space-y-2 mb-6 max-h-48 overflow-y-auto">
+            <div className="space-y-3 mb-8 w-full max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
               {subtasks.map((subtask) => (
                 <button
                   key={subtask.id}
                   onClick={() => toggleSubtask(subtask.id)}
-                  className={`w-full p-3 rounded-xl text-left flex items-center gap-3 transition-all ${
+                  className={`w-full p-4 rounded-2xl text-left flex items-center gap-4 transition-all border ${
                     subtask.completed
-                      ? 'bg-green-50 text-green-700'
-                      : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                      ? 'bg-green-50 border-green-100 text-green-700'
+                      : 'bg-white border-gray-100 text-[#4b5563] hover:border-gray-200'
                   }`}
                 >
                   <div
-                    className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
                       subtask.completed
-                        ? 'bg-green-500 border-green-500 text-white'
-                        : 'border-gray-300'
+                        ? 'bg-[#10b981] border-[#10b981] text-white'
+                        : 'border-gray-200'
                     }`}
                   >
-                    {subtask.completed && <span className="text-sm">✓</span>}
+                    {subtask.completed && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
                   </div>
-                  <span className={subtask.completed ? 'line-through' : ''}>{subtask.text}</span>
+                  <span className={`text-[15px] font-medium ${subtask.completed ? 'line-through opacity-60' : ''}`}>{subtask.text}</span>
                 </button>
               ))}
             </div>
-
-            {/* Mark as done anyway */}
             <button
               onClick={handleComplete}
-              className="w-full py-3 text-gray-500 hover:text-gray-700 font-medium transition-all"
+              className="text-[14px] font-medium text-gray-400 hover:text-gray-600 transition-colors"
             >
               Mark as done anyway
             </button>
           </div>
         );
 
-      // ============ COMPLETED - Celebration ============
       case 'completed':
         return (
-          <>
-            <Confetti />
-            <div className="focus-card animate-celebration">
-              {/* Success icon */}
-              <div className="flex justify-center mb-4">
-                <div className="w-24 h-24 bg-gradient-to-br from-green-100 to-emerald-200 rounded-full flex items-center justify-center shadow-lg animate-check-pop">
-                  <span className="text-5xl">🏆</span>
-                </div>
+          <div className="flex flex-col items-center max-w-2xl w-full animate-in fade-in zoom-in duration-500">
+            <div className="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center mb-10 shadow-sm">
+              <div className="text-[#0066cc]">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2L14.85 9.15L22 12L14.85 14.85L12 22L9.15 14.85L2 12L9.15 9.15L12 2Z" fill="currentColor"/>
+                </svg>
               </div>
-
-              <h2 className="text-3xl font-bold text-center text-gray-800 mb-2">
-                Nice work! 🎉
-              </h2>
-              <p className="text-gray-500 text-center mb-8">
-                You made progress. Every small step counts.
-              </p>
-
-              {/* Get another quick win */}
+            </div>
+            <h2 className="text-[36px] font-sans font-bold text-[#001a41] mb-4 text-center">Excellent work!</h2>
+            <p className="text-[#4b5563] text-[16px] mb-12 text-center font-medium">You've successfully nudged yourself forward.</p>
+            
+            <div className="flex flex-col items-center gap-4 w-full max-w-sm">
               <button
                 onClick={handleGetAnother}
-                className="w-full py-4 bg-[var(--karma-accent)] hover:bg-[var(--karma-accent-hover)] text-white font-semibold rounded-full btn-lift mb-3"
+                className="w-full py-4 bg-[#0066cc] text-white rounded-full font-bold text-[16px] hover:bg-[#0052a3] transition-all shadow-lg shadow-blue-100 flex items-center justify-center gap-2"
               >
-                ↻ Get another quick win
+                <span>↻</span> Get another quick win
               </button>
-
-              {/* Exit */}
               <button
                 onClick={onExit}
-                className="w-full py-3 text-gray-500 hover:text-gray-700 font-medium transition-all flex items-center justify-center gap-2 hover:bg-gray-50 rounded-full"
+                className="w-full py-4 text-gray-400 hover:text-gray-600 font-bold text-[15px] transition-colors"
               >
                 ✕ I'm done for now
               </button>
             </div>
-          </>
+          </div>
         );
 
       default:
@@ -536,8 +503,7 @@ export function FocusMode({ onExit }: FocusModeProps) {
   };
 
   return (
-    <div className="min-h-[60vh] flex flex-col items-center justify-center p-4">
-      {/* Back button - always visible at top */}
+    <div className="min-h-[60vh] flex flex-col items-center justify-center p-4 relative">
       {step !== 'landing' && (
         <button
           onClick={() => {
@@ -555,15 +521,17 @@ export function FocusMode({ onExit }: FocusModeProps) {
               onExit();
             }
           }}
-          className="self-start mb-4 text-gray-500 hover:text-gray-700 flex items-center gap-2 transition-all"
+          className="absolute top-0 left-4 text-gray-400 hover:text-gray-600 flex items-center gap-2 transition-all text-[15px] font-medium z-10"
         >
-          ← Back
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          <span>Back</span>
         </button>
       )}
-      <div className="w-full max-w-md">
+      <div className="w-full flex justify-center">
         {renderStep()}
       </div>
     </div>
   );
 }
-

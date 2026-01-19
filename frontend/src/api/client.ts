@@ -222,8 +222,12 @@ export async function getStoredSuggestion(): Promise<SuggestionResponse> {
 }
 
 // Quick Wins
-export async function getQuickWin(): Promise<QuickWinResponse> {
-  return apiFetch<QuickWinResponse>('/quickwin/get');
+export async function getQuickWin(minutes?: number, mood?: string): Promise<QuickWinResponse> {
+  const params = new URLSearchParams();
+  if (minutes) params.append('minutes', minutes.toString());
+  if (mood) params.append('mood', mood);
+  const endpoint = `/quickwin/get${params.toString() ? `?${params.toString()}` : ''}`;
+  return apiFetch<QuickWinResponse>(endpoint);
 }
 
 export async function completeQuickWin(quickwin: QuickWin): Promise<{ success: boolean; task_id: string; message: string }> {
