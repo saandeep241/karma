@@ -12,7 +12,7 @@ import json
 from datetime import datetime
 
 from app.models import Task
-from app.services.tools import TASK_DETAILS_DIR
+from app.services.storage_service import get_storage_service
 from .base_agent import BaseAgent
 
 
@@ -196,16 +196,16 @@ Use the tools now to research this task, then provide your JSON response."""
     
     def _save_enrichment(self, task_id: str, enrichment: dict):
         """Save enrichment data to a file."""
-        TASK_DETAILS_DIR.mkdir(parents=True, exist_ok=True)
-        filepath = TASK_DETAILS_DIR / f"{task_id}_enrichment.json"
+        storage = get_storage_service()
+        filename = f"{task_id}_enrichment.json"
         
         # Don't save raw tool results to file (too large)
         enrichment_to_save = {k: v for k, v in enrichment.items() if k != "raw_tool_results"}
         
-        with open(filepath, 'w') as f:
-            json.dump(enrichment_to_save, f, indent=2)
+        # Save using storage service (no-op if Cloud Storage is disabled)
+        storage.write_json("task_details", filename, enrichment_to_save)
         
-        print(f"📝 [{self.AGENT_NAME}] Saved enrichment to {filepath}")
+        print(f"📝 [{self.AGENT_NAME}] Saved enrichment: {filename}")
     
     def _dummy_enrich(self, task: Task) -> dict:
         """Generate dummy enrichment when AI is not enabled."""

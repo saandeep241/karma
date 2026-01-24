@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from app.config import get_settings
 from app.routes import tasks_router, suggestions_router, sessions_router
 from app.routes.presentation import router as presentation_router
-from app.database.connection import init_db, DATABASE_PATH
+from app.database.connection import init_db
 from app.auth import is_auth_enabled, CLERK_ENABLED
 from app.logging_config import setup_logging, get_logger
 from app.middleware import RequestLoggingMiddleware, SlowRequestLoggingMiddleware
@@ -31,7 +31,11 @@ async def lifespan(app: FastAPI):
     
     # Initialize database
     await init_db()
-    logger.info(f"Database initialized: {DATABASE_PATH}")
+    if settings.use_postgresql:
+        logger.info(f"Database initialized: PostgreSQL ({settings.database_name})")
+    else:
+        from app.database.connection import DATABASE_PATH
+        logger.info(f"Database initialized: SQLite ({DATABASE_PATH})")
     
     # Check AI mode
     if settings.is_ai_enabled:
@@ -141,4 +145,6 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    import os
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=True)

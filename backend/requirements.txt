@@ -12,7 +12,8 @@ pydantic-settings==2.1.0
 
 # Database
 sqlalchemy>=2.0.0
-aiosqlite>=0.19.0
+aiosqlite>=0.19.0  # SQLite (for local development)
+asyncpg>=0.29.0  # PostgreSQL async driver (for Cloud SQL)
 greenlet>=3.0.0
 
 # Authentication
@@ -21,3 +22,6 @@ python-jose[cryptography]>=3.3.0
 
 # Utilities
 python-dotenv==1.0.0
+
+# Cloud Storage (optional - only needed if USE_CLOUD_STORAGE=true)
+google-cloud-storage>=2.10.0

@@ -58,6 +58,11 @@ karma/
 │   ├── package.json
 │   └── vite.config.ts
 │
+├── scripts/
+│   └── deploy/              # Deployment scripts
+│       ├── deploy.sh         # Main deployment script
+│       ├── create_database_secret.sh
+│       └── restart_backend.sh
 ├── docker-compose.yml
 └── README.md
 ```

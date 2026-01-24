@@ -15,7 +15,8 @@ import type {
   SubtaskStatus,
 } from '../types';
 
-const API_BASE = '/api';
+// API base URL - use environment variable or default to /api
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 // Import token getter
 import { getAuthToken } from './authToken';

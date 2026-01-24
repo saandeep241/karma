@@ -11,22 +11,10 @@ from typing import Optional, Any
 from pathlib import Path
 
 from app.models import Task, UserContext, EnergyLevel, EmotionalState, TaskStatus, SubtaskStatus
+from app.services.storage_service import get_storage_service
 
-
-# Base directories for persistence
-DATA_DIR = Path(__file__).parent.parent.parent / "data"
-TASKS_DIR = DATA_DIR / "tasks"
-REASONING_DIR = DATA_DIR / "reasoning"
-MEMORY_DIR = DATA_DIR / "memory"
-TASK_DETAILS_DIR = DATA_DIR / "task_details"
-
-
-def ensure_directories():
-    """Ensure all data directories exist."""
-    TASKS_DIR.mkdir(parents=True, exist_ok=True)
-    REASONING_DIR.mkdir(parents=True, exist_ok=True)
-    MEMORY_DIR.mkdir(parents=True, exist_ok=True)
-    TASK_DETAILS_DIR.mkdir(parents=True, exist_ok=True)
+# Storage service instance
+storage = get_storage_service()
 
 
 def serialize_for_json(obj: Any) -> Any:
@@ -47,22 +35,16 @@ def serialize_for_json(obj: Any) -> Any:
     return obj
 
 
-ensure_directories()
-
-
 # ============================================================================
 # Tool Implementations
 # ============================================================================
 
 def save_tasks(tasks: list, date: str) -> dict:
     """Save tasks to a date-based file. Accepts list of strings, dicts, or Task objects."""
-    filepath = TASKS_DIR / f"{date}.json"
+    filename = f"{date}.json"
     
     # Load existing tasks for this date if any
-    existing_data = {"tasks": []}
-    if filepath.exists():
-        with open(filepath, 'r') as f:
-            existing_data = json.load(f)
+    existing_data = storage.read_json("tasks", filename) or {"tasks": []}
     
     existing_task_texts = {t.get("text", t) if isinstance(t, dict) else t for t in existing_data.get("tasks", [])}
     
@@ -139,24 +121,30 @@ def save_tasks(tasks: list, date: str) -> dict:
         "count": len(all_tasks)
     }
     
-    with open(filepath, 'w') as f:
-        json.dump(data, f, indent=2)
+    success = storage.write_json("tasks", filename, data)
     
-    print(f"📁 [TOOL] Saved {len(new_tasks)} new tasks to {filepath}")
-    
-    return {
-        "success": True,
-        "filepath": str(filepath),
-        "task_count": len(all_tasks),
-        "new_tasks": len(new_tasks),
-        "message": f"Saved {len(new_tasks)} new tasks for {date}"
-    }
+    if success:
+        print(f"📁 [TOOL] Saved {len(new_tasks)} new tasks for {date}")
+        return {
+            "success": True,
+            "filepath": f"tasks/{filename}",
+            "task_count": len(all_tasks),
+            "new_tasks": len(new_tasks),
+            "message": f"Saved {len(new_tasks)} new tasks for {date}"
+        }
+    else:
+        return {
+            "success": False,
+            "error": "Failed to save tasks",
+            "task_count": len(all_tasks),
+            "new_tasks": len(new_tasks)
+        }
 
 
 def save_task_with_details(task: dict, date: str) -> dict:
     """Save a single task with full details."""
     task_id = task.get("id", str(uuid.uuid4()))
-    filepath = TASK_DETAILS_DIR / f"{task_id}.json"
+    task_filename = f"{task_id}.json"
     
     task_data = {
         "id": task_id,
@@ -187,16 +175,13 @@ def save_task_with_details(task: dict, date: str) -> dict:
     }
     
     # Save to task_details folder
-    with open(filepath, 'w') as f:
-        json.dump(task_data, f, indent=2)
+    storage.write_json("task_details", task_filename, task_data)
     
     # Also update/create the date-based file
-    date_filepath = TASKS_DIR / f"{date}.json"
+    date_filename = f"{date}.json"
+    date_data = storage.read_json("tasks", date_filename)
     
-    if date_filepath.exists():
-        with open(date_filepath, 'r') as f:
-            date_data = json.load(f)
-    else:
+    if not date_data:
         # Create new date file
         date_data = {
             "date": date,
@@ -220,40 +205,35 @@ def save_task_with_details(task: dict, date: str) -> dict:
     date_data["updated_at"] = datetime.now().isoformat()
     date_data["count"] = len(tasks)
     
-    with open(date_filepath, 'w') as f:
-        json.dump(date_data, f, indent=2)
+    storage.write_json("tasks", date_filename, date_data)
     
-    print(f"📁 [TOOL] Saved task to {date_filepath} (total: {len(tasks)} tasks)")
+    print(f"📁 [TOOL] Saved task for {date} (total: {len(tasks)} tasks)")
     
-    return {"success": True, "task_id": task_id, "filepath": str(filepath)}
+    return {"success": True, "task_id": task_id, "filepath": f"task_details/{task_filename}"}
 
 
 def update_task_status(task_id: str, status: str, date: str = None) -> dict:
     """Update a task's status."""
     # Find the task in task_details
-    filepath = TASK_DETAILS_DIR / f"{task_id}.json"
+    task_filename = f"{task_id}.json"
+    task_data = storage.read_json("task_details", task_filename)
     
-    if filepath.exists():
-        with open(filepath, 'r') as f:
-            task_data = json.load(f)
-        
+    if task_data:
         task_data["status"] = status
         if status == "in_progress" and not task_data.get("started_at"):
             task_data["started_at"] = datetime.now().isoformat()
         elif status == "completed":
             task_data["completed_at"] = datetime.now().isoformat()
         
-        with open(filepath, 'w') as f:
-            json.dump(task_data, f, indent=2)
+        storage.write_json("task_details", task_filename, task_data)
         
         # Update in date file too
         date = date or task_data.get("date")
         if date:
-            date_filepath = TASKS_DIR / f"{date}.json"
-            if date_filepath.exists():
-                with open(date_filepath, 'r') as f:
-                    date_data = json.load(f)
-                
+            date_filename = f"{date}.json"
+            date_data = storage.read_json("tasks", date_filename)
+            
+            if date_data:
                 tasks = date_data.get("tasks", [])
                 for i, t in enumerate(tasks):
                     if isinstance(t, dict) and t.get("id") == task_id:
@@ -265,8 +245,7 @@ def update_task_status(task_id: str, status: str, date: str = None) -> dict:
                         break
                 
                 date_data["tasks"] = tasks
-                with open(date_filepath, 'w') as f:
-                    json.dump(date_data, f, indent=2)
+                storage.write_json("tasks", date_filename, date_data)
         
         return {"success": True, "task_id": task_id, "new_status": status}
     
@@ -276,66 +255,42 @@ def update_task_status(task_id: str, status: str, date: str = None) -> dict:
 def get_task_details(task_id: str) -> dict:
     """Get full details for a specific task."""
     # First check task_details folder
-    filepath = TASK_DETAILS_DIR / f"{task_id}.json"
+    task_filename = f"{task_id}.json"
+    task_data = storage.read_json("task_details", task_filename)
     
-    if filepath.exists():
-        with open(filepath, 'r') as f:
-            task_data = json.load(f)
-            # Also get enrichment if available
-            enrichment = get_task_enrichment(task_id)
-            if "error" not in enrichment:
-                task_data["enrichment"] = enrichment
-            return task_data
+    if task_data:
+        # Also get enrichment if available
+        enrichment = get_task_enrichment(task_id)
+        if "error" not in enrichment:
+            task_data["enrichment"] = enrichment
+        return task_data
     
-    # If not found, search in date-based files
-    for date_file in sorted(TASKS_DIR.glob("*.json"), reverse=True):
-        if date_file.stem.startswith("20"):  # Date files start with year
-            with open(date_file, 'r') as f:
-                data = json.load(f)
-            
-            for task in data.get("tasks", []):
-                if isinstance(task, dict) and task.get("id") == task_id:
-                    # Get enrichment if available
-                    enrichment = get_task_enrichment(task_id)
-                    if "error" not in enrichment:
-                        task["enrichment"] = enrichment
-                    return task
+    # Note: Files are only available when Cloud Storage is enabled.
+    # When disabled, we can't search files (they're not written).
+    # The database should be the primary source via db_service.get_task()
     
     return {"error": "Task not found", "task_id": task_id}
 
 
 def get_all_tasks_by_date() -> dict:
-    """Get all tasks organized by date."""
+    """
+    Get all tasks organized by date.
+    
+    Note: This function reads from file storage, which is only available when
+    Cloud Storage is enabled. The database is the primary source of truth.
+    When Cloud Storage is disabled, files are not written, so this returns empty.
+    """
     all_dates = {}
     
-    for filepath in sorted(TASKS_DIR.glob("*.json"), reverse=True):
-        if filepath.stem.startswith("20"):  # Date files start with year
-            with open(filepath, 'r') as f:
-                data = json.load(f)
-            
-            date = data.get("date", filepath.stem)
-            tasks = data.get("tasks", [])
-            
-            # Convert old format if needed
-            if tasks and isinstance(tasks[0], str):
-                tasks = [{"text": t, "status": "pending"} for t in tasks]
-            
-            # Calculate stats
-            stats = {
-                "total": len(tasks),
-                "pending": sum(1 for t in tasks if t.get("status") == "pending"),
-                "in_progress": sum(1 for t in tasks if t.get("status") == "in_progress"),
-                "completed": sum(1 for t in tasks if t.get("status") == "completed"),
-                "skipped": sum(1 for t in tasks if t.get("status") == "skipped")
-            }
-            
-            all_dates[date] = {
-                "date": date,
-                "tasks": tasks,
-                "stats": stats,
-                "updated_at": data.get("updated_at")
-            }
+    # Files are only written when Cloud Storage is enabled
+    # When disabled, return empty (database is the source of truth)
+    if not storage.is_cloud_storage_enabled:
+        return all_dates
     
+    # For Cloud Storage, we'd need to list files (expensive operation)
+    # For now, return empty - this function is mainly for backward compatibility
+    # The database should be used as the primary source via db_service
+    # TODO: Implement efficient file listing for Cloud Storage if needed
     return all_dates
 
 
@@ -346,20 +301,19 @@ def load_tasks(date: str) -> dict:
         all_tasks = []
         for i in range(7):
             d = datetime.now().date() - timedelta(days=i)
-            filepath = TASKS_DIR / f"{d.isoformat()}.json"
-            if filepath.exists():
-                with open(filepath, 'r') as f:
-                    data = json.load(f)
-                    all_tasks.extend([
-                        {"date": data["date"], "task": t}
-                        for t in data.get("tasks", [])
-                    ])
+            filename = f"{d.isoformat()}.json"
+            data = storage.read_json("tasks", filename)
+            if data:
+                all_tasks.extend([
+                    {"date": data["date"], "task": t}
+                    for t in data.get("tasks", [])
+                ])
         return {"tasks": all_tasks, "source": "recent_7_days"}
     else:
-        filepath = TASKS_DIR / f"{date}.json"
-        if filepath.exists():
-            with open(filepath, 'r') as f:
-                return json.load(f)
+        filename = f"{date}.json"
+        data = storage.read_json("tasks", filename)
+        if data:
+            return data
         return {"tasks": [], "source": date, "message": "No tasks found for this date"}
 
 
@@ -377,14 +331,13 @@ def save_reasoning(
     # Handle both dict-based and parameter-based calls
     if data and isinstance(data, dict):
         filename = f"{timestamp.strftime('%Y-%m-%d_%H-%M-%S')}_{decision_type or 'reasoning'}.json"
-        filepath = REASONING_DIR / filename
         data["timestamp"] = timestamp.isoformat()
-        with open(filepath, 'w') as f:
-            json.dump(data, f, indent=2)
-        return {"success": True, "filepath": str(filepath)}
+        success = storage.write_json("reasoning", filename, data)
+        if success:
+            return {"success": True, "filepath": f"reasoning/{filename}"}
+        return {"success": False, "error": "Failed to save reasoning"}
     
     filename = f"{timestamp.strftime('%Y-%m-%d_%H-%M-%S')}_{decision_type}.json"
-    filepath = REASONING_DIR / filename
     
     data = {
         "timestamp": timestamp.isoformat(),
@@ -395,28 +348,28 @@ def save_reasoning(
         "confidence": confidence
     }
     
-    with open(filepath, 'w') as f:
-        json.dump(data, f, indent=2)
+    success = storage.write_json("reasoning", filename, data)
     
     # Also append to daily log for easy reading
-    daily_log = REASONING_DIR / f"{timestamp.strftime('%Y-%m-%d')}_log.txt"
-    with open(daily_log, 'a') as f:
-        f.write(f"\n{'='*60}\n")
-        f.write(f"⏰ {timestamp.strftime('%H:%M:%S')} | {decision_type.upper()}\n")
-        f.write(f"{'='*60}\n")
-        f.write(f"📥 INPUT: {input_context}\n\n")
-        f.write("🧠 REASONING:\n")
-        for i, step in enumerate(reasoning_steps, 1):
-            f.write(f"  {i}. {step}\n")
-        f.write(f"\n✅ CONCLUSION: {conclusion}\n")
-        f.write(f"📊 CONFIDENCE: {confidence:.0%}\n")
+    daily_log_filename = f"{timestamp.strftime('%Y-%m-%d')}_log.txt"
+    log_content = f"\n{'='*60}\n"
+    log_content += f"⏰ {timestamp.strftime('%H:%M:%S')} | {decision_type.upper()}\n"
+    log_content += f"{'='*60}\n"
+    log_content += f"📥 INPUT: {input_context}\n\n"
+    log_content += "🧠 REASONING:\n"
+    for i, step in enumerate(reasoning_steps, 1):
+        log_content += f"  {i}. {step}\n"
+    log_content += f"\n✅ CONCLUSION: {conclusion}\n"
+    log_content += f"📊 CONFIDENCE: {confidence:.0%}\n"
     
-    print(f"💭 [TOOL] Saved reasoning to {filepath}")
+    storage.append_to_file("reasoning", daily_log_filename, log_content)
+    
+    print(f"💭 [TOOL] Saved reasoning: {filename}")
     
     return {
-        "success": True,
-        "filepath": str(filepath),
-        "daily_log": str(daily_log)
+        "success": success,
+        "filepath": f"reasoning/{filename}",
+        "daily_log": f"reasoning/{daily_log_filename}"
     }
 
 
@@ -428,14 +381,11 @@ def record_user_feedback(
     reasoning_used: Optional[str] = None
 ) -> dict:
     """Record user feedback for learning."""
-    filepath = MEMORY_DIR / "feedback_history.json"
-    rejected_filepath = MEMORY_DIR / "rejected_tasks.json"
+    feedback_filename = "feedback_history.json"
+    rejected_filename = "rejected_tasks.json"
     
     # Load existing feedback
-    history = []
-    if filepath.exists():
-        with open(filepath, 'r') as f:
-            history = json.load(f)
+    history = storage.read_json("memory", feedback_filename) or []
     
     # Add new feedback
     feedback = {
@@ -449,18 +399,14 @@ def record_user_feedback(
     history.append(feedback)
     
     # Save updated history
-    with open(filepath, 'w') as f:
-        json.dump(history, f, indent=2)
+    storage.write_json("memory", feedback_filename, history)
     
     # Track rejected tasks separately for quick lookup
     if not accepted:
-        rejected = {}
-        if rejected_filepath.exists():
-            with open(rejected_filepath, 'r') as f:
-                rejected = json.load(f)
+        rejected = storage.read_json("memory", rejected_filename) or {}
         
         # Key by context to track rejections per context
-        context_key = f"{user_context.get('time_available', 'any')}_{user_context.get('energy_level', 'any')}"
+        context_key = f"{user_context.get('time_available', 'any') if user_context else 'any'}_{user_context.get('energy_level', 'any') if user_context else 'any'}"
         if context_key not in rejected:
             rejected[context_key] = []
         
@@ -469,7 +415,7 @@ def record_user_feedback(
             "task_id": task_id,
             "task_text": task_text,
             "rejected_at": datetime.now().isoformat(),
-            "context": user_context
+            "context": user_context or {}
         }
         
         # Check if already in list
@@ -482,8 +428,7 @@ def record_user_feedback(
             if task_text not in existing_texts:
                 rejected[context_key].append(rejection_entry)
         
-        with open(rejected_filepath, 'w') as f:
-            json.dump(rejected, f, indent=2)
+        storage.write_json("memory", rejected_filename, rejected)
         
         print(f"📝 [TOOL] Added to rejected tasks for context: {context_key}")
     
@@ -498,13 +443,10 @@ def record_user_feedback(
 
 def get_learning_insights(context_type: str = "all") -> dict:
     """Analyze past feedback to improve suggestions."""
-    filepath = MEMORY_DIR / "feedback_history.json"
+    history = storage.read_json("memory", "feedback_history.json")
     
-    if not filepath.exists():
+    if not history:
         return {"insights": [], "message": "No feedback history yet"}
-    
-    with open(filepath, 'r') as f:
-        history = json.load(f)
     
     if not history:
         return {"insights": [], "message": "No feedback history yet"}
@@ -568,11 +510,11 @@ def get_task_stats() -> dict:
 
 def get_task_enrichment(task_id: str) -> dict:
     """Get enrichment data for a task."""
-    enrichment_filepath = TASK_DETAILS_DIR / f"{task_id}_enrichment.json"
+    enrichment_filename = f"{task_id}_enrichment.json"
+    enrichment_data = storage.read_json("task_details", enrichment_filename)
     
-    if enrichment_filepath.exists():
-        with open(enrichment_filepath, 'r') as f:
-            return json.load(f)
+    if enrichment_data:
+        return enrichment_data
     
     return {"error": "No enrichment found", "task_id": task_id}
 
@@ -581,7 +523,7 @@ def enrich_task_with_research(task_id: str, task_text: str) -> dict:
     """
     Enrich a task with additional context, resources, and questions.
     """
-    enrichment_filepath = TASK_DETAILS_DIR / f"{task_id}_enrichment.json"
+    enrichment_filename = f"{task_id}_enrichment.json"
     
     # Generate probable questions and resources based on task text
     enrichment = {
@@ -629,8 +571,7 @@ def enrich_task_with_research(task_id: str, task_text: str) -> dict:
     ]
     
     # Save enrichment
-    with open(enrichment_filepath, 'w') as f:
-        json.dump(enrichment, f, indent=2)
+    storage.write_json("task_details", enrichment_filename, enrichment)
     
     print(f"🔍 [TOOL] Enriched task: {task_text[:50]}...")
     

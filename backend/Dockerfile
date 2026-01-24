@@ -9,12 +9,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Create data directories
-RUN mkdir -p data/tasks data/reasoning data/memory
+# Note: Data directories not needed - database is primary storage
+# Files only written when Cloud Storage is enabled
 
-# Expose port
-EXPOSE 8000
+# Expose port (Cloud Run uses PORT env var, defaults to 8080)
+EXPOSE 8080
 
 # Run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Cloud Run sets PORT environment variable, use it or default to 8000 for local dev
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
 
