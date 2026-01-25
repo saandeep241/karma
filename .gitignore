@@ -38,3 +38,10 @@ Thumbs.db
 
 
 backend/logs/
+.replit
+replit.md
+attached_assets/
+*.png
+*.jpg
+*.jpeg
+*.gif

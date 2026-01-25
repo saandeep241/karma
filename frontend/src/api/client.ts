@@ -15,7 +15,12 @@ import type {
   SubtaskStatus,
 } from '../types';
 
-const API_BASE = '/api';
+// Use VITE_API_URL if set (for production), otherwise use /api (for local dev with proxy)
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+
+// Log the API base URL for debugging (visible in browser console)
+console.log('🔗 API Base URL configured:', API_BASE);
+console.log('🔗 Full API URL example:', `${API_BASE}/tasks/stats`);
 
 // Import token getter
 import { getAuthToken } from './authToken';
@@ -27,7 +32,13 @@ async function apiFetch<T>(
 ): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
   
-  // Get auth token ssss
+  // Log the actual URL being called (only in development or first few calls)
+  if (import.meta.env.DEV || !(window as any).__api_logged) {
+    console.log('🌐 API Call:', url);
+    (window as any).__api_logged = true;
+  }
+  
+  // Get auth token tettestestes
   const token = await getAuthToken();
   
   // Build headers with auth token if available
@@ -222,8 +233,12 @@ export async function getStoredSuggestion(): Promise<SuggestionResponse> {
 }
 
 // Quick Wins
-export async function getQuickWin(): Promise<QuickWinResponse> {
-  return apiFetch<QuickWinResponse>('/quickwin/get');
+export async function getQuickWin(minutes?: number, mood?: string): Promise<QuickWinResponse> {
+  const params = new URLSearchParams();
+  if (minutes) params.append('minutes', minutes.toString());
+  if (mood) params.append('mood', mood);
+  const endpoint = `/quickwin/get${params.toString() ? `?${params.toString()}` : ''}`;
+  return apiFetch<QuickWinResponse>(endpoint);
 }
 
 export async function completeQuickWin(quickwin: QuickWin): Promise<{ success: boolean; task_id: string; message: string }> {
