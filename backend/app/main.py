@@ -69,15 +69,34 @@ app = FastAPI(
 
 # Setup CORS for frontend
 settings = get_settings()
+
+# Build list of allowed origins
+allowed_origins = [
+    "http://localhost:5173",  # Vite default
+    "http://localhost:3000",  # Common React port
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
+]
+
+# Add frontend URL from settings if it's set and not already in the list
+if settings.frontend_url and settings.frontend_url not in allowed_origins:
+    allowed_origins.append(settings.frontend_url)
+
+# In production (Cloud Run), allow any *.run.app origin
+import os
+allow_origin_regex = None
+if os.getenv("USE_CLOUD_STORAGE") == "true":  # Production indicator
+    # Allow any Cloud Run URL (https://*.run.app)
+    allow_origin_regex = r"https://.*\.run\.app"
+
+logger.info(f"CORS allowed origins: {allowed_origins}")
+if allow_origin_regex:
+    logger.info(f"CORS allowed origin regex: {allow_origin_regex}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        settings.frontend_url,
-        "http://localhost:5173",  # Vite default
-        "http://localhost:3000",  # Common React port
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=allowed_origins,
+    allow_origin_regex=allow_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

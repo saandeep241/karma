@@ -15,7 +15,12 @@ import type {
   SubtaskStatus,
 } from '../types';
 
-const API_BASE = '/api';
+// Use VITE_API_URL if set (for production), otherwise use /api (for local dev with proxy)
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+
+// Log the API base URL for debugging (visible in browser console)
+console.log('🔗 API Base URL configured:', API_BASE);
+console.log('🔗 Full API URL example:', `${API_BASE}/tasks/stats`);
 
 // Import token getter
 import { getAuthToken } from './authToken';
@@ -26,6 +31,12 @@ async function apiFetch<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
+  
+  // Log the actual URL being called (only in development or first few calls)
+  if (import.meta.env.DEV || !(window as any).__api_logged) {
+    console.log('🌐 API Call:', url);
+    (window as any).__api_logged = true;
+  }
   
   // Get auth token tettestestes
   const token = await getAuthToken();

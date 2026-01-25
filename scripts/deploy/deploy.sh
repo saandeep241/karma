@@ -4,6 +4,13 @@
 
 set -e  # Exit on error
 
+# Get the script directory and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Change to project root so relative paths work
+cd "$PROJECT_ROOT"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -336,9 +343,36 @@ build_and_push_images() {
     
     print_success "Backend image built and pushed"
     
-    # Build frontend
+    # Get backend URL for frontend build (needed for VITE_API_URL)
+    BACKEND_URL=$(gcloud run services describe $BACKEND_SERVICE --region $REGION --format 'value(status.url)' --project=$PROJECT_ID 2>/dev/null || echo "")
+    
+    # Build frontend with backend URL as build arg
     print_warning "Building frontend image..."
-    gcloud builds submit --tag gcr.io/$PROJECT_ID/$FRONTEND_SERVICE ./frontend
+    if [ -n "$BACKEND_URL" ]; then
+        print_warning "Using backend URL: $BACKEND_URL/api"
+        # Create a cloudbuild.yaml file to pass build args
+        cat > /tmp/frontend-cloudbuild.yaml << EOF
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args:
+    - 'build'
+    - '--build-arg'
+    - 'VITE_API_URL=${BACKEND_URL}/api'
+    - '-t'
+    - 'gcr.io/$PROJECT_ID/$FRONTEND_SERVICE'
+    - '.'
+images:
+- 'gcr.io/$PROJECT_ID/$FRONTEND_SERVICE'
+EOF
+        gcloud builds submit \
+            --config=/tmp/frontend-cloudbuild.yaml \
+            ./frontend
+        rm -f /tmp/frontend-cloudbuild.yaml
+    else
+        print_warning "Backend URL not found. Building frontend with default /api"
+        print_warning "⚠️  Frontend will need to be rebuilt after backend is deployed to get correct API URL"
+        gcloud builds submit --tag gcr.io/$PROJECT_ID/$FRONTEND_SERVICE ./frontend
+    fi
     
     print_success "Frontend image built and pushed"
 }
@@ -349,8 +383,20 @@ deploy_backend() {
     CONNECTION_NAME=$(gcloud sql instances describe $DB_INSTANCE --format='value(connectionName)' --project=$PROJECT_ID)
     BACKEND_SA="karma-backend@$PROJECT_ID.iam.gserviceaccount.com"
     
-    # Get backend URL (will be set after first deployment)
-    BACKEND_URL=""
+    # Get frontend URL if it exists (for CORS)
+    FRONTEND_URL=$(gcloud run services describe $FRONTEND_SERVICE --region $REGION --format 'value(status.url)' --project=$PROJECT_ID 2>/dev/null || echo "")
+    if [ -n "$FRONTEND_URL" ]; then
+        print_success "Frontend URL found: $FRONTEND_URL (will be used for CORS)"
+    else
+        print_warning "Frontend not found yet. CORS will use default localhost origins."
+        print_warning "Update FRONTEND_URL after frontend is deployed, or it will be set automatically on next deployment."
+    fi
+    
+    # Build env vars
+    ENV_VARS="USE_CLOUD_STORAGE=true,GCS_BUCKET_NAME=$GCS_BUCKET,CLOUD_SQL_CONNECTION_NAME=$CONNECTION_NAME,DATABASE_USER=$DB_USER,DATABASE_NAME=$DB_NAME,OPENAI_KARMA=$ENABLE_AI"
+    if [ -n "$FRONTEND_URL" ]; then
+        ENV_VARS="$ENV_VARS,FRONTEND_URL=$FRONTEND_URL"
+    fi
     
     # Deploy with appropriate settings
     # Use secret for database password if it exists
@@ -365,12 +411,7 @@ deploy_backend() {
             --service-account $BACKEND_SA \
             --add-cloudsql-instances $CONNECTION_NAME \
             --update-secrets "DATABASE_PASSWORD=${SECRET_NAME}:latest" \
-            --set-env-vars "USE_CLOUD_STORAGE=true" \
-            --set-env-vars "GCS_BUCKET_NAME=$GCS_BUCKET" \
-            --set-env-vars "CLOUD_SQL_CONNECTION_NAME=$CONNECTION_NAME" \
-            --set-env-vars "DATABASE_USER=$DB_USER" \
-            --set-env-vars "DATABASE_NAME=$DB_NAME" \
-            --set-env-vars "OPENAI_KARMA=$ENABLE_AI" \
+            --set-env-vars "$ENV_VARS" \
             --memory 1Gi \
             --cpu 1 \
             --timeout 300 \
@@ -387,12 +428,7 @@ deploy_backend() {
             --allow-unauthenticated \
             --service-account $BACKEND_SA \
             --add-cloudsql-instances $CONNECTION_NAME \
-            --set-env-vars "USE_CLOUD_STORAGE=true" \
-            --set-env-vars "GCS_BUCKET_NAME=$GCS_BUCKET" \
-            --set-env-vars "CLOUD_SQL_CONNECTION_NAME=$CONNECTION_NAME" \
-            --set-env-vars "DATABASE_USER=$DB_USER" \
-            --set-env-vars "DATABASE_NAME=$DB_NAME" \
-            --set-env-vars "OPENAI_KARMA=$ENABLE_AI" \
+            --set-env-vars "$ENV_VARS" \
             --memory 1Gi \
             --cpu 1 \
             --timeout 300 \
@@ -447,6 +483,16 @@ deploy_frontend() {
     
     FRONTEND_URL=$(gcloud run services describe $FRONTEND_SERVICE --region $REGION --format 'value(status.url)' --project=$PROJECT_ID)
     print_success "Frontend deployed: $FRONTEND_URL"
+    
+    # Update backend with frontend URL for CORS
+    echo ""
+    echo "Updating backend CORS configuration with frontend URL..."
+    gcloud run services update $BACKEND_SERVICE \
+        --region $REGION \
+        --update-env-vars "FRONTEND_URL=$FRONTEND_URL" \
+        --project=$PROJECT_ID 2>/dev/null && \
+        print_success "Backend CORS updated with frontend URL" || \
+        print_warning "Could not update backend CORS (backend may not exist yet)"
 }
 
 # Main menu
