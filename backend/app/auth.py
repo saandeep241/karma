@@ -156,7 +156,9 @@ async def require_auth(
                 last = decoded.get("last_name", "")
                 name = f"{first} {last}".strip() or None
             
-            return AuthUser(user_id=user_id, email=email, name=name)
+            auth_user = AuthUser(user_id=user_id, email=email, name=name)
+            print(f"🔐 [AUTH] Authenticated user: user_id={user_id}, email={email}")
+            return auth_user
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
