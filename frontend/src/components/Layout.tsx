@@ -50,18 +50,18 @@ export function Layout() {
     <div className="min-h-screen flex flex-col bg-white">
       {/* Header */}
       <header className="bg-white sticky top-0 z-50 border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
           <NavLink to="/" className="flex items-center gap-2 no-underline group">
             <div className="text-[#0066cc]">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <svg width="20" height="20" className="sm:w-6 sm:h-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 2L14.85 9.15L22 12L14.85 14.85L12 22L9.15 14.85L2 12L9.15 9.15L12 2Z" fill="currentColor"/>
               </svg>
             </div>
-            <h1 className="font-sans font-bold text-xl text-[#001a41]">Nudge</h1>
+            <h1 className="font-sans font-bold text-lg sm:text-xl text-[#001a41]">Nudge</h1>
           </NavLink>
           
-          <div className="flex items-center gap-8">
-            <nav className="flex items-center gap-8">
+          <div className="flex items-center gap-2 sm:gap-4 md:gap-8">
+            <nav className="hidden sm:flex items-center gap-4 md:gap-8">
               <NavLink to="/" className={({ isActive }) => `flex items-center gap-2 transition-colors no-underline text-[15px] font-medium ${isActive ? 'text-[#0066cc]' : 'text-[#4b5563] hover:text-[#0066cc]'}`}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
@@ -87,9 +87,9 @@ export function Layout() {
               </NavLink>
             </nav>
 
-            <NavLink to="/add" className="bg-[#0066cc] hover:bg-[#0052a3] text-white px-5 py-2 rounded-full font-medium transition-all no-underline flex items-center gap-2 shadow-sm text-[14px]">
+            <NavLink to="/add" className="bg-[#0066cc] hover:bg-[#0052a3] text-white px-3 sm:px-5 py-1.5 sm:py-2 rounded-full font-medium transition-all no-underline flex items-center gap-1 sm:gap-2 shadow-sm text-xs sm:text-[14px]">
               <span>+</span>
-              <span>Add Task</span>
+              <span className="hidden sm:inline">Add Task</span>
             </NavLink>
 
             {/* User Menu */}
@@ -170,7 +170,7 @@ export function Layout() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-6xl mx-auto w-full px-6 py-8">
+      <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 py-4 sm:py-6 md:py-8">
         <Outlet />
       </main>
 
