@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-4o-mini"
     
     # Karma AI toggle - set to "true" to use real AI, otherwise uses dummy mode
-    openai_karma: str = ""  # Set OPENAI_KARMA=true to enable AI
+    openai_karma: str = "false"  # Defaults to false (dummy mode). Set OPENAI_KARMA=true to enable AI
     
     # Clerk Authentication (optional)
     clerk_secret_key: Optional[str] = None

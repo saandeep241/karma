@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { Task, TaskStatus } from '../types';
 
 interface TaskCardProps {
@@ -53,6 +53,7 @@ export function TaskCard({
   const [isReResearching, setIsReResearching] = useState(false);
   const [newSubtaskText, setNewSubtaskText] = useState('');
   const [showAddSubtask, setShowAddSubtask] = useState(false);
+  const subtaskInputRef = useRef<HTMLInputElement>(null);
 
   // Use task.subtasks directly from props (synced with server)
   const subtasks = task.subtasks || [];
@@ -100,6 +101,13 @@ export function TaskCard({
   useEffect(() => {
     setIsReResearching(false);
   }, [task.enrichment]);
+
+  // Auto-focus input when it appears
+  useEffect(() => {
+    if (showAddSubtask && subtaskInputRef.current) {
+      subtaskInputRef.current.focus();
+    }
+  }, [showAddSubtask]);
 
   return (
     <div 
@@ -155,16 +163,17 @@ export function TaskCard({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
           {isCompleted ? (
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 handleStatusChange('pending');
               }}
-              className="btn btn-secondary text-sm py-2 px-4"
+              className="btn btn-secondary text-xs sm:text-sm py-1.5 sm:py-2 px-2 sm:px-4"
             >
-              ↩️ Reopen
+              <span className="hidden sm:inline">↩️ Reopen</span>
+              <span className="sm:hidden">↩️</span>
             </button>
           ) : isInProgress ? (
             <button
@@ -172,9 +181,10 @@ export function TaskCard({
                 e.stopPropagation();
                 handleStatusChange('completed');
               }}
-              className="btn btn-primary text-sm py-2 px-4"
+              className="btn btn-primary text-xs sm:text-sm py-1.5 sm:py-2 px-2 sm:px-4"
             >
-              ✓ Complete
+              <span className="hidden sm:inline">✓ Complete</span>
+              <span className="sm:hidden">✓</span>
             </button>
           ) : (
             <button
@@ -182,9 +192,10 @@ export function TaskCard({
                 e.stopPropagation();
                 handleStatusChange('completed');
               }}
-              className="btn btn-primary text-sm py-2 px-4"
+              className="btn btn-primary text-xs sm:text-sm py-1.5 sm:py-2 px-2 sm:px-4"
             >
-              ✓ Complete
+              <span className="hidden sm:inline">✓ Complete</span>
+              <span className="sm:hidden">✓</span>
             </button>
           )}
         </div>
@@ -192,7 +203,10 @@ export function TaskCard({
 
       {/* Expanded Content */}
       {isExpanded && (
-        <div className="mt-4 pt-4 border-t border-[var(--karma-border)] animate-slide-up">
+        <div 
+          className="mt-4 pt-4 border-t border-[var(--karma-border)] animate-slide-up"
+          onClick={(e) => e.stopPropagation()}
+        >
           {/* Notes */}
           {task.notes && (
             <p className="text-[var(--karma-text-muted)] text-sm mb-4">
@@ -224,49 +238,79 @@ export function TaskCard({
 
           {/* Subtasks */}
           <div className="mb-4">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-3">
               <h4 className="font-medium text-sm">📋 Subtasks</h4>
-              {!isCompleted && (
+              {!isCompleted && !showAddSubtask && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    setShowAddSubtask(!showAddSubtask);
+                    setShowAddSubtask(true);
                   }}
-                  className="text-xs text-[var(--karma-accent)] hover:underline"
+                  className="text-xs sm:text-sm text-blue-600 hover:text-blue-700 font-medium px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors flex items-center gap-1"
                 >
-                  + Add subtask
+                  <span>+</span>
+                  <span>Add subtask</span>
                 </button>
               )}
             </div>
 
             {/* Add Subtask Input */}
             {showAddSubtask && (
-              <div className="flex gap-2 mb-3" onClick={(e) => e.stopPropagation()}>
-                <input
-                  type="text"
-                  value={newSubtaskText}
-                  onChange={(e) => setNewSubtaskText(e.target.value)}
-                  placeholder="Enter subtask..."
-                  className="flex-1 px-3 py-2 text-sm border border-[var(--karma-border)] rounded-lg focus:outline-none focus:border-[var(--karma-accent)]"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && newSubtaskText.trim()) {
-                      onAddSubtask?.(task.id, newSubtaskText.trim());
-                      setNewSubtaskText('');
-                    }
-                  }}
-                />
-                <button
-                  onClick={() => {
-                    if (newSubtaskText.trim()) {
-                      onAddSubtask?.(task.id, newSubtaskText.trim());
-                      setNewSubtaskText('');
-                    }
-                  }}
-                  disabled={!newSubtaskText.trim()}
-                  className="btn btn-primary text-sm px-3"
-                >
-                  Add
-                </button>
+              <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200" onClick={(e) => e.stopPropagation()}>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    ref={subtaskInputRef}
+                    type="text"
+                    value={newSubtaskText}
+                    onChange={(e) => setNewSubtaskText(e.target.value)}
+                    placeholder="Enter subtask description..."
+                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newSubtaskText.trim()) {
+                        e.preventDefault();
+                        onAddSubtask?.(task.id, newSubtaskText.trim());
+                        setNewSubtaskText('');
+                        setShowAddSubtask(false);
+                      } else if (e.key === 'Escape') {
+                        setShowAddSubtask(false);
+                        setNewSubtaskText('');
+                      }
+                    }}
+                    onBlur={(e) => {
+                      // Don't close if clicking on the buttons
+                      if (!e.relatedTarget || !e.currentTarget.parentElement?.contains(e.relatedTarget as Node)) {
+                        // Only close if input is empty
+                        if (!newSubtaskText.trim()) {
+                          setShowAddSubtask(false);
+                        }
+                      }
+                    }}
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        if (newSubtaskText.trim()) {
+                          onAddSubtask?.(task.id, newSubtaskText.trim());
+                          setNewSubtaskText('');
+                          setShowAddSubtask(false);
+                        }
+                      }}
+                      disabled={!newSubtaskText.trim()}
+                      className="btn btn-primary text-sm px-4 py-2 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Add
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowAddSubtask(false);
+                        setNewSubtaskText('');
+                      }}
+                      className="btn btn-secondary text-sm px-4 py-2 whitespace-nowrap"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -355,14 +399,18 @@ export function TaskCard({
                   handleBreakdown();
                 }}
                 disabled={isBreakingDown || isLoading}
-                className="btn btn-secondary text-sm"
+                className="btn btn-secondary text-xs sm:text-sm px-3 py-1.5 sm:py-2"
               >
                 {isBreakingDown ? (
-                  <span className="flex items-center gap-2">
-                    <span className="animate-spin">⏳</span> Breaking down...
+                  <span className="flex items-center gap-1 sm:gap-2">
+                    <span className="animate-spin">⏳</span>
+                    <span className="hidden sm:inline">Breaking down...</span>
                   </span>
                 ) : (
-                  '🔨 Break Down'
+                  <>
+                    <span>🔨</span>
+                    <span className="hidden sm:inline">Break Down</span>
+                  </>
                 )}
               </button>
             )}
@@ -373,14 +421,18 @@ export function TaskCard({
                   handleReResearch();
                 }}
                 disabled={isReResearching || isLoading}
-                className="btn btn-ghost text-sm"
+                className="btn btn-ghost text-xs sm:text-sm px-3 py-1.5 sm:py-2"
               >
                 {isReResearching ? (
-                  <span className="flex items-center gap-2">
-                    <span className="animate-spin">⏳</span> Researching...
+                  <span className="flex items-center gap-1 sm:gap-2">
+                    <span className="animate-spin">⏳</span>
+                    <span className="hidden sm:inline">Researching...</span>
                   </span>
                 ) : (
-                  '🔄 Re-research'
+                  <>
+                    <span>🔄</span>
+                    <span className="hidden sm:inline">Re-research</span>
+                  </>
                 )}
               </button>
             )}
@@ -390,9 +442,10 @@ export function TaskCard({
                   e.stopPropagation();
                   onArchive();
                 }}
-                className="btn btn-ghost text-sm text-[var(--karma-text-muted)]"
+                className="btn btn-ghost text-xs sm:text-sm text-[var(--karma-text-muted)] px-3 py-1.5 sm:py-2"
               >
-                📦 Archive
+                <span>📦</span>
+                <span className="hidden sm:inline ml-1">Archive</span>
               </button>
             )}
             {onDelete && (
@@ -403,9 +456,10 @@ export function TaskCard({
                     onDelete(task.id);
                   }
                 }}
-                className="btn btn-ghost text-sm text-red-500 hover:text-red-700 hover:bg-red-50"
+                className="btn btn-ghost text-xs sm:text-sm text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 sm:py-2"
               >
-                🗑️ Delete
+                <span>🗑️</span>
+                <span className="hidden sm:inline ml-1">Delete</span>
               </button>
             )}
           </div>

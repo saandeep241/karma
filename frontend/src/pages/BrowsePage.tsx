@@ -170,29 +170,29 @@ export function BrowsePage() {
   }
 
   return (
-    <div className="space-y-8 animate-fade-in max-w-4xl mx-auto">
+    <div className="space-y-6 sm:space-y-8 animate-fade-in max-w-4xl mx-auto px-4 sm:px-6">
       {/* Header */}
-      <div className="flex items-end justify-between border-b border-gray-100 pb-4">
+      <div className="flex items-end justify-between border-b border-gray-100 pb-3 sm:pb-4">
         <div>
-          <h1 className="text-3xl font-serif text-gray-900">Your tasks</h1>
-          <p className="text-gray-500 text-sm mt-1">
+          <h1 className="text-2xl sm:text-3xl font-serif text-gray-900">Your tasks</h1>
+          <p className="text-gray-500 text-xs sm:text-sm mt-1">
             {filteredTasks.length} item{filteredTasks.length !== 1 ? 's' : ''} total
           </p>
         </div>
         {tasks.length > 0 && (
           <button
             onClick={() => setShowDeleteConfirm(true)}
-            className="text-sm text-gray-400 hover:text-red-500 transition-colors flex items-center gap-1"
+            className="text-xs sm:text-sm text-gray-400 hover:text-red-500 transition-colors flex items-center gap-1"
           >
             <span>🗑️</span>
-            <span>Clear all</span>
+            <span className="hidden sm:inline">Clear all</span>
           </button>
         )}
       </div>
 
       {/* Filter Bar */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex gap-1 p-1 bg-gray-50 rounded-xl border border-gray-100">
+      <div className="flex items-center justify-between gap-2 sm:gap-4 flex-wrap">
+        <div className="flex gap-1 p-1 bg-gray-50 rounded-xl border border-gray-100 overflow-x-auto">
           {[
             { value: 'all' as FilterStatus, label: 'All' },
             { value: 'pending' as FilterStatus, label: 'To Do' },
@@ -202,7 +202,7 @@ export function BrowsePage() {
             <button
               key={status.value}
               onClick={() => setFilterStatus(status.value)}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
+              className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
                 filterStatus === status.value
                   ? 'bg-white text-blue-600 shadow-sm border border-gray-100'
                   : 'text-gray-500 hover:text-gray-700'
@@ -213,12 +213,12 @@ export function BrowsePage() {
           ))}
         </div>
 
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          <span>Sort by</span>
+        <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-500">
+          <span className="hidden sm:inline">Sort by</span>
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortBy)}
-            className="bg-transparent border-none text-gray-900 font-medium cursor-pointer focus:outline-none hover:text-blue-600"
+            className="bg-transparent border-none text-gray-900 font-medium cursor-pointer focus:outline-none hover:text-blue-600 text-xs sm:text-sm"
           >
             <option value="date">Date</option>
             <option value="priority">Priority</option>
@@ -302,22 +302,22 @@ export function BrowsePage() {
       {/* Delete Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-gray-900/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 max-w-sm w-full shadow-2xl border border-gray-100">
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Clear all tasks?</h3>
-            <p className="text-gray-500 mb-8 leading-relaxed">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-sm w-full shadow-2xl border border-gray-100">
+            <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">Clear all tasks?</h3>
+            <p className="text-sm sm:text-base text-gray-500 mb-6 sm:mb-8 leading-relaxed">
               This will permanently delete all your tasks. This action cannot be undone.
             </p>
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 px-4 py-2.5 rounded-xl font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+                className="flex-1 px-4 py-2.5 rounded-xl font-medium text-gray-600 hover:bg-gray-50 transition-colors text-sm sm:text-base"
               >
                 Cancel
               </button>
               <button
                 onClick={() => deleteAllMutation.mutate()}
                 disabled={deleteAllMutation.isPending}
-                className="flex-1 px-4 py-2.5 rounded-xl font-medium bg-red-500 text-white hover:bg-red-600 transition-colors shadow-lg shadow-red-200"
+                className="flex-1 px-4 py-2.5 rounded-xl font-medium bg-red-500 text-white hover:bg-red-600 transition-colors shadow-lg shadow-red-200 text-sm sm:text-base"
               >
                 {deleteAllMutation.isPending ? 'Clearing...' : 'Yes, clear all'}
               </button>

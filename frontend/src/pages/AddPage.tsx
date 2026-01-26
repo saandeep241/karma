@@ -66,16 +66,16 @@ export function AddPage() {
   const isLoading = addTaskMutation.isPending || importTasksMutation.isPending;
 
   return (
-    <div className="max-w-xl mx-auto space-y-10 animate-fade-in py-8">
+    <div className="max-w-xl mx-auto space-y-6 sm:space-y-10 animate-fade-in py-6 sm:py-8 px-4 sm:px-6">
       <div className="text-center">
-        <h1 className="text-4xl font-serif text-gray-900 mb-2">New Task</h1>
-        <p className="text-gray-500">What's on your mind?</p>
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-serif text-gray-900 mb-2">New Task</h1>
+        <p className="text-sm sm:text-base text-gray-500">What's on your mind?</p>
       </div>
 
       <div className="flex justify-center gap-1 p-1 bg-gray-50 rounded-xl border border-gray-100 max-w-xs mx-auto">
         <button
           onClick={() => setMode('single')}
-          className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+          className={`flex-1 py-2 px-3 sm:px-4 rounded-lg text-xs sm:text-sm font-medium transition-all ${
             mode === 'single' ? 'bg-white text-blue-600 shadow-sm border border-gray-100' : 'text-gray-500 hover:text-gray-700'
           }`}
         >
@@ -83,7 +83,7 @@ export function AddPage() {
         </button>
         <button
           onClick={() => setMode('bulk')}
-          className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+          className={`flex-1 py-2 px-3 sm:px-4 rounded-lg text-xs sm:text-sm font-medium transition-all ${
             mode === 'bulk' ? 'bg-white text-blue-600 shadow-sm border border-gray-100' : 'text-gray-500 hover:text-gray-700'
           }`}
         >
@@ -92,7 +92,7 @@ export function AddPage() {
       </div>
 
       {mode === 'single' ? (
-        <form onSubmit={handleSubmitSingle} className="space-y-8 bg-white p-8 rounded-3xl border border-gray-100 shadow-xl shadow-gray-100/50">
+        <form onSubmit={handleSubmitSingle} className="space-y-6 sm:space-y-8 bg-white p-6 sm:p-8 rounded-2xl sm:rounded-3xl border border-gray-100 shadow-xl shadow-gray-100/50">
           <div className="space-y-2">
             <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">The task</label>
             <textarea
@@ -106,7 +106,7 @@ export function AddPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">When</label>
               <input
@@ -125,7 +125,7 @@ export function AddPage() {
                     key={mins}
                     type="button"
                     onClick={() => setEstimatedMinutes(mins)}
-                    className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all ${
+                    className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-medium border transition-all ${
                       estimatedMinutes === mins ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-500 border-gray-100 hover:border-blue-200'
                     }`}
                   >
@@ -144,7 +144,7 @@ export function AddPage() {
                   key={cat.value}
                   type="button"
                   onClick={() => setCategory(cat.value)}
-                  className={`px-4 py-2 rounded-full border text-sm transition-all flex items-center gap-2 ${
+                  className={`px-3 sm:px-4 py-2 rounded-full border text-xs sm:text-sm transition-all flex items-center gap-2 ${
                     category === cat.value ? 'bg-gray-900 text-white border-gray-900' : 'bg-gray-50 text-gray-500 border-gray-100 hover:border-gray-200'
                   }`}
                 >
@@ -158,13 +158,13 @@ export function AddPage() {
           <button
             type="submit"
             disabled={!taskText.trim() || isLoading}
-            className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full py-3 sm:py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl sm:rounded-2xl shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-sm sm:text-base"
           >
             {isLoading ? <LoadingSpinner size="sm" /> : 'Create task'}
           </button>
         </form>
       ) : (
-        <form onSubmit={handleSubmitBulk} className="space-y-6 bg-white p-8 rounded-3xl border border-gray-100 shadow-xl shadow-gray-100/50">
+        <form onSubmit={handleSubmitBulk} className="space-y-6 bg-white p-6 sm:p-8 rounded-2xl sm:rounded-3xl border border-gray-100 shadow-xl shadow-gray-100/50">
           <div className="space-y-2">
             <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Bulk entry</label>
             <textarea
@@ -182,7 +182,7 @@ export function AddPage() {
           <button
             type="submit"
             disabled={!bulkTasks.trim() || isLoading}
-            className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full py-3 sm:py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl sm:rounded-2xl shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-sm sm:text-base"
           >
             {isLoading ? <LoadingSpinner size="sm" /> : `Import ${bulkTasks.split('\n').filter(l => l.trim()).length} tasks`}
           </button>
