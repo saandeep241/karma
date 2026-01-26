@@ -78,7 +78,7 @@ async def import_todo_list(request: ImportTodoListRequest, user: AuthUser = Depe
 @router.post("/tasks/add")
 async def add_single_task(request: AddTaskRequest, user: AuthUser = Depends(require_auth)):
     """Add a single task and analyze it."""
-    logger.info(f"Adding new task: {request.text[:50]}...")
+    logger.info(f"Adding new task for user_id={user.user_id}: {request.text[:50]}...")
     task = Task(text=request.text)
     
     if request.category:
@@ -114,7 +114,7 @@ async def add_single_task(request: AddTaskRequest, user: AuthUser = Depends(requ
 @router.get("/tasks/all")
 async def get_all_tasks(user: AuthUser = Depends(require_auth)):
     """Get all tasks organized by date for the authenticated user."""
-    logger.debug("Fetching all tasks")
+    logger.info(f"Fetching all tasks for user_id={user.user_id}")
     tasks_by_date = await db_service.get_all_tasks_by_date(user.user_id)
     stats = await db_service.get_task_stats(user.user_id)
     total_tasks = stats.get("total", 0)

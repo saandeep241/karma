@@ -1,10 +1,55 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import { useUser, useClerk } from '@clerk/clerk-react';
+import { useState, useRef, useEffect } from 'react';
 
 export function Layout() {
+  const { user, isLoaded } = useUser();
+  const { signOut } = useClerk();
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
+    }
+
+    if (showUserMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showUserMenu]);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      setShowUserMenu(false);
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
+  // Get user display info
+  const userDisplayName = user?.fullName || user?.firstName || user?.emailAddresses[0]?.emailAddress || 'User';
+  
+  // Calculate user initials
+  let userInitials = 'U';
+  if (user?.firstName && user?.lastName) {
+    userInitials = `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
+  } else if (user?.firstName) {
+    userInitials = user.firstName[0].toUpperCase();
+  } else if (userDisplayName && userDisplayName.length > 0) {
+    userInitials = userDisplayName[0].toUpperCase();
+  }
+  
+  const userEmail = user?.emailAddresses[0]?.emailAddress;
+
   return (
     <div className="min-h-screen flex flex-col bg-white">
       {/* Header */}
-      <header className="bg-white sticky top-0 z-50">
+      <header className="bg-white sticky top-0 z-50 border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <NavLink to="/" className="flex items-center gap-2 no-underline group">
             <div className="text-[#0066cc]">
@@ -46,6 +91,80 @@ export function Layout() {
               <span>+</span>
               <span>Add Task</span>
             </NavLink>
+
+            {/* User Menu */}
+            {isLoaded && user && (
+              <div className="relative" ref={menuRef}>
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-[#0066cc] focus:ring-offset-2"
+                  aria-label="User menu"
+                >
+                  {/* User Avatar/Initials */}
+                  {user.imageUrl ? (
+                    <img
+                      src={user.imageUrl}
+                      alt={userDisplayName}
+                      className="w-8 h-8 rounded-full object-cover border-2 border-gray-200"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-[#0066cc] text-white flex items-center justify-center font-medium text-sm">
+                      {userInitials}
+                    </div>
+                  )}
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={`text-gray-500 transition-transform ${showUserMenu ? 'rotate-180' : ''}`}
+                  >
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </button>
+
+                {/* Dropdown Menu */}
+                {showUserMenu && (
+                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                    {/* User Info */}
+                    <div className="px-4 py-3 border-b border-gray-100">
+                      <p className="font-medium text-gray-900 text-sm">{userDisplayName}</p>
+                      {userEmail && (
+                        <p className="text-gray-500 text-xs mt-1">{userEmail}</p>
+                      )}
+                    </div>
+
+                    {/* Menu Items */}
+                    <div className="py-1">
+                      <button
+                        onClick={handleSignOut}
+                        className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+                      >
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                          <polyline points="16 17 21 12 16 7"></polyline>
+                          <line x1="21" y1="12" x2="9" y2="12"></line>
+                        </svg>
+                        Sign out
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </header>

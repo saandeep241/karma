@@ -22,6 +22,7 @@ class TaskRepository:
         
         # Ensure user_id is set (don't trust client-provided user_id in task_data)
         task_data["user_id"] = user_id
+        print(f"📦 [DB] Creating task for user_id={user_id}: {task_data.get('text', '')[:50]}...")
         
         # Helper to parse datetime - handles both string and datetime objects
         def parse_dt(val):
@@ -85,13 +86,16 @@ class TaskRepository:
     
     async def get_all(self, user_id: str) -> List[TaskModel]:
         """Get all tasks with subtasks for a specific user."""
+        print(f"📦 [DB] Fetching all tasks for user_id={user_id}")
         result = await self.session.execute(
             select(TaskModel)
             .options(selectinload(TaskModel.subtasks))
             .where(TaskModel.user_id == user_id)  # Filter by user_id
             .order_by(TaskModel.created_at.desc())
         )
-        return list(result.scalars().all())
+        tasks = list(result.scalars().all())
+        print(f"📦 [DB] Found {len(tasks)} tasks for user_id={user_id}")
+        return tasks
     
     async def get_by_date(self, user_id: str, date: str) -> List[TaskModel]:
         """Get tasks for a specific date and user."""
