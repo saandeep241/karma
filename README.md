@@ -13,6 +13,9 @@ Make every moment count with AI-powered task suggestions for productive moments.
 - **Progress Tracking** - View stats and completion history
 - **User Context** - Considers your available time and energy level
 - **Clerk Authentication** - Secure user authentication (optional)
+- **Token Rate Limiting** - Monthly token limits per user with admin management
+- **Token Usage Tracking** - Detailed tracking of OpenAI API usage by user, agent, and model
+- **Admin UI** - Manage token limits and usage for all users
 - **SQLite Database** - Persistent task storage
 - **Dummy Mode** - Works without API keys using demo data
 
@@ -134,6 +137,13 @@ OPENAI_MODEL=gpt-4o-mini   # OpenAI model to use
 # Authentication (optional)
 CLERK_SECRET_KEY=sk_test_your-clerk-secret-key
 CLERK_PUBLISHABLE_KEY=pk_test_your-clerk-publishable-key
+
+# Token Rate Limiting (optional)
+DEFAULT_MONTHLY_TOKEN_LIMIT=1000000  # Default: 1M tokens/month per user
+
+# Admin Configuration (optional - for admin UI access)
+ADMIN_USER_IDS=user_abc123,user_def456  # Comma-separated Clerk user IDs
+ADMIN_EMAILS=admin@example.com  # Comma-separated email addresses
 ```
 
 #### Frontend (`frontend/.env`)
@@ -153,6 +163,9 @@ VITE_CLERK_PUBLISHABLE_KEY=pk_test_your-clerk-publishable-key
 | `CLERK_SECRET_KEY` | Clerk secret key | - | No (auth disabled without) |
 | `CLERK_PUBLISHABLE_KEY` | Clerk publishable key | - | No |
 | `VITE_CLERK_PUBLISHABLE_KEY` | Clerk key for frontend | - | No |
+| `DEFAULT_MONTHLY_TOKEN_LIMIT` | Default monthly token limit per user | `1000000` | No |
+| `ADMIN_USER_IDS` | Comma-separated admin user IDs | - | No |
+| `ADMIN_EMAILS` | Comma-separated admin emails | - | No |
 
 ---
 
@@ -165,6 +178,123 @@ VITE_CLERK_PUBLISHABLE_KEY=pk_test_your-clerk-publishable-key
 5. **Restart both servers**
 
 When configured, users will see a "Sign In" button in the header.
+
+---
+
+## 📊 Token Rate Limiting
+
+Karma includes built-in token usage tracking and monthly rate limiting to control OpenAI API costs.
+
+### Features
+
+- **Monthly Token Limits** - Set per-user monthly token limits (default: 1,000,000 tokens/month)
+- **Automatic Tracking** - All OpenAI API calls are automatically tracked
+- **Usage Statistics** - View token usage by agent, model, and time period
+- **Admin Management** - Admin UI to manage limits and reset usage
+- **Automatic Reset** - Monthly usage resets automatically at month boundary
+
+### Configuration
+
+#### Backend Environment Variables
+
+```env
+# Token Rate Limiting
+DEFAULT_MONTHLY_TOKEN_LIMIT=1000000  # Default monthly limit per user (1M tokens)
+
+# Admin Configuration (for admin UI access)
+ADMIN_USER_IDS=user_abc123,user_def456  # Comma-separated Clerk user IDs
+ADMIN_EMAILS=admin@example.com,admin2@example.com  # Comma-separated emails
+```
+
+### API Endpoints
+
+#### User Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/tokens/usage?days=30` | Get token usage statistics for authenticated user |
+| GET | `/api/tokens/limit` | Get current monthly limit and usage |
+| POST | `/api/tokens/reset` | Reset own monthly token usage |
+
+#### Admin Endpoints (Admin Only)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/admin/check` | Check if current user is admin |
+| GET | `/api/admin/users/token-limits` | Get all users' token limits and usage |
+| POST | `/api/tokens/limit/{user_id}` | Update a user's monthly token limit |
+| POST | `/api/tokens/reset/{user_id}` | Reset a user's monthly token usage |
+
+### Usage Example
+
+```bash
+# Get your token usage (last 30 days)
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  https://your-api.com/api/tokens/usage?days=30
+
+# Get your current limit and usage
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  https://your-api.com/api/tokens/limit
+
+# Admin: Get all users' limits
+curl -H "Authorization: Bearer ADMIN_TOKEN" \
+  https://your-api.com/api/admin/users/token-limits
+
+# Admin: Update a user's limit
+curl -X POST \
+  -H "Authorization: Bearer ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"new_limit": 2000000}' \
+  https://your-api.com/api/tokens/limit/user_abc123
+```
+
+### Admin UI
+
+When configured with admin user IDs or emails, admins will see an "Admin" link in the navigation. The admin UI provides:
+
+- **User Management Table** - View all users' token usage
+- **Limit Management** - Edit monthly limits per user
+- **Usage Reset** - Reset monthly usage for any user
+- **Usage Statistics** - View detailed usage by agent and model
+
+### Rate Limit Behavior
+
+- **Before API Call**: System checks if user has enough tokens remaining
+- **If Limit Exceeded**: Returns `429 Too Many Requests` error
+- **After Successful Call**: Token usage is automatically recorded
+- **Monthly Reset**: Usage counter resets automatically when month changes (YYYY-MM)
+
+### Token Cost Reference
+
+For GPT-4o-mini (default model):
+- **Input tokens**: $0.15 per 1M tokens (~6.67M tokens per $1)
+- **Output tokens**: $0.60 per 1M tokens (~1.67M tokens per $1)
+- **Default limit (1M tokens/month)**: ~$0.15-0.60 per month per user (depending on input/output ratio)
+
+### Setting Up Admins
+
+1. **Get your Clerk User ID**:
+   - Log in to your app
+   - Check browser console for user ID in API responses
+   - Or check Clerk Dashboard → Users
+
+2. **Set Admin Configuration**:
+   ```bash
+   # In backend/.env
+   ADMIN_USER_IDS=user_38EGhipCHzcKBeK3escqcc9Hg9m
+   # Or use email
+   ADMIN_EMAILS=admin@example.com
+   ```
+
+3. **Restart Backend**:
+   ```bash
+   # The admin check happens on each request, so restart to pick up new config
+   ```
+
+4. **Access Admin UI**:
+   - Log in as admin user
+   - "Admin" link appears in navigation
+   - Click to access token management UI
 
 ---
 
@@ -216,6 +346,17 @@ Services:
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/tasks/stats` | Get productivity statistics |
+
+### Token Usage (Rate Limiting)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/tokens/usage?days=30` | Get token usage statistics |
+| GET | `/api/tokens/limit` | Get current monthly limit and usage |
+| POST | `/api/tokens/reset` | Reset own monthly usage |
+| GET | `/api/admin/check` | Check if user is admin |
+| GET | `/api/admin/users/token-limits` | Get all users' limits (admin only) |
+| POST | `/api/tokens/limit/{user_id}` | Update user limit (admin only) |
+| POST | `/api/tokens/reset/{user_id}` | Reset user usage (admin only) |
 
 ---
 
