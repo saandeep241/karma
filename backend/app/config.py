@@ -23,6 +23,13 @@ class Settings(BaseSettings):
     app_name: str = "Karma - Smart Task Suggestions"
     debug: bool = False
     
+    # Token rate limiting
+    default_monthly_token_limit: int = 1_000_000  # Default: 1M tokens per month per user
+    
+    # Admin configuration
+    admin_user_ids: str = ""  # Comma-separated list of admin user IDs
+    admin_emails: str = ""  # Comma-separated list of admin emails
+    
     # CORS settings for frontend
     frontend_url: str = "http://localhost:5173"  # Vite default
     
@@ -40,6 +47,17 @@ class Settings(BaseSettings):
     def is_auth_enabled(self) -> bool:
         """Check if Clerk authentication is enabled."""
         return bool(self.clerk_secret_key and self.clerk_publishable_key)
+    
+    def is_admin(self, user_id: str = None, email: str = None) -> bool:
+        """Check if a user is an admin."""
+        admin_ids = [uid.strip() for uid in self.admin_user_ids.split(",") if uid.strip()]
+        admin_emails_list = [e.strip().lower() for e in self.admin_emails.split(",") if e.strip()]
+        
+        if user_id and user_id in admin_ids:
+            return True
+        if email and email.lower() in admin_emails_list:
+            return True
+        return False
 
 
 @lru_cache()

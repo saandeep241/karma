@@ -9,6 +9,7 @@ All agents inherit from this base class which provides:
 """
 
 import json
+import asyncio
 from datetime import datetime
 from typing import Optional, Any
 from abc import ABC, abstractmethod
@@ -16,6 +17,7 @@ from abc import ABC, abstractmethod
 from openai import OpenAI
 from app.config import get_settings
 from app.services.tools import save_reasoning
+from app.services import db_service
 from .agent_tools import AGENT_TOOLS, execute_tool
 
 
@@ -113,9 +115,71 @@ class BaseAgent(ABC):
         self.session = AgentSession(self.AGENT_NAME)
         return self.session
     
-    def _simple_completion(self, prompt: str, temperature: float = 0.7, max_tokens: int = 1000) -> str:
+    async def _check_token_limit(self, user_id: str, estimated_tokens: int) -> tuple[bool, dict]:
+        """
+        Check if user has enough tokens remaining for this operation.
+        
+        Returns:
+            (allowed: bool, limit_info: dict)
+        """
+        if not user_id:
+            return True, {}  # No limit check if no user_id
+        
+        try:
+            allowed, limit_info = await db_service.check_token_limit(user_id, estimated_tokens)
+            return allowed, limit_info
+        except Exception as e:
+            # If limit check fails, allow the request (fail open)
+            print(f"⚠️ Failed to check token limit: {e}")
+            return True, {}
+    
+    def _record_token_usage_async(self, user_id: str, prompt_tokens: int, completion_tokens: int, total_tokens: int, task_id: Optional[str] = None, operation_type: Optional[str] = None):
+        """Helper to record token usage asynchronously (fire and forget)."""
+        try:
+            # Try to get the current event loop
+            try:
+                loop = asyncio.get_running_loop()
+                # We're in an async context, schedule the coroutine
+                loop.create_task(db_service.record_token_usage(
+                    user_id=user_id,
+                    agent_name=self.AGENT_NAME,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    total_tokens=total_tokens,
+                    model=self.model,
+                    task_id=task_id,
+                    operation_type=operation_type
+                ))
+            except RuntimeError:
+                # No event loop running, create a new one (shouldn't happen in our async routes)
+                asyncio.run(db_service.record_token_usage(
+                    user_id=user_id,
+                    agent_name=self.AGENT_NAME,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    total_tokens=total_tokens,
+                    model=self.model,
+                    task_id=task_id,
+                    operation_type=operation_type
+                ))
+        except Exception as e:
+            # Don't fail the request if token tracking fails
+            print(f"⚠️ Failed to record token usage: {e}")
+    
+    async def _simple_completion(self, prompt: str, temperature: float = 0.7, max_tokens: int = 1000, user_id: str = None, task_id: str = None, operation_type: str = None) -> str:
         """Execute a simple completion without tools."""
         self._check_available_or_raise()
+        
+        # Check token limit before making API call (estimate: prompt + max_tokens)
+        if user_id:
+            estimated_tokens = len(prompt.split()) * 1.3 + max_tokens  # Rough estimate
+            allowed, limit_info = await self._check_token_limit(user_id, int(estimated_tokens))
+            if not allowed:
+                from fastapi import HTTPException
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Monthly token limit exceeded. Used {limit_info.get('tokens_used_this_month', 0):,} / {limit_info.get('monthly_limit', 0):,} tokens this month."
+                )
         
         response = self.client.chat.completions.create(
             model=self.model,
@@ -127,15 +191,37 @@ class BaseAgent(ABC):
             max_tokens=max_tokens
         )
         
+        # Track token usage if user_id is provided (fire and forget)
+        if user_id and response.usage:
+            # Increment monthly usage counter
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(db_service.increment_token_usage(user_id, response.usage.total_tokens))
+            except RuntimeError:
+                asyncio.run(db_service.increment_token_usage(user_id, response.usage.total_tokens))
+            
+            # Record detailed usage
+            self._record_token_usage_async(
+                user_id=user_id,
+                prompt_tokens=response.usage.prompt_tokens,
+                completion_tokens=response.usage.completion_tokens,
+                total_tokens=response.usage.total_tokens,
+                task_id=task_id,
+                operation_type=operation_type
+            )
+        
         return response.choices[0].message.content
     
-    def _completion_with_tools(
+    async def _completion_with_tools(
         self,
         prompt: str,
         tools: list[str] = None,
         temperature: float = 0.7,
         max_tokens: int = 1500,
-        max_iterations: int = 5
+        max_iterations: int = 5,
+        user_id: str = None,
+        task_id: str = None,
+        operation_type: str = None
     ) -> dict:
         """
         Execute a completion with tool calling capabilities.
@@ -177,6 +263,17 @@ class BaseAgent(ABC):
         tool_results = []
         iterations = 0
         
+        # Check token limit before first iteration (estimate: prompt + max_tokens * max_iterations)
+        if user_id:
+            estimated_tokens = len(prompt.split()) * 1.3 + (max_tokens * max_iterations)
+            allowed, limit_info = await self._check_token_limit(user_id, int(estimated_tokens))
+            if not allowed:
+                from fastapi import HTTPException
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Monthly token limit exceeded. Used {limit_info.get('tokens_used_this_month', 0):,} / {limit_info.get('monthly_limit', 0):,} tokens this month."
+                )
+        
         while iterations < max_iterations:
             iterations += 1
             
@@ -189,6 +286,25 @@ class BaseAgent(ABC):
                     temperature=temperature,
                     max_tokens=max_tokens
                 )
+                
+                # Track token usage for each API call (accumulated across iterations)
+                if user_id and response.usage:
+                    # Increment monthly usage counter
+                    try:
+                        loop = asyncio.get_running_loop()
+                        loop.create_task(db_service.increment_token_usage(user_id, response.usage.total_tokens))
+                    except RuntimeError:
+                        asyncio.run(db_service.increment_token_usage(user_id, response.usage.total_tokens))
+                    
+                    # Record detailed usage
+                    self._record_token_usage_async(
+                        user_id=user_id,
+                        prompt_tokens=response.usage.prompt_tokens,
+                        completion_tokens=response.usage.completion_tokens,
+                        total_tokens=response.usage.total_tokens,
+                        task_id=task_id,
+                        operation_type=operation_type
+                    )
                 
                 message = response.choices[0].message
                 

@@ -1,12 +1,39 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useUser, useClerk } from '@clerk/clerk-react';
 import { useState, useRef, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { checkAdmin } from '../api/client';
 
 export function Layout() {
   const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Check if user is admin
+  const { data: adminCheck, error: adminError } = useQuery({
+    queryKey: ['admin', 'check'],
+    queryFn: checkAdmin,
+    enabled: isLoaded && !!user,
+    retry: false,
+  });
+  
+  const isAdmin = adminCheck?.is_admin || false;
+  
+  // Debug logging
+  useEffect(() => {
+    if (isLoaded && user) {
+      console.log('🔍 Checking admin status for user:', user.id);
+      console.log('Admin check enabled:', isLoaded && !!user);
+      if (adminError) {
+        console.error('❌ Admin check error:', adminError);
+      }
+      if (adminCheck) {
+        console.log('✅ Admin check result:', adminCheck);
+        console.log('Is admin:', isAdmin);
+      }
+    }
+  }, [isLoaded, user, adminCheck, adminError, isAdmin]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -85,6 +112,15 @@ export function Layout() {
                 </svg>
                 <span>Stats</span>
               </NavLink>
+              {isAdmin && (
+                <NavLink to="/admin" className={({ isActive }) => `flex items-center gap-2 transition-colors no-underline text-[15px] font-medium ${isActive ? 'text-[#0066cc]' : 'text-[#4b5563] hover:text-[#0066cc]'}`}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    <path d="M9 12l2 2 4-4"></path>
+                  </svg>
+                  <span>Admin</span>
+                </NavLink>
+              )}
             </nav>
 
             <NavLink to="/add" className="bg-[#0066cc] hover:bg-[#0052a3] text-white px-3 sm:px-5 py-1.5 sm:py-2 rounded-full font-medium transition-all no-underline flex items-center gap-1 sm:gap-2 shadow-sm text-xs sm:text-[14px]">

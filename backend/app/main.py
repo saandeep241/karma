@@ -72,10 +72,10 @@ settings = get_settings()
 
 # Build list of allowed origins
 allowed_origins = [
-    "http://localhost:5173",  # Vite default
-    "http://localhost:3000",  # Common React port
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:3000",
+        "http://localhost:5173",  # Vite default
+        "http://localhost:3000",  # Common React port
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
 ]
 
 # Add frontend URL from settings if it's set and not already in the list

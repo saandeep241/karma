@@ -31,12 +31,13 @@ Your job is to analyze tasks and infer their properties:
 Be realistic and specific. A "quick email" is 5 minutes, but "write a report" is 30-60 minutes.
 Always return valid JSON."""
 
-    async def run(self, task: Task) -> Task:
+    async def run(self, task: Task, user_id: str = None) -> Task:
         """
         Analyze a single task and populate its properties.
         
         Args:
             task: The task to analyze
+            user_id: User ID for token usage tracking
             
         Returns:
             The task with populated properties
@@ -66,7 +67,14 @@ Return a JSON object with:
 JSON response:"""
 
         try:
-            response = self._simple_completion(prompt, temperature=0.3, max_tokens=400)
+            response = await self._simple_completion(
+                prompt, 
+                temperature=0.3, 
+                max_tokens=400,
+                user_id=user_id,
+                task_id=task.id,
+                operation_type="analyze"
+            )
             
             # Parse JSON from response
             json_start = response.find('{')

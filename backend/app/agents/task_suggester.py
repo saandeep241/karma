@@ -38,7 +38,8 @@ Be thoughtful and explain your reasoning clearly."""
         self,
         tasks: list[Task],
         context: UserContext,
-        excluded_task_ids: list[str] = None
+        excluded_task_ids: list[str] = None,
+        user_id: str = None
     ) -> Optional[TaskSuggestion]:
         """
         Suggest the best task for the user's context.
@@ -47,6 +48,7 @@ Be thoughtful and explain your reasoning clearly."""
             tasks: Available tasks to choose from
             context: User's current context (time, energy, mood)
             excluded_task_ids: Task IDs to exclude (already suggested/rejected)
+            user_id: User ID for token usage tracking
             
         Returns:
             TaskSuggestion with the recommended task and reasoning
@@ -116,7 +118,13 @@ Return JSON:
 JSON response:"""
 
         try:
-            response = self._simple_completion(prompt, temperature=0.5, max_tokens=400)
+            response = await self._simple_completion(
+                prompt, 
+                temperature=0.5, 
+                max_tokens=400,
+                user_id=user_id,
+                operation_type="suggest"
+            )
             
             json_start = response.find('{')
             json_end = response.rfind('}') + 1

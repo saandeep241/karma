@@ -398,6 +398,19 @@ deploy_backend() {
         ENV_VARS="$ENV_VARS,FRONTEND_URL=$FRONTEND_URL"
     fi
     
+    # Add admin configuration if provided
+    if [ -n "$ADMIN_USER_IDS" ]; then
+        ENV_VARS="$ENV_VARS,ADMIN_USER_IDS=$ADMIN_USER_IDS"
+    fi
+    if [ -n "$ADMIN_EMAILS" ]; then
+        ENV_VARS="$ENV_VARS,ADMIN_EMAILS=$ADMIN_EMAILS"
+    fi
+    
+    # Add token limit configuration if provided (defaults to 1M in code)
+    if [ -n "$DEFAULT_MONTHLY_TOKEN_LIMIT" ]; then
+        ENV_VARS="$ENV_VARS,DEFAULT_MONTHLY_TOKEN_LIMIT=$DEFAULT_MONTHLY_TOKEN_LIMIT"
+    fi
+    
     # Deploy with appropriate settings
     # Use secret for database password if it exists
     SECRET_NAME="database-password"
@@ -446,14 +459,26 @@ deploy_backend() {
         echo "  - DATABASE_PASSWORD"
         echo "  - CLERK_SECRET_KEY (if using)"
         echo ""
+        echo "Optional environment variables (can be set later):"
+        echo "  - ADMIN_USER_IDS (comma-separated user IDs for admin access)"
+        echo "  - ADMIN_EMAILS (comma-separated emails for admin access)"
+        echo "  - DEFAULT_MONTHLY_TOKEN_LIMIT (default: 1000000)"
+        echo ""
         echo "Use: gcloud run services update $BACKEND_SERVICE --update-secrets ..."
+        echo "Or: gcloud run services update $BACKEND_SERVICE --update-env-vars ADMIN_USER_IDS=user1,user2 ..."
     else
         echo "ℹ️  Deployed in DUMMY MODE (AI disabled)"
         echo "⚠️  Remember to set these secrets:"
         echo "  - DATABASE_PASSWORD"
         echo "  - CLERK_SECRET_KEY (if using)"
         echo ""
+        echo "Optional environment variables (can be set later):"
+        echo "  - ADMIN_USER_IDS (comma-separated user IDs for admin access)"
+        echo "  - ADMIN_EMAILS (comma-separated emails for admin access)"
+        echo "  - DEFAULT_MONTHLY_TOKEN_LIMIT (default: 1000000)"
+        echo ""
         echo "Use: gcloud run services update $BACKEND_SERVICE --update-secrets ..."
+        echo "Or: gcloud run services update $BACKEND_SERVICE --update-env-vars ADMIN_USER_IDS=user1,user2 ..."
     fi
 }
 
@@ -519,6 +544,28 @@ main() {
     else
         ENABLE_AI="false"
         print_success "Dummy mode (AI disabled) - no OpenAI key needed"
+    fi
+    echo ""
+    
+    # Ask about admin configuration (optional)
+    echo "Admin Configuration (optional - can be set later):"
+    echo "  You can configure admin access via environment variables:"
+    echo "  - ADMIN_USER_IDS: Comma-separated list of Clerk user IDs"
+    echo "  - ADMIN_EMAILS: Comma-separated list of email addresses"
+    echo ""
+    read -p "Set admin configuration now? [y/N]: " admin_choice
+    if [[ $admin_choice =~ ^[Yy]$ ]]; then
+        read -p "Enter admin user IDs (comma-separated, or press Enter to skip): " ADMIN_USER_IDS
+        read -p "Enter admin emails (comma-separated, or press Enter to skip): " ADMIN_EMAILS
+        if [ -n "$ADMIN_USER_IDS" ]; then
+            print_success "Admin user IDs configured"
+        fi
+        if [ -n "$ADMIN_EMAILS" ]; then
+            print_success "Admin emails configured"
+        fi
+    else
+        print_warning "Skipping admin configuration. You can set it later with:"
+        echo "  gcloud run services update $BACKEND_SERVICE --update-env-vars ADMIN_USER_IDS=user1,user2"
     fi
     echo ""
     echo "What would you like to do?"

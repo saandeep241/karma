@@ -48,12 +48,13 @@ IMPORTANT:
 
 After using tools, return JSON with your findings."""
 
-    async def run(self, task: Task) -> dict:
+    async def run(self, task: Task, user_id: str = None) -> dict:
         """
         Enrich a task with additional context and resources using web tools.
         
         Args:
             task: The task to enrich
+            user_id: User ID for token usage tracking
             
         Returns:
             Dictionary with enrichment data
@@ -129,12 +130,15 @@ Use the tools now to research this task, then provide your JSON response."""
 
         try:
             # Use tool calling to research the task
-            result = self._completion_with_tools(
+            result = await self._completion_with_tools(
                 prompt=prompt,
                 tools=tools_to_use,
                 temperature=0.6,
                 max_tokens=2000,
-                max_iterations=6
+                max_iterations=6,
+                user_id=user_id,
+                task_id=task.id,
+                operation_type="enrich"
             )
             
             response_text = result.get("response", "")

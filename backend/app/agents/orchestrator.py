@@ -52,18 +52,19 @@ class KarmaOrchestrator:
         logger.debug("  - QuickWin: Generates micro-tasks")
         logger.debug("  - Breakdown: Creates step-by-step plans")
     
-    async def analyze_tasks(self, tasks: list[Task]) -> tuple[list[Task], dict]:
+    async def analyze_tasks(self, tasks: list[Task], user_id: str = None) -> tuple[list[Task], dict]:
         """
         Analyze a list of tasks using the TaskAnalyzer agent.
         Also enriches each task using the TaskEnricher agent.
         
         Args:
             tasks: List of tasks to analyze
+            user_id: User ID for token usage tracking
             
         Returns:
             Tuple of (analyzed_tasks, reasoning_trace)
         """
-        logger.info(f"Orchestrator: Analyzing {len(tasks)} tasks")
+        logger.info(f"Orchestrator: Analyzing {len(tasks)} tasks" + (f" for user {user_id[:8]}..." if user_id else ""))
         
         analyzed_tasks = []
         all_reasoning = {
@@ -82,12 +83,12 @@ class KarmaOrchestrator:
             try:
                 # Step 1: Analyze the task
                 print(f"   📊 Analyzing: {task.text[:50]}...")
-                analyzed_task = await self.analyzer.run(task)
+                analyzed_task = await self.analyzer.run(task, user_id=user_id)
                 task_trace["analysis"] = "success"
                 
                 # Step 2: Enrich the task
                 print(f"   📚 Enriching: {task.text[:50]}...")
-                enrichment = await self.enricher.run(analyzed_task)
+                enrichment = await self.enricher.run(analyzed_task, user_id=user_id)
                 analyzed_task.enrichment = enrichment
                 
                 # Update task with enrichment data
@@ -129,7 +130,8 @@ class KarmaOrchestrator:
         self,
         tasks: list[Task],
         context: UserContext,
-        excluded_task_ids: list[str] = None
+        excluded_task_ids: list[str] = None,
+        user_id: str = None
     ) -> tuple[Optional[TaskSuggestion], dict]:
         """
         Suggest a task using the TaskSuggester agent.
@@ -138,6 +140,7 @@ class KarmaOrchestrator:
             tasks: Available tasks
             context: User's current context
             excluded_task_ids: Tasks to exclude
+            user_id: User ID for token usage tracking
             
         Returns:
             Tuple of (suggestion, reasoning_trace)
@@ -156,7 +159,7 @@ class KarmaOrchestrator:
         }
         
         try:
-            suggestion = await self.suggester.run(tasks, context, excluded_task_ids or [])
+            suggestion = await self.suggester.run(tasks, context, excluded_task_ids or [], user_id=user_id)
             
             if suggestion:
                 reasoning["suggestion"] = {
@@ -179,7 +182,8 @@ class KarmaOrchestrator:
     async def break_task_into_steps(
         self,
         task: Task,
-        time_available: int
+        time_available: int,
+        user_id: str = None
     ) -> tuple[TaskBreakdown, dict]:
         """
         Break a task into subtasks using the Breakdown agent.
@@ -190,6 +194,7 @@ class KarmaOrchestrator:
         Args:
             task: The task to break down
             time_available: Minutes available
+            user_id: User ID for token usage tracking
             
         Returns:
             Tuple of (breakdown, reasoning_trace)
@@ -205,7 +210,7 @@ class KarmaOrchestrator:
         }
         
         try:
-            breakdown = await self.breakdown.run(task, time_available)
+            breakdown = await self.breakdown.run(task, time_available, user_id=user_id)
             
             # The breakdown agent now also updates task.subtasks
             # Save the updated task with subtasks
@@ -224,12 +229,13 @@ class KarmaOrchestrator:
             print(f"❌ Orchestrator: Breakdown failed - {e}")
             raise
     
-    async def generate_quickwin(self, context: UserContext) -> dict:
+    async def generate_quickwin(self, context: UserContext, user_id: str = None) -> dict:
         """
         Generate a quick win using the QuickWin agent.
         
         Args:
             context: User's current context
+            user_id: User ID for token usage tracking
             
         Returns:
             Quick win dictionary
@@ -237,7 +243,7 @@ class KarmaOrchestrator:
         print(f"\n🎯 Orchestrator: Generating quick win for {context.energy_level.value} energy, {context.emotional_state.value if context.emotional_state else 'neutral'} mood...")
         
         try:
-            quickwin = await self.quickwin.run(context)
+            quickwin = await self.quickwin.run(context, user_id=user_id)
             print(f"✅ Orchestrator: Generated '{quickwin['text'][:50]}...'")
             return quickwin
             
@@ -245,12 +251,13 @@ class KarmaOrchestrator:
             print(f"❌ Orchestrator: Quick win generation failed - {e}")
             raise
     
-    async def enrich_task(self, task: Task) -> dict:
+    async def enrich_task(self, task: Task, user_id: str = None) -> dict:
         """
         Enrich a single task using the TaskEnricher agent.
         
         Args:
             task: The task to enrich
+            user_id: User ID for token usage tracking
             
         Returns:
             Enrichment dictionary
@@ -258,7 +265,7 @@ class KarmaOrchestrator:
         print(f"\n🎯 Orchestrator: Enriching '{task.text[:40]}...'")
         
         try:
-            enrichment = await self.enricher.run(task)
+            enrichment = await self.enricher.run(task, user_id=user_id)
             print(f"✅ Orchestrator: Added {len(enrichment.get('steps', []))} steps, {len(enrichment.get('suggested_resources', []))} resources")
             return enrichment
             

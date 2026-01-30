@@ -43,6 +43,15 @@ class AuthUser:
         self.user_id = user_id
         self.email = email
         self.name = name
+        self._is_admin: Optional[bool] = None
+    
+    def is_admin(self) -> bool:
+        """Check if this user is an admin."""
+        if self._is_admin is None:
+            from app.config import get_settings
+            settings = get_settings()
+            self._is_admin = settings.is_admin(user_id=self.user_id, email=self.email)
+        return self._is_admin
 
 # Cache for JWKS keys to avoid fetching on every request
 _jwks_cache: Dict[str, Any] = {}

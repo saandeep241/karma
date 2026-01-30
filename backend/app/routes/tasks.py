@@ -18,6 +18,7 @@ from app.services.session_store import session_store
 from app.services import db_service
 from app.agents import karma_orchestrator
 from app.logging_config import get_api_logger
+from app.database.connection import async_session
 
 logger = get_api_logger()
 
@@ -47,7 +48,7 @@ async def import_todo_list(request: ImportTodoListRequest, user: AuthUser = Depe
     logger.info(f"ORCHESTRATOR: Processing {len(tasks)} imported tasks (agents: TaskAnalyzer, TaskEnricher)")
     
     # Use orchestrator to analyze and enrich tasks
-    analyzed_tasks, reasoning_trace = await karma_orchestrator.analyze_tasks(tasks)
+    analyzed_tasks, reasoning_trace = await karma_orchestrator.analyze_tasks(tasks, user_id=user.user_id)
     
     logger.info(f"Orchestrator processed {len(analyzed_tasks)} tasks successfully")
     
@@ -91,7 +92,7 @@ async def add_single_task(request: AddTaskRequest, user: AuthUser = Depends(requ
     
     # Analyze and enrich the single task
     logger.debug("Sending task to orchestrator for analysis")
-    analyzed_tasks, _ = await karma_orchestrator.analyze_tasks([task])
+    analyzed_tasks, _ = await karma_orchestrator.analyze_tasks([task], user_id=user.user_id)
     
     if analyzed_tasks:
         # Save to database
@@ -131,6 +132,121 @@ async def get_stats(user: AuthUser = Depends(require_auth)):
     """Get overall task statistics for UI badges."""
     stats = await db_service.get_task_stats(user.user_id)
     return stats
+
+
+@router.get("/tokens/usage")
+async def get_token_usage(user: AuthUser = Depends(require_auth), days: int = 30):
+    """Get token usage statistics for the authenticated user."""
+    if days < 1 or days > 365:
+        raise HTTPException(status_code=400, detail="Days must be between 1 and 365")
+    
+    stats = await db_service.get_token_usage_stats(user.user_id, days)
+    return stats
+
+
+@router.get("/tokens/limit")
+async def get_token_limit(user: AuthUser = Depends(require_auth)):
+    """Get current token limit and usage for the authenticated user."""
+    limit_info = await db_service.get_token_limit_info(user.user_id)
+    return limit_info
+
+
+@router.post("/tokens/reset")
+async def reset_token_usage(user: AuthUser = Depends(require_auth)):
+    """Reset the authenticated user's monthly token usage."""
+    limit_info = await db_service.reset_user_monthly_usage(user.user_id)
+    return {
+        "success": True,
+        "message": "Monthly token usage reset successfully",
+        "limit_info": limit_info
+    }
+
+
+class UpdateTokenLimitRequest(BaseModel):
+    """Request to update a user's token limit."""
+    new_limit: int
+
+
+@router.get("/admin/check")
+async def check_admin(user: AuthUser = Depends(require_auth)):
+    """Check if the current user is an admin."""
+    return {
+        "is_admin": user.is_admin(),
+        "user_id": user.user_id,
+        "email": user.email
+    }
+
+
+@router.get("/admin/users/token-limits")
+async def get_all_user_token_limits(user: AuthUser = Depends(require_auth)):
+    """Get all users' token limits and usage (admin only)."""
+    if not user.is_admin():
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    from app.config import get_settings
+    settings = get_settings()
+    
+    async with async_session() as session:
+        from app.database.repository import UserTokenLimitRepository
+        repo = UserTokenLimitRepository(session)
+        limits = await repo.get_all_limits()
+        
+        # Get usage stats for each user
+        result = []
+        for limit in limits:
+            usage_stats = await db_service.get_token_usage_stats(limit.user_id, days=30)
+            result.append({
+                **limit.to_dict(),
+                "usage_stats": usage_stats
+            })
+        
+        return {
+            "users": result,
+            "total_users": len(result),
+            "default_limit": settings.default_monthly_token_limit
+        }
+
+
+@router.post("/tokens/limit/{target_user_id}")
+async def update_user_token_limit(
+    target_user_id: str,
+    request: UpdateTokenLimitRequest,
+    user: AuthUser = Depends(require_auth)
+):
+    """
+    Update a user's monthly token limit (admin only).
+    """
+    if not user.is_admin():
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    if request.new_limit < 0:
+        raise HTTPException(status_code=400, detail="Limit must be >= 0")
+    
+    limit_info = await db_service.update_user_token_limit(target_user_id, request.new_limit)
+    return {
+        "success": True,
+        "message": f"Token limit updated for user {target_user_id[:8]}...",
+        "limit_info": limit_info
+    }
+
+
+@router.post("/tokens/reset/{target_user_id}")
+async def reset_user_token_usage(
+    target_user_id: str,
+    user: AuthUser = Depends(require_auth)
+):
+    """
+    Reset a user's monthly token usage (admin only).
+    """
+    if not user.is_admin():
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    limit_info = await db_service.reset_user_monthly_usage(target_user_id)
+    return {
+        "success": True,
+        "message": f"Monthly token usage reset for user {target_user_id[:8]}...",
+        "limit_info": limit_info
+    }
 
 
 @router.get("/tasks/continuable")
@@ -239,7 +355,8 @@ async def breakdown_task_by_id(task_id: str, user: AuthUser = Depends(require_au
     # Break task into steps with default 30 min
     breakdown, reasoning_trace = await karma_orchestrator.break_task_into_steps(
         task=task,
-        time_available=30
+        time_available=30,
+        user_id=user.user_id
     )
     
     # Save subtasks to database (TaskBreakdown has 'steps' not 'subtasks')
@@ -294,7 +411,7 @@ async def reresearch_task_by_id(task_id: str, user: AuthUser = Depends(require_a
     print("=" * 60)
     
     # Re-enrich the task
-    enriched_tasks, reasoning_trace = await karma_orchestrator.enrich_tasks([task])
+    enriched_tasks, reasoning_trace = await karma_orchestrator.analyze_tasks([task], user_id=user.user_id)
     
     if enriched_tasks:
         enriched_task = enriched_tasks[0]
@@ -341,7 +458,8 @@ async def breakdown_task_from_browse(request: TaskBreakdownRequest, user: AuthUs
     # Break task into steps
     breakdown, reasoning_trace = await karma_orchestrator.break_task_into_steps(
         task=task,
-        time_available=time_available
+        time_available=time_available,
+        user_id=user.user_id
     )
     
     session.current_task = task
@@ -417,7 +535,7 @@ async def reresearch_task(request: ReResearchRequest, user: AuthUser = Depends(r
     temp_task = Task(id=task.id, text=enhanced_task_text)
     
     # Re-enrich with the correction context
-    enrichment = await karma_orchestrator.enrich_task(temp_task)
+    enrichment = await karma_orchestrator.enrich_task(temp_task, user_id=user.user_id)
     
     # Save enrichment to database
     await db_service.save_enrichment(user.user_id, request.task_id, enrichment)

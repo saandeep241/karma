@@ -111,13 +111,14 @@ VARIETY IS KEY: Each suggestion should be completely different from typical prod
         ]
     }
 
-    async def run(self, context: UserContext, excluded_suggestions: list[str] = None) -> dict:
+    async def run(self, context: UserContext, excluded_suggestions: list[str] = None, user_id: str = None) -> dict:
         """
         Generate a personalized quick win based on user context.
         
         Args:
             context: User's current context (time, energy, mood)
             excluded_suggestions: List of suggestions to avoid
+            user_id: User ID for token usage tracking
             
         Returns:
             Dictionary with quick win details
@@ -204,7 +205,13 @@ JSON response:"""
 
         try:
             # Use higher temperature for more variety
-            response = self._simple_completion(prompt, temperature=0.95, max_tokens=400)
+            response = await self._simple_completion(
+                prompt, 
+                temperature=0.95, 
+                max_tokens=400,
+                user_id=user_id,
+                operation_type="quickwin"
+            )
             
             json_start = response.find('{')
             json_end = response.rfind('}') + 1

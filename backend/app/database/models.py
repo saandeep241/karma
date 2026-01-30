@@ -207,3 +207,77 @@ class QuickWinHistoryModel(Base):
             "was_added": self.was_added,
         }
 
+
+class TokenUsageModel(Base):
+    """Track OpenAI token usage per user for metering and cost tracking."""
+    __tablename__ = "token_usage"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)  # User who made the request
+    agent_name: Mapped[str] = mapped_column(String(50), nullable=False, index=True)  # Which agent (TaskAnalyzer, TaskEnricher, etc.)
+    
+    # Token counts from OpenAI
+    prompt_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    completion_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    
+    # Model used
+    model: Mapped[str] = mapped_column(String(50), nullable=False, default="gpt-4o-mini")
+    
+    # Context for tracking
+    task_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)  # Associated task if applicable
+    operation_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # e.g., "analyze", "enrich", "breakdown", "suggest"
+    
+    # Timestamp
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    
+    def to_dict(self) -> dict:
+        """Convert model to dictionary."""
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "agent_name": self.agent_name,
+            "prompt_tokens": self.prompt_tokens,
+            "completion_tokens": self.completion_tokens,
+            "total_tokens": self.total_tokens,
+            "model": self.model,
+            "task_id": self.task_id,
+            "operation_type": self.operation_type,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class UserTokenLimitModel(Base):
+    """Track monthly token limits per user."""
+    __tablename__ = "user_token_limits"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)  # One limit per user
+    
+    # Monthly limit (in tokens)
+    monthly_limit: Mapped[int] = mapped_column(Integer, nullable=False, default=1_000_000)  # Default: 1M tokens
+    
+    # Monthly tracking
+    current_month: Mapped[str] = mapped_column(String(7), nullable=False, index=True)  # Format: "YYYY-MM"
+    tokens_used_this_month: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_reset_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # Metadata
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def to_dict(self) -> dict:
+        """Convert model to dictionary."""
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "monthly_limit": self.monthly_limit,
+            "current_month": self.current_month,
+            "tokens_used_this_month": self.tokens_used_this_month,
+            "tokens_remaining": max(0, self.monthly_limit - self.tokens_used_this_month),
+            "usage_percentage": (self.tokens_used_this_month / self.monthly_limit * 100) if self.monthly_limit > 0 else 0,
+            "last_reset_at": self.last_reset_at.isoformat() if self.last_reset_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+

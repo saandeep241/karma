@@ -13,6 +13,8 @@ from app.database.repository import (
     SubtaskRepository,
     FeedbackRepository,
     QuickWinHistoryRepository,
+    TokenUsageRepository,
+    UserTokenLimitRepository,
 )
 from app.database.models import TaskModel, SubtaskModel
 from app.logging_config import get_db_logger
@@ -441,4 +443,91 @@ async def get_enrichment(user_id: str, task_id: str) -> Optional[dict]:
         if task and task.enrichment:
             return task.enrichment
         return None
+
+
+async def record_token_usage(
+    user_id: str,
+    agent_name: str,
+    prompt_tokens: int,
+    completion_tokens: int,
+    total_tokens: int,
+    model: str,
+    task_id: Optional[str] = None,
+    operation_type: Optional[str] = None
+) -> dict:
+    """Record token usage for a user."""
+    async with async_session() as session:
+        repo = TokenUsageRepository(session)
+        usage = await repo.create(
+            user_id=user_id,
+            agent_name=agent_name,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            model=model,
+            task_id=task_id,
+            operation_type=operation_type
+        )
+        return {"success": True, "usage_id": usage.id}
+
+
+async def get_token_usage_stats(user_id: str, days: int = 30) -> dict:
+    """Get token usage statistics for a user."""
+    async with async_session() as session:
+        repo = TokenUsageRepository(session)
+        return await repo.get_user_stats(user_id, days)
+
+
+async def check_token_limit(user_id: str, tokens_to_check: int) -> tuple[bool, dict]:
+    """
+    Check if user can use tokens (without incrementing).
+    
+    Returns:
+        (allowed: bool, limit_info: dict)
+    """
+    from app.config import get_settings
+    settings = get_settings()
+    
+    async with async_session() as session:
+        repo = UserTokenLimitRepository(session)
+        return await repo.check_limit(user_id, tokens_to_check, settings.default_monthly_token_limit)
+
+
+async def increment_token_usage(user_id: str, tokens_used: int) -> dict:
+    """
+    Increment user's token usage (called after successful API call).
+    
+    Returns:
+        Updated limit_info dict
+    """
+    from app.config import get_settings
+    settings = get_settings()
+    
+    async with async_session() as session:
+        repo = UserTokenLimitRepository(session)
+        return await repo.increment_usage(user_id, tokens_used, settings.default_monthly_token_limit)
+
+
+async def get_token_limit_info(user_id: str) -> dict:
+    """Get current token limit and usage for a user."""
+    from app.config import get_settings
+    settings = get_settings()
+    
+    async with async_session() as session:
+        repo = UserTokenLimitRepository(session)
+        return await repo.get_current_usage(user_id, settings.default_monthly_token_limit)
+
+
+async def reset_user_monthly_usage(user_id: str) -> dict:
+    """Reset a user's monthly token usage (admin function)."""
+    async with async_session() as session:
+        repo = UserTokenLimitRepository(session)
+        return await repo.reset_monthly_usage(user_id)
+
+
+async def update_user_token_limit(user_id: str, new_limit: int) -> dict:
+    """Update a user's monthly token limit (admin function)."""
+    async with async_session() as session:
+        repo = UserTokenLimitRepository(session)
+        return await repo.update_limit(user_id, new_limit)
 

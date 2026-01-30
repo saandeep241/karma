@@ -323,6 +323,61 @@ export async function resetPresentationSession(sessionId: string = 'default'): P
   });
 }
 
+// Admin API functions
+export async function checkAdmin(): Promise<{
+  is_admin: boolean;
+  user_id: string;
+  email: string | null;
+}> {
+  return apiFetch('/admin/check');
+}
+
+export async function getAllUserTokenLimits(): Promise<{
+  users: Array<{
+    user_id: string;
+    monthly_limit: number;
+    tokens_used_this_month: number;
+    tokens_remaining: number;
+    usage_percentage: number;
+    current_month: string;
+    last_reset_at: string;
+    usage_stats: any;
+  }>;
+  total_users: number;
+  default_limit: number;
+}> {
+  return apiFetch('/admin/users/token-limits');
+}
+
+export async function updateUserTokenLimit(
+  userId: string,
+  newLimit: number
+): Promise<{ success: boolean; message: string; limit_info: any }> {
+  return apiFetch(`/tokens/limit/${userId}`, {
+    method: 'POST',
+    body: JSON.stringify({ new_limit: newLimit }),
+  });
+}
+
+export async function resetUserTokenUsage(
+  userId: string
+): Promise<{ success: boolean; message: string; limit_info: any }> {
+  return apiFetch(`/tokens/reset/${userId}`, {
+    method: 'POST',
+  });
+}
+
+export async function getTokenLimit(): Promise<{
+  user_id: string;
+  monthly_limit: number;
+  tokens_used_this_month: number;
+  tokens_remaining: number;
+  usage_percentage: number;
+  current_month: string;
+}> {
+  return apiFetch('/tokens/limit');
+}
+
 // Export all functions as a single API object for convenience
 export const api = {
   checkHealth,
@@ -353,6 +408,12 @@ export const api = {
   getPresentation,
   executeCode,
   resetPresentationSession,
+  // Admin
+  checkAdmin,
+  getAllUserTokenLimits,
+  updateUserTokenLimit,
+  resetUserTokenUsage,
+  getTokenLimit,
 };
 
 export default api;

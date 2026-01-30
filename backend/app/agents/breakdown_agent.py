@@ -39,13 +39,14 @@ Good subtask: "Google '[specific query]' and open the top 3 results" (3 min - qu
 Make each subtask so clear that there's no ambiguity about what to do.
 Time estimates should be REALISTIC based on the actual work involved."""
 
-    async def run(self, task: Task, time_available: int) -> TaskBreakdown:
+    async def run(self, task: Task, time_available: int, user_id: str = None) -> TaskBreakdown:
         """
         Break a task into actionable subtasks with time estimates.
         
         Args:
             task: The task to break down
             time_available: Minutes available to work on this
+            user_id: User ID for token usage tracking
             
         Returns:
             TaskBreakdown with subtasks
@@ -92,7 +93,14 @@ Return JSON:
 JSON response:"""
 
         try:
-            response = self._simple_completion(prompt, temperature=0.5, max_tokens=1000)
+            response = await self._simple_completion(
+                prompt, 
+                temperature=0.5, 
+                max_tokens=1000,
+                user_id=user_id,
+                task_id=task.id,
+                operation_type="breakdown"
+            )
             
             json_start = response.find('{')
             json_end = response.rfind('}') + 1

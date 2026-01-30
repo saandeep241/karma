@@ -7,7 +7,7 @@ from sqlalchemy import select, update, delete, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from .models import TaskModel, SubtaskModel, FeedbackModel, QuickWinHistoryModel
+from .models import TaskModel, SubtaskModel, FeedbackModel, QuickWinHistoryModel, TokenUsageModel, UserTokenLimitModel
 
 
 class TaskRepository:
@@ -494,4 +494,216 @@ class QuickWinHistoryRepository:
         )
         
         return [row[0] for row in result.all()]
+
+
+class TokenUsageRepository:
+    """Repository for Token Usage operations."""
+    
+    def __init__(self, session: AsyncSession):
+        self.session = session
+    
+    async def create(
+        self,
+        user_id: str,
+        agent_name: str,
+        prompt_tokens: int,
+        completion_tokens: int,
+        total_tokens: int,
+        model: str,
+        task_id: Optional[str] = None,
+        operation_type: Optional[str] = None
+    ) -> TokenUsageModel:
+        """Record token usage for a user."""
+        usage = TokenUsageModel(
+            user_id=user_id,
+            agent_name=agent_name,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            model=model,
+            task_id=task_id,
+            operation_type=operation_type,
+        )
+        
+        self.session.add(usage)
+        await self.session.commit()
+        await self.session.refresh(usage)
+        
+        print(f"📊 [TOKEN USAGE] User {user_id[:8]}... | Agent: {agent_name} | Tokens: {total_tokens} ({prompt_tokens} prompt + {completion_tokens} completion)")
+        return usage
+    
+    async def get_user_stats(self, user_id: str, days: int = 30) -> dict:
+        """Get token usage statistics for a user."""
+        from datetime import timedelta
+        
+        since = datetime.utcnow() - timedelta(days=days)
+        
+        # Total usage
+        result = await self.session.execute(
+            select(
+                func.sum(TokenUsageModel.prompt_tokens).label("total_prompt"),
+                func.sum(TokenUsageModel.completion_tokens).label("total_completion"),
+                func.sum(TokenUsageModel.total_tokens).label("total"),
+                func.count(TokenUsageModel.id).label("request_count")
+            )
+            .where(TokenUsageModel.user_id == user_id)
+            .where(TokenUsageModel.created_at >= since)
+        )
+        row = result.one()
+        
+        # Usage by agent
+        agent_result = await self.session.execute(
+            select(
+                TokenUsageModel.agent_name,
+                func.sum(TokenUsageModel.total_tokens).label("tokens"),
+                func.count(TokenUsageModel.id).label("count")
+            )
+            .where(TokenUsageModel.user_id == user_id)
+            .where(TokenUsageModel.created_at >= since)
+            .group_by(TokenUsageModel.agent_name)
+        )
+        by_agent = {agent: {"tokens": tokens, "count": count} for agent, tokens, count in agent_result.all()}
+        
+        # Usage by model
+        model_result = await self.session.execute(
+            select(
+                TokenUsageModel.model,
+                func.sum(TokenUsageModel.total_tokens).label("tokens"),
+                func.count(TokenUsageModel.id).label("count")
+            )
+            .where(TokenUsageModel.user_id == user_id)
+            .where(TokenUsageModel.created_at >= since)
+            .group_by(TokenUsageModel.model)
+        )
+        by_model = {model: {"tokens": tokens, "count": count} for model, tokens, count in model_result.all()}
+        
+        return {
+            "user_id": user_id,
+            "period_days": days,
+            "total_prompt_tokens": row.total_prompt or 0,
+            "total_completion_tokens": row.total_completion or 0,
+            "total_tokens": row.total or 0,
+            "request_count": row.request_count or 0,
+            "by_agent": by_agent,
+            "by_model": by_model,
+        }
+
+
+class UserTokenLimitRepository:
+    """Repository for User Token Limit operations."""
+    
+    def __init__(self, session: AsyncSession):
+        self.session = session
+    
+    async def get_or_create(self, user_id: str, default_limit: int) -> UserTokenLimitModel:
+        """Get user's token limit or create with default."""
+        from datetime import datetime
+        
+        result = await self.session.execute(
+            select(UserTokenLimitModel)
+            .where(UserTokenLimitModel.user_id == user_id)
+        )
+        limit = result.scalar_one_or_none()
+        
+        current_month = datetime.utcnow().strftime("%Y-%m")
+        
+        if not limit:
+            # Create new limit
+            limit = UserTokenLimitModel(
+                user_id=user_id,
+                monthly_limit=default_limit,
+                current_month=current_month,
+                tokens_used_this_month=0,
+            )
+            self.session.add(limit)
+            await self.session.commit()
+            await self.session.refresh(limit)
+        else:
+            # Check if we need to reset for new month
+            if limit.current_month != current_month:
+                limit.current_month = current_month
+                limit.tokens_used_this_month = 0
+                limit.last_reset_at = datetime.utcnow()
+                await self.session.commit()
+                await self.session.refresh(limit)
+        
+        return limit
+    
+    async def check_limit(self, user_id: str, tokens_to_check: int, default_limit: int) -> tuple[bool, dict]:
+        """
+        Check if user can use tokens (without incrementing).
+        
+        Returns:
+            (allowed: bool, limit_info: dict)
+        """
+        limit = await self.get_or_create(user_id, default_limit)
+        
+        # Check if adding tokens would exceed limit
+        new_total = limit.tokens_used_this_month + tokens_to_check
+        allowed = new_total <= limit.monthly_limit
+        
+        return allowed, limit.to_dict()
+    
+    async def increment_usage(self, user_id: str, tokens_to_add: int, default_limit: int) -> dict:
+        """
+        Increment user's token usage (called after successful API call).
+        
+        Returns:
+            Updated limit_info dict
+        """
+        limit = await self.get_or_create(user_id, default_limit)
+        
+        limit.tokens_used_this_month += tokens_to_add
+        limit.updated_at = datetime.utcnow()
+        await self.session.commit()
+        await self.session.refresh(limit)
+        
+        return limit.to_dict()
+    
+    async def get_current_usage(self, user_id: str, default_limit: int) -> dict:
+        """Get current usage for a user."""
+        limit = await self.get_or_create(user_id, default_limit)
+        return limit.to_dict()
+    
+    async def reset_monthly_usage(self, user_id: str) -> dict:
+        """Reset a user's monthly token usage (admin function)."""
+        result = await self.session.execute(
+            select(UserTokenLimitModel)
+            .where(UserTokenLimitModel.user_id == user_id)
+        )
+        limit = result.scalar_one_or_none()
+        
+        if not limit:
+            raise ValueError(f"User {user_id} not found")
+        
+        limit.tokens_used_this_month = 0
+        limit.last_reset_at = datetime.utcnow()
+        limit.updated_at = datetime.utcnow()
+        
+        await self.session.commit()
+        await self.session.refresh(limit)
+        
+        print(f"🔄 [TOKEN LIMIT] Reset monthly usage for user {user_id[:8]}...")
+        return limit.to_dict()
+    
+    async def update_limit(self, user_id: str, new_limit: int) -> dict:
+        """Update a user's monthly token limit (admin function)."""
+        limit = await self.get_or_create(user_id, new_limit)
+        
+        limit.monthly_limit = new_limit
+        limit.updated_at = datetime.utcnow()
+        
+        await self.session.commit()
+        await self.session.refresh(limit)
+        
+        print(f"📊 [TOKEN LIMIT] Updated limit for user {user_id[:8]}... to {new_limit:,} tokens/month")
+        return limit.to_dict()
+    
+    async def get_all_limits(self) -> List[UserTokenLimitModel]:
+        """Get all user limits (admin function)."""
+        result = await self.session.execute(
+            select(UserTokenLimitModel)
+            .order_by(UserTokenLimitModel.user_id)
+        )
+        return list(result.scalars().all())
 

@@ -113,7 +113,7 @@ async def get_suggestion_from_storage(request: SuggestFromStorageRequest, user: 
             time_available=TimeAvailable(request.time_available),
             energy_level=EnergyLevel(request.energy_level)
         )
-        quickwin = await karma_orchestrator.generate_quickwin(context)
+        quickwin = await karma_orchestrator.generate_quickwin(context, user_id=user.user_id)
         
         quickwin_task = Task(
             text=quickwin["text"],
@@ -152,12 +152,13 @@ async def get_suggestion_from_storage(request: SuggestFromStorageRequest, user: 
     suggestion, reasoning_trace = await karma_orchestrator.suggest_task(
         tasks=all_tasks,
         context=context,
-        excluded_task_ids=request.excluded_task_ids
+        excluded_task_ids=request.excluded_task_ids,
+        user_id=user.user_id
     )
     
     if not suggestion:
         # No matching tasks - use QuickWin
-        quickwin = await karma_orchestrator.generate_quickwin(context)
+        quickwin = await karma_orchestrator.generate_quickwin(context, user_id=user.user_id)
         
         quickwin_task = Task(
             text=quickwin["text"],
@@ -220,7 +221,7 @@ async def get_task_suggestion(request: GetSuggestionRequest, user: AuthUser = De
     if not session.todo_list or not session.todo_list.tasks:
         # Use QuickWin agent instead
         print("   No tasks available - delegating to QuickWin agent")
-        quickwin = await karma_orchestrator.generate_quickwin(session.context)
+        quickwin = await karma_orchestrator.generate_quickwin(session.context, user_id=user.user_id)
         
         quickwin_task = Task(
             text=quickwin["text"],
@@ -245,13 +246,14 @@ async def get_task_suggestion(request: GetSuggestionRequest, user: AuthUser = De
     suggestion, reasoning_trace = await karma_orchestrator.suggest_task(
         tasks=session.todo_list.tasks,
         context=session.context,
-        excluded_task_ids=session.suggested_task_ids
+        excluded_task_ids=session.suggested_task_ids,
+        user_id=user.user_id
     )
     
     if not suggestion:
         # No matching tasks - use QuickWin agent
         print("   No matching tasks - delegating to QuickWin agent")
-        quickwin = await karma_orchestrator.generate_quickwin(session.context)
+        quickwin = await karma_orchestrator.generate_quickwin(session.context, user_id=user.user_id)
         
         quickwin_task = Task(
             text=quickwin["text"],
@@ -328,7 +330,7 @@ async def _generate_quickwin(request: dict = None, user_id: str = None):
         print("=" * 60)
         
         # Get AI-generated quick win
-        quickwin = await karma_orchestrator.generate_quickwin(context)
+        quickwin = await karma_orchestrator.generate_quickwin(context, user_id=user_id)
         
         # Record quickwin shown to user (if user_id provided)
         if user_id:
