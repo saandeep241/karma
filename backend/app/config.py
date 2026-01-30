@@ -30,6 +30,14 @@ class Settings(BaseSettings):
     admin_user_ids: str = ""  # Comma-separated list of admin user IDs
     admin_emails: str = ""  # Comma-separated list of admin emails
     
+    # Database configuration (PostgreSQL/Cloud SQL)
+    cloud_sql_connection_name: Optional[str] = None  # Cloud SQL connection name (e.g., project:region:instance)
+    database_user: Optional[str] = None  # Database user
+    database_password: Optional[str] = None  # Database password (from Secret Manager in production)
+    database_name: Optional[str] = None  # Database name
+    database_host: Optional[str] = None  # Database host (for TCP connection, optional)
+    database_port: int = 5432  # Database port (default PostgreSQL port)
+    
     # CORS settings for frontend
     frontend_url: str = "http://localhost:5173"  # Vite default
     
@@ -58,6 +66,11 @@ class Settings(BaseSettings):
         if email and email.lower() in admin_emails_list:
             return True
         return False
+    
+    @property
+    def use_postgresql(self) -> bool:
+        """Check if PostgreSQL should be used (Cloud SQL)."""
+        return bool(self.cloud_sql_connection_name and self.database_user and self.database_name)
 
 
 @lru_cache()
