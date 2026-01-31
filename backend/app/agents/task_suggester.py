@@ -11,7 +11,7 @@ Specializes in matching tasks to user context:
 import json
 from typing import Optional
 
-from app.models import Task, TaskSuggestion, UserContext, EnergyLevel
+from app.models import Task, TaskSuggestion, UserContext, EnergyLevel, Subtask, SubtaskStatus
 from app.services.tools import get_learning_insights
 from .base_agent import BaseAgent
 
@@ -73,11 +73,31 @@ Be thoughtful and explain your reasoning clearly."""
         # Get learning insights
         insights = get_learning_insights()
         
-        # Build task list for AI
-        task_list = "\n".join([
-            f"- ID: {t.id}\n  Task: \"{t.text}\"\n  Est: {t.estimated_minutes}min, Energy: {t.energy_required.value if t.energy_required else 'unknown'}, Category: {t.category.value if t.category else 'unknown'}"
-            for t in available_tasks
-        ])
+        # Build task list for AI with subtask information
+        task_list_parts = []
+        for t in available_tasks:
+            task_info = f"- ID: {t.id}\n  Task: \"{t.text}\"\n  Est: {t.estimated_minutes}min, Energy: {t.energy_required.value if t.energy_required else 'unknown'}, Category: {t.category.value if t.category else 'unknown'}"
+            
+            # Add subtask information if available
+            if t.subtasks:
+                pending_subtasks = [s for s in t.subtasks if s.status.value in ["pending", "in_progress"]]
+                completed_count = len([s for s in t.subtasks if s.status.value == "completed"])
+                
+                if pending_subtasks:
+                    task_info += f"\n  Has {len(pending_subtasks)} pending subtasks ({completed_count}/{len(t.subtasks)} completed)"
+                    # List pending subtasks with their time estimates
+                    for st in pending_subtasks[:3]:  # Show first 3 pending subtasks
+                        task_info += f"\n    - Subtask: \"{st.instruction}\" ({st.estimated_minutes}min, status: {st.status.value})"
+                    if len(pending_subtasks) > 3:
+                        task_info += f"\n    ... and {len(pending_subtasks) - 3} more pending subtasks"
+                else:
+                    task_info += f"\n  Has {len(t.subtasks)} subtasks (all completed)"
+            elif t.subtasks_generated:
+                task_info += "\n  Subtasks were generated but none are pending"
+            
+            task_list_parts.append(task_info)
+        
+        task_list = "\n".join(task_list_parts)
         
         emotional_context = f", Mood: {context.emotional_state.value}" if context.emotional_state else ""
         
@@ -102,16 +122,29 @@ AVAILABLE TASKS:
 {task_list}
 
 SELECTION CRITERIA:
-1. Task must fit within {context.time_available.value} minutes
-2. Energy requirement should match user's level ({context.energy_level.value})
-3. Consider emotional fit if mood is provided
-4. Prefer tasks that haven't been suggested recently
+1. **Time Fit**: Task or subtask must fit within {context.time_available.value} minutes
+2. **Energy Match**: Energy requirement should match user's level ({context.energy_level.value})
+3. **Emotional Fit**: Consider emotional fit if mood is provided
+4. **Subtask Intelligence**: 
+   - If a task has pending subtasks, check if any subtask fits the time
+   - If a task has subtasks but NONE fit the time, suggest creating a NEW smaller subtask that fits
+   - If a task has no subtasks but is too large, suggest breaking it down into a smaller subtask
+   - Prefer suggesting existing subtasks that fit over creating new ones
+5. **Preference**: Prefer tasks that haven't been suggested recently
+
+IMPORTANT: For tasks with subtasks:
+- If an existing subtask fits the time → suggest that subtask
+- If no subtask fits but the task has subtasks → suggest creating a NEW smaller subtask (e.g., if task is "Call mom" and you have 5min, suggest "Find mom's phone number" or "Send mom a quick text")
+- Always provide a specific, actionable subtask instruction
 
 Return JSON:
 {{
     "task_id": "<selected task ID>",
     "reasoning": "<2-3 sentences explaining why this is the best choice>",
     "confidence": <0.0-1.0>,
+    "suggest_subtask": <true/false - true if suggesting a subtask (existing or new)>,
+    "subtask_instruction": "<specific instruction for the subtask if suggest_subtask is true, or null>",
+    "subtask_estimated_minutes": <minutes for the subtask if suggest_subtask is true, or null>,
     "alternatives_note": "<brief note about other good options if any>"
 }}
 
@@ -139,20 +172,55 @@ JSON response:"""
                 )
                 
                 if selected_task:
-                    self.session.add_thought("conclusion", f"Selected: {selected_task.text}")
+                    suggest_subtask = result.get("suggest_subtask", False)
+                    subtask_instruction = result.get("subtask_instruction")
+                    subtask_minutes = result.get("subtask_estimated_minutes")
+                    
+                    # If suggesting a subtask, find the matching existing subtask or create info for new one
+                    suggested_subtask = None
+                    if suggest_subtask and subtask_instruction:
+                        # Check if this matches an existing pending subtask
+                        pending_subtasks = [s for s in selected_task.subtasks if s.status.value in ["pending", "in_progress"]]
+                        matching_subtask = next(
+                            (s for s in pending_subtasks if subtask_instruction.lower() in s.instruction.lower() or s.instruction.lower() in subtask_instruction.lower()),
+                            None
+                        )
+                        
+                        if matching_subtask:
+                            suggested_subtask = matching_subtask
+                        else:
+                            # Create a new subtask suggestion (will be created when user accepts)
+                            suggested_subtask = Subtask(
+                                step_number=len(selected_task.subtasks) + 1,
+                                instruction=subtask_instruction,
+                                estimated_minutes=subtask_minutes or min(context.time_available.value, 10),
+                                status=SubtaskStatus.PENDING
+                            )
+                    
+                    conclusion_text = f"Suggested: {selected_task.text}"
+                    if suggest_subtask and subtask_instruction:
+                        conclusion_text += f" - Subtask: {subtask_instruction}"
+                    
+                    self.session.add_thought("conclusion", conclusion_text)
                     
                     self._save_reasoning(
                         decision_type="suggestion",
                         input_context=f"Context: {context.time_available.value}min, {context.energy_level.value}",
-                        conclusion=f"Suggested: {selected_task.text}",
+                        conclusion=conclusion_text,
                         confidence=result.get("confidence", 0.7)
                     )
                     
-                    return TaskSuggestion(
+                    # Create suggestion with subtask info if applicable
+                    suggestion = TaskSuggestion(
                         task=selected_task,
                         reasoning=result.get("reasoning", "This task matches your current context."),
-                        confidence_score=min(1.0, max(0.0, result.get("confidence", 0.7)))
+                        confidence_score=min(1.0, max(0.0, result.get("confidence", 0.7))),
+                        suggested_subtask=suggested_subtask,
+                        subtask_instruction=subtask_instruction if suggest_subtask else None,
+                        subtask_estimated_minutes=subtask_minutes if suggest_subtask else None
                     )
+                    
+                    return suggestion
                 else:
                     raise ValueError(f"AI selected unknown task ID: {result.get('task_id')}")
         
