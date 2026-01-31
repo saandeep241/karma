@@ -45,3 +45,10 @@ attached_assets/
 *.jpg
 *.jpeg
 *.gif
+
+# Replit & environment specific
+.replit
+replit.nix
+.upm/
+config.toml
+**/.env.*
