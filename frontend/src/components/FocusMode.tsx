@@ -46,13 +46,44 @@ export function FocusMode({ onExit }: FocusModeProps) {
   const fetchSuggestion = useCallback(async () => {
     setIsLoadingTask(true);
     try {
-      const data = await api.getQuickWin(timeAvailable, mood);
-      if (data?.quickwin) {
-        setCurrentTask(data.quickwin);
+      // Use the new suggestion endpoint that considers all tasks
+      const energyLevel = mood === 'enthusiastic' ? 'high' : mood === 'tired' || mood === 'low_energy' ? 'low' : 'medium';
+      const data = await api.getStoredSuggestion({
+        time_available: timeAvailable,
+        energy_level: energyLevel,
+        emotional_state: mood,
+        excluded_task_ids: [],
+      });
+      if (data?.suggestion) {
+        // Convert suggestion to QuickWin format for compatibility
+        setCurrentTask({
+          id: data.suggestion.id || '',
+          text: data.suggestion.text,
+          estimated_minutes: data.suggestion.estimated_minutes || timeAvailable,
+          category: data.suggestion.category || 'other',
+          is_dummy: data.suggestion.is_dummy || false,
+        });
         setStep('suggestion');
+      } else {
+        // Fallback to quickwin if no suggestion
+        const quickwinData = await api.getQuickWin(timeAvailable, mood);
+        if (quickwinData?.quickwin) {
+          setCurrentTask(quickwinData.quickwin);
+          setStep('suggestion');
+        }
       }
     } catch (error) {
       console.error('Failed to fetch suggestion:', error);
+      // Fallback to quickwin on error
+      try {
+        const quickwinData = await api.getQuickWin(timeAvailable, mood);
+        if (quickwinData?.quickwin) {
+          setCurrentTask(quickwinData.quickwin);
+          setStep('suggestion');
+        }
+      } catch (fallbackError) {
+        console.error('Failed to fetch quickwin fallback:', fallbackError);
+      }
     } finally {
       setIsLoadingTask(false);
     }
@@ -63,6 +94,7 @@ export function FocusMode({ onExit }: FocusModeProps) {
     mutationFn: (quickwin: QuickWin) => api.completeQuickWin(quickwin),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] }); // Also invalidate stats
     },
   });
 
@@ -71,6 +103,7 @@ export function FocusMode({ onExit }: FocusModeProps) {
     mutationFn: (taskId: string) => api.breakdownTask(taskId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] }); // Also invalidate stats
     },
   });
 
@@ -79,6 +112,7 @@ export function FocusMode({ onExit }: FocusModeProps) {
     mutationFn: (taskId: string) => api.updateTaskStatus(taskId, 'completed'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] }); // Also invalidate stats
       setStep('completed');
     },
   });
@@ -134,10 +168,10 @@ export function FocusMode({ onExit }: FocusModeProps) {
     }
   };
 
-  // Handle skip - get another suggestion
+  // Handle skip - go back to landing to select new mood/time
   const handleSkip = () => {
     setCurrentTask(null);
-    fetchSuggestion();
+    setStep('landing');
   };
 
   // Handle "Let's go (Direct)" - start timer immediately
@@ -241,35 +275,35 @@ export function FocusMode({ onExit }: FocusModeProps) {
               <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest text-center mb-8">
                 CURRENT MOOD
               </p>
-              <div className="grid grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 max-w-full overflow-hidden">
                 {MOODS.slice(0, 3).map((m) => (
                   <button
                     key={m.value}
                     onClick={() => setMood(m.value)}
-                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-full text-[14px] font-medium transition-all border ${
+                    className={`flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 sm:py-3 rounded-full text-xs sm:text-[14px] font-medium transition-all border flex-shrink-0 ${
                       mood === m.value
                         ? 'bg-white border-gray-300 text-gray-900 shadow-sm scale-[1.02]'
                         : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'
                     }`}
                   >
-                    <span>{m.label}</span>
-                    <span className={mood === m.value ? 'text-gray-900' : 'text-gray-400'}>
+                    <span className="truncate">{m.label}</span>
+                    <span className={`flex-shrink-0 ${mood === m.value ? 'text-gray-900' : 'text-gray-400'}`}>
                       {m.value === 'enthusiastic' ? (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="14" height="14" className="sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <circle cx="12" cy="12" r="10"></circle>
                           <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
                           <line x1="9" y1="9" x2="9.01" y2="9"></line>
                           <line x1="15" y1="9" x2="15.01" y2="9"></line>
                         </svg>
                       ) : m.value === 'neutral' ? (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="14" height="14" className="sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <circle cx="12" cy="12" r="10"></circle>
                           <line x1="8" y1="15" x2="16" y2="15"></line>
                           <line x1="9" y1="9" x2="9.01" y2="9"></line>
                           <line x1="15" y1="9" x2="15.01" y2="9"></line>
                         </svg>
                       ) : (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="14" height="14" className="sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <circle cx="12" cy="12" r="10"></circle>
                           <path d="M16 16s-1.5-2-4-2-4 2-4 2"></path>
                           <line x1="9" y1="9" x2="9.01" y2="9"></line>
@@ -280,21 +314,21 @@ export function FocusMode({ onExit }: FocusModeProps) {
                   </button>
                 ))}
               </div>
-              <div className="flex justify-center gap-4">
+              <div className="flex justify-center gap-2 sm:gap-4 flex-wrap">
                 {MOODS.slice(3).map((m) => (
                   <button
                     key={m.value}
                     onClick={() => setMood(m.value)}
-                    className={`flex items-center justify-center gap-2 px-8 py-3 rounded-full text-[14px] font-medium transition-all border ${
+                    className={`flex items-center justify-center gap-1 sm:gap-2 px-4 sm:px-8 py-2 sm:py-3 rounded-full text-xs sm:text-[14px] font-medium transition-all border flex-shrink-0 ${
                       mood === m.value
                         ? 'bg-white border-gray-300 text-gray-900 shadow-sm scale-[1.02]'
                         : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'
                     }`}
                   >
-                    <span>{m.label}</span>
-                    <span className={mood === m.value ? 'text-gray-900' : 'text-gray-400'}>
+                    <span className="truncate">{m.label}</span>
+                    <span className={`flex-shrink-0 ${mood === m.value ? 'text-gray-900' : 'text-gray-400'}`}>
                       {m.value === 'overwhelmed' ? (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="14" height="14" className="sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polyline>
                         </svg>
                       ) : (

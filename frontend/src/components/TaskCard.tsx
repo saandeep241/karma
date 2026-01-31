@@ -119,8 +119,8 @@ export function TaskCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
             <span>{categoryIcons[task.category] || '📌'}</span>
-            <h3 className={`font-medium ${isCompleted ? 'line-through text-[var(--karma-text-muted)]' : ''}`}>
-              {task.text}
+            <h3 className={`font-medium ${isCompleted ? 'line-through text-[var(--karma-text-muted)]' : ''} truncate max-w-full`} title={task.text}>
+              <span className="line-clamp-2 sm:line-clamp-none">{task.text}</span>
             </h3>
             {isCompleted && (
               <span className="badge badge-success">✓ Done</span>

@@ -26,6 +26,7 @@ export function BrowsePage() {
       api.updateTaskStatus(taskId, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] }); // Also invalidate stats
     },
   });
 
