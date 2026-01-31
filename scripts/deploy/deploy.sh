@@ -392,13 +392,33 @@ deploy_backend() {
         print_warning "Update FRONTEND_URL after frontend is deployed, or it will be set automatically on next deployment."
     fi
     
-    # Build env vars
+    # Get existing environment variables to preserve them (especially admin config)
+    EXISTING_ENV_VARS=$(gcloud run services describe $BACKEND_SERVICE --region $REGION --format='value(spec.template.spec.containers[0].env)' --project=$PROJECT_ID 2>/dev/null || echo "")
+    
+    # Extract existing admin config if it exists
+    if echo "$EXISTING_ENV_VARS" | grep -q "ADMIN_USER_IDS"; then
+        EXISTING_ADMIN_USER_IDS=$(gcloud run services describe $BACKEND_SERVICE --region $REGION --format='value(spec.template.spec.containers[0].env[?(@.name=="ADMIN_USER_IDS")].value)' --project=$PROJECT_ID 2>/dev/null || echo "")
+        if [ -z "$ADMIN_USER_IDS" ] && [ -n "$EXISTING_ADMIN_USER_IDS" ]; then
+            ADMIN_USER_IDS="$EXISTING_ADMIN_USER_IDS"
+            print_warning "Preserving existing ADMIN_USER_IDS: $ADMIN_USER_IDS"
+        fi
+    fi
+    
+    if echo "$EXISTING_ENV_VARS" | grep -q "ADMIN_EMAILS"; then
+        EXISTING_ADMIN_EMAILS=$(gcloud run services describe $BACKEND_SERVICE --region $REGION --format='value(spec.template.spec.containers[0].env[?(@.name=="ADMIN_EMAILS")].value)' --project=$PROJECT_ID 2>/dev/null || echo "")
+        if [ -z "$ADMIN_EMAILS" ] && [ -n "$EXISTING_ADMIN_EMAILS" ]; then
+            ADMIN_EMAILS="$EXISTING_ADMIN_EMAILS"
+            print_warning "Preserving existing ADMIN_EMAILS: $ADMIN_EMAILS"
+        fi
+    fi
+    
+    # Build env vars (required ones)
     ENV_VARS="USE_CLOUD_STORAGE=true,GCS_BUCKET_NAME=$GCS_BUCKET,CLOUD_SQL_CONNECTION_NAME=$CONNECTION_NAME,DATABASE_USER=$DB_USER,DATABASE_NAME=$DB_NAME,OPENAI_KARMA=$ENABLE_AI"
     if [ -n "$FRONTEND_URL" ]; then
         ENV_VARS="$ENV_VARS,FRONTEND_URL=$FRONTEND_URL"
     fi
     
-    # Add admin configuration if provided
+    # Add admin configuration if provided or preserved
     if [ -n "$ADMIN_USER_IDS" ]; then
         ENV_VARS="$ENV_VARS,ADMIN_USER_IDS=$ADMIN_USER_IDS"
     fi
