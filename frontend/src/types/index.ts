@@ -123,9 +123,25 @@ export interface TaskBreakdownResponse {
   reasoning?: string;
 }
 
-export interface SuggestionResponse {
-  suggestion: Task;
+export interface TaskSuggestion {
+  task: Task;
   reasoning: string;
+  confidence_score?: number;
+  is_generic_quickwin?: boolean;
+  suggested_subtask?: Subtask;
+  subtask_instruction?: string;
+  subtask_estimated_minutes?: number;
+}
+
+export interface SuggestionResponse {
+  session_id?: string;
+  suggestion: TaskSuggestion;
+  alternatives_available: boolean;
+  message: string;
+  has_subtask?: boolean;
+  next_subtask?: Subtask;
+  subtask_instruction?: string;
+  subtask_estimated_minutes?: number;
 }
 
 export interface StatsData {

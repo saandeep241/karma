@@ -41,6 +41,9 @@ export function FocusMode({ onExit }: FocusModeProps) {
   
   // Subtask state for breakdown view
   const [subtasks, setSubtasks] = useState<{ id: string; text: string; completed: boolean }[]>([]);
+  
+  // Track suggested and completed task IDs to avoid suggesting them again
+  const [excludedTaskIds, setExcludedTaskIds] = useState<string[]>([]);
 
   // Fetch a task suggestion
   const fetchSuggestion = useCallback(async () => {
@@ -52,16 +55,24 @@ export function FocusMode({ onExit }: FocusModeProps) {
         time_available: timeAvailable,
         energy_level: energyLevel,
         emotional_state: mood,
-        excluded_task_ids: [],
+        excluded_task_ids: excludedTaskIds,
       });
-      if (data?.suggestion) {
+      if (data?.suggestion?.task) {
         // Convert suggestion to QuickWin format for compatibility
+        const task = data.suggestion.task;
+        const taskId = task.id || '';
+        
+        // Add this task ID to excluded list so it won't be suggested again
+        if (taskId && !excludedTaskIds.includes(taskId)) {
+          setExcludedTaskIds(prev => [...prev, taskId]);
+        }
+        
         setCurrentTask({
-          id: data.suggestion.id || '',
-          text: data.suggestion.text,
-          estimated_minutes: data.suggestion.estimated_minutes || timeAvailable,
-          category: data.suggestion.category || 'other',
-          is_dummy: data.suggestion.is_dummy || false,
+          id: taskId,
+          text: task.text,
+          estimated_minutes: task.estimated_minutes || timeAvailable,
+          category: task.category || 'other',
+          is_dummy: task.is_dummy || false,
         });
         setStep('suggestion');
       } else {
@@ -87,7 +98,7 @@ export function FocusMode({ onExit }: FocusModeProps) {
     } finally {
       setIsLoadingTask(false);
     }
-  }, [timeAvailable, mood]);
+  }, [timeAvailable, mood, excludedTaskIds]);
 
   // Add task mutation
   const addTaskMutation = useMutation({
@@ -110,7 +121,11 @@ export function FocusMode({ onExit }: FocusModeProps) {
   // Complete task mutation
   const completeTaskMutation = useMutation({
     mutationFn: (taskId: string) => api.updateTaskStatus(taskId, 'completed'),
-    onSuccess: () => {
+    onSuccess: (_, taskId) => {
+      // Add completed task to excluded list so it won't be suggested again
+      if (taskId && !excludedTaskIds.includes(taskId)) {
+        setExcludedTaskIds(prev => [...prev, taskId]);
+      }
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] }); // Also invalidate stats
       setStep('completed');
@@ -170,6 +185,10 @@ export function FocusMode({ onExit }: FocusModeProps) {
 
   // Handle skip - go back to landing to select new mood/time
   const handleSkip = () => {
+    // Add skipped task to excluded list so it won't be suggested again immediately
+    if (currentTask?.id && !excludedTaskIds.includes(currentTask.id)) {
+      setExcludedTaskIds(prev => [...prev, currentTask.id]);
+    }
     setCurrentTask(null);
     setStep('landing');
   };
@@ -231,6 +250,7 @@ export function FocusMode({ onExit }: FocusModeProps) {
     setActiveTask(null);
     setSubtasks([]);
     setStep('landing');
+    // Keep excludedTaskIds so we don't suggest the same tasks again
   };
 
   // Render based on current step
