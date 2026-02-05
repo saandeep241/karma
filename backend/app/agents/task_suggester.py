@@ -23,12 +23,23 @@ class TaskSuggesterAgent(BaseAgent):
     
     SYSTEM_PROMPT = """You are the Task Suggester Agent for Karma, a productivity app.
 
-Your job is to select the BEST task for a user's current situation. Consider:
+Your job is to ALWAYS provide an actionable, low-friction suggestion - NEVER reject or say "no tasks match".
 
+CRITICAL RULES:
+1. **Always Suggest Something**: You must ALWAYS return a suggestion, even if no task perfectly matches
+2. **Re-scope When Needed**: If a task doesn't fit time/mood, suggest a smaller subtask or lighter alternative
+3. **Never Reject**: The goal is to ensure the user always gets an actionable suggestion, not a rejection
+
+When evaluating tasks:
 1. **Time Fit**: Task should be completable within available time
 2. **Energy Match**: Don't suggest high-energy tasks to tired users
 3. **Emotional Fit**: Match task mood to user's emotional state
 4. **Past Patterns**: Learn from what worked before
+
+If no task perfectly matches:
+- Suggest a smaller subtask that fits the time (e.g., "work on section 1" instead of "finish report")
+- Propose a similar but lighter task aligned with the same goal
+- Break down a large task into a tiny first step
 
 You have access to the user's feedback history. Use it to make better suggestions.
 
@@ -59,8 +70,11 @@ Be thoughtful and explain your reasoning clearly."""
         # Filter available tasks
         available_tasks = [t for t in tasks if t.id not in excluded_task_ids]
         
+        # CRITICAL: Never return None - always provide a suggestion
+        # If no tasks available, we'll still suggest something via QuickWin in the route handler
         if not available_tasks:
-            self.session.add_thought("observation", "No tasks available after filtering")
+            self.session.add_thought("observation", "No tasks available after filtering - this should be handled by route")
+            # Return None here, but route will handle it with QuickWin
             return None
         
         self.session.add_thought("observation", 
@@ -111,7 +125,7 @@ LEARNING FROM PAST:
 - Recent patterns: {insights.get('recent_patterns', 'No clear patterns yet')}
 """
         
-        prompt = f"""Select the BEST task for this user right now.
+        prompt = f"""Select the BEST task for this user right now. YOU MUST ALWAYS RETURN A SUGGESTION - NEVER REJECT.
 
 USER CONTEXT:
 - Available Time: {context.time_available.value} minutes
@@ -121,16 +135,20 @@ USER CONTEXT:
 AVAILABLE TASKS:
 {task_list}
 
-SELECTION CRITERIA:
-1. **Time Fit**: Task or subtask must fit within {context.time_available.value} minutes
-2. **Energy Match**: Energy requirement should match user's level ({context.energy_level.value})
-3. **Emotional Fit**: Consider emotional fit if mood is provided
-4. **Subtask Intelligence**: 
-   - If a task has pending subtasks, check if any subtask fits the time
-   - If a task has subtasks but NONE fit the time, suggest creating a NEW smaller subtask that fits
-   - If a task has no subtasks but is too large, suggest breaking it down into a smaller subtask
-   - Prefer suggesting existing subtasks that fit over creating new ones
-5. **Preference**: Prefer tasks that haven't been suggested recently
+SELECTION STRATEGY (in priority order):
+1. **Perfect Match**: Find a task/subtask that perfectly fits time, energy, and mood → suggest it directly
+2. **Re-scope Task**: If no perfect match:
+   a. For tasks with subtasks: Suggest a NEW smaller subtask that fits the time (e.g., if "Finish report" is too big, suggest "Write the introduction paragraph" or "Outline section 1")
+   b. For tasks without subtasks: Suggest breaking it into a tiny first step (e.g., if "Organize garage" is too big, suggest "Take out 5 items from garage" or "Sort one box")
+   c. Propose a similar but lighter alternative aligned with the same goal (e.g., if "Go to gym" doesn't fit, suggest "Do 10 push-ups at home")
+3. **Best Available**: If nothing else works, suggest the closest match and explain how to adapt it
+
+CRITICAL RULES:
+- ALWAYS return a suggestion - never say "no tasks match"
+- If a task is too large, suggest a smaller subtask or first step
+- If energy doesn't match, suggest a lighter version of the same goal
+- Make every suggestion actionable and low-friction
+- Prefer suggesting existing subtasks that fit over creating new ones
 
 IMPORTANT: For tasks with subtasks:
 - If an existing subtask fits the time → suggest that subtask
@@ -139,13 +157,14 @@ IMPORTANT: For tasks with subtasks:
 
 Return JSON:
 {{
-    "task_id": "<selected task ID>",
-    "reasoning": "<2-3 sentences explaining why this is the best choice>",
+    "task_id": "<selected task ID - REQUIRED, must pick one>",
+    "reasoning": "<2-3 sentences explaining why this is the best choice and how it fits their context>",
     "confidence": <0.0-1.0>,
     "suggest_subtask": <true/false - true if suggesting a subtask (existing or new)>,
     "subtask_instruction": "<specific instruction for the subtask if suggest_subtask is true, or null>",
     "subtask_estimated_minutes": <minutes for the subtask if suggest_subtask is true, or null>,
-    "alternatives_note": "<brief note about other good options if any>"
+    "alternatives_note": "<brief note about other good options if any>",
+    "is_rescoped": <true/false - true if you re-scoped the task into a smaller subtask>
 }}
 
 JSON response:"""
