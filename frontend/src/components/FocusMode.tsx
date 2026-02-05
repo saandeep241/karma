@@ -22,6 +22,21 @@ const MOODS: { value: Mood; label: string; emoji: string }[] = [
   { value: 'low_energy', label: 'Low Energy', emoji: '🔋' },
 ];
 
+/**
+ * Maps UI mood values to backend EmotionalState enum values.
+ * Backend expects: motivated, happy, calm, focused, creative, tired, sleepy, stressed, anxious, bored, neutral
+ */
+function mapMoodToBackendEmotionalState(mood: Mood): string {
+  const moodMap: Record<Mood, string> = {
+    'enthusiastic': 'motivated',  // Enthusiastic -> motivated (energized, ready to go)
+    'neutral': 'neutral',          // Neutral -> neutral (exact match)
+    'tired': 'tired',              // Tired -> tired (exact match)
+    'overwhelmed': 'stressed',    // Overwhelmed -> stressed (feeling pressured)
+    'low_energy': 'tired',         // Low Energy -> tired (similar state)
+  };
+  return moodMap[mood];
+}
+
 export function FocusMode({ onExit }: FocusModeProps) {
   const queryClient = useQueryClient();
   
@@ -51,10 +66,11 @@ export function FocusMode({ onExit }: FocusModeProps) {
     try {
       // Use the new suggestion endpoint that considers all tasks
       const energyLevel = mood === 'enthusiastic' ? 'high' : mood === 'tired' || mood === 'low_energy' ? 'low' : 'medium';
+      const backendEmotionalState = mapMoodToBackendEmotionalState(mood);
       const data = await api.getStoredSuggestion({
         time_available: timeAvailable,
         energy_level: energyLevel,
-        emotional_state: mood,
+        emotional_state: backendEmotionalState,
         excluded_task_ids: excludedTaskIds,
       });
       if (data?.suggestion?.task) {
@@ -77,7 +93,8 @@ export function FocusMode({ onExit }: FocusModeProps) {
         setStep('suggestion');
       } else {
         // Fallback to quickwin if no suggestion
-        const quickwinData = await api.getQuickWin(timeAvailable, mood);
+        const backendEmotionalState = mapMoodToBackendEmotionalState(mood);
+        const quickwinData = await api.getQuickWin(timeAvailable, backendEmotionalState);
         if (quickwinData?.quickwin) {
           setCurrentTask(quickwinData.quickwin);
           setStep('suggestion');
@@ -87,7 +104,8 @@ export function FocusMode({ onExit }: FocusModeProps) {
       console.error('Failed to fetch suggestion:', error);
       // Fallback to quickwin on error
       try {
-        const quickwinData = await api.getQuickWin(timeAvailable, mood);
+        const backendEmotionalState = mapMoodToBackendEmotionalState(mood);
+        const quickwinData = await api.getQuickWin(timeAvailable, backendEmotionalState);
         if (quickwinData?.quickwin) {
           setCurrentTask(quickwinData.quickwin);
           setStep('suggestion');
