@@ -161,25 +161,49 @@ export function FocusMode({ onExit }: FocusModeProps) {
     if (!currentTask) return;
     
     try {
-      const result = await addTaskMutation.mutateAsync(currentTask);
-      if (result?.success && result?.task_id) {
+      // If task already exists (has an ID from storage), update its status instead of creating a new one
+      if (currentTask.id && currentTask.id.trim() !== '') {
+        // Task exists in database - update its status to in_progress
+        await api.updateTaskStatus(currentTask.id, 'in_progress');
+        // Invalidate queries to refresh task list
+        queryClient.invalidateQueries({ queryKey: ['tasks'] });
+        queryClient.invalidateQueries({ queryKey: ['stats'] });
         setActiveTask({
-          id: result.task_id,
+          id: currentTask.id,
           text: currentTask.text,
-          status: 'pending',
+          status: 'in_progress',
           priority: 'medium',
           category: currentTask.category?.toLowerCase() || 'other',
           estimated_minutes: currentTask.estimated_minutes || timeAvailable,
           subtasks: [],
           created_at: new Date().toISOString(),
-          tags: ['quick-win'],
+          tags: currentTask.category ? [currentTask.category] : [],
           subtasks_generated: false,
           is_dummy: currentTask.is_dummy,
         } as Task);
         setStep('proceed_choice');
+      } else {
+        // Task doesn't exist (quickwin) - create a new task
+        const result = await addTaskMutation.mutateAsync(currentTask);
+        if (result?.success && result?.task_id) {
+          setActiveTask({
+            id: result.task_id,
+            text: currentTask.text,
+            status: 'pending',
+            priority: 'medium',
+            category: currentTask.category?.toLowerCase() || 'other',
+            estimated_minutes: currentTask.estimated_minutes || timeAvailable,
+            subtasks: [],
+            created_at: new Date().toISOString(),
+            tags: ['quick-win'],
+            subtasks_generated: false,
+            is_dummy: currentTask.is_dummy,
+          } as Task);
+          setStep('proceed_choice');
+        }
       }
     } catch (error) {
-      console.error('Failed to add task:', error);
+      console.error('Failed to add/update task:', error);
     }
   };
 
