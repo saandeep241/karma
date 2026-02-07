@@ -55,7 +55,7 @@ async def import_todo_list(request: ImportTodoListRequest, user: AuthUser = Depe
     # Save tasks to database
     today = datetime.now().strftime("%Y-%m-%d")
     for task in analyzed_tasks:
-        task_dict = task.model_dump()
+        task_dict = task.model_dump(by_alias=False)
         task_dict["date"] = today
         await db_service.save_task(user.user_id, task_dict)
         logger.debug(f"Saved task: {task.id} - {task.text[:50]}...")
@@ -97,7 +97,7 @@ async def add_single_task(request: AddTaskRequest, user: AuthUser = Depends(requ
     if analyzed_tasks:
         # Save to database
         today = datetime.now().strftime("%Y-%m-%d")
-        task_dict = analyzed_tasks[0].model_dump()
+        task_dict = analyzed_tasks[0].model_dump(by_alias=False)
         task_dict["date"] = today
         await db_service.save_task(user.user_id, task_dict)
         
@@ -416,8 +416,8 @@ async def reresearch_task_by_id(task_id: str, user: AuthUser = Depends(require_a
     if enriched_tasks:
         enriched_task = enriched_tasks[0]
         # Update task in database with new enrichment
-        await db_service.update_task_enrichment(user.user_id, task_id, enriched_task.enrichment.model_dump() if enriched_task.enrichment else None)
-        return enriched_task.model_dump()
+        await db_service.update_task_enrichment(user.user_id, task_id, enriched_task.enrichment if enriched_task.enrichment else None)
+        return enriched_task.model_dump(by_alias=False)
     
     return task_data
 
@@ -483,9 +483,9 @@ async def breakdown_task_from_browse(request: TaskBreakdownRequest, user: AuthUs
     print(f"\n✅ Breakdown Agent: Created {breakdown.total_steps} steps")
     
     return {
-        "task": task.model_dump(),
-        "breakdown": breakdown.model_dump(),
-        "first_step": breakdown.steps[0].model_dump(),
+        "task": task.model_dump(by_alias=False),
+        "breakdown": breakdown.model_dump(by_alias=False),
+        "first_step": breakdown.steps[0].model_dump(by_alias=False),
         "message": "Here's your task broken down into steps:",
         "agent_reasoning": f"Breakdown Agent: Created {breakdown.total_steps} actionable steps"
     }

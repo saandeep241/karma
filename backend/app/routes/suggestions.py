@@ -117,7 +117,7 @@ async def get_suggestion_from_storage(request: SuggestFromStorageRequest, user: 
         
         return {
             "session_id": "quickwin",
-            "suggestion": suggestion.model_dump(),
+            "suggestion": suggestion.model_dump(by_alias=False),
             "alternatives_available": True,
             "message": "No pending tasks. Here's a quick activity!"
         }
@@ -162,7 +162,7 @@ async def get_suggestion_from_storage(request: SuggestFromStorageRequest, user: 
         
         return {
             "session_id": session.id,
-            "suggestion": suggestion.model_dump(),
+            "suggestion": suggestion.model_dump(by_alias=False),
             "alternatives_available": True,
             "message": "No tasks match your context. Here's a quick activity!"
         }
@@ -181,7 +181,7 @@ async def get_suggestion_from_storage(request: SuggestFromStorageRequest, user: 
     # Build response with subtask information if applicable
     response_data = {
         "session_id": session.id,
-        "suggestion": suggestion.model_dump(),
+        "suggestion": suggestion.model_dump(by_alias=False),
         "alternatives_available": len(remaining_tasks) > 0,
         "message": f"Based on your {request.time_available} minutes and {request.energy_level} energy:"
     }
@@ -189,7 +189,7 @@ async def get_suggestion_from_storage(request: SuggestFromStorageRequest, user: 
     # Add subtask info if this is a subtask suggestion
     if suggestion.suggested_subtask:
         response_data["has_subtask"] = True
-        response_data["next_subtask"] = suggestion.suggested_subtask.model_dump()
+        response_data["next_subtask"] = suggestion.suggested_subtask.model_dump(by_alias=False)
         if suggestion.subtask_instruction:
             response_data["subtask_instruction"] = suggestion.subtask_instruction
         if suggestion.subtask_estimated_minutes:
@@ -236,7 +236,7 @@ async def get_task_suggestion(request: GetSuggestionRequest, user: AuthUser = De
         )
         
         return {
-            "suggestion": suggestion.model_dump(),
+            "suggestion": suggestion.model_dump(by_alias=False),
             "alternatives_available": True,
             "message": "You don't have any tasks imported. Here's a quick activity!",
             "agent_reasoning": f"QuickWin Agent: {quickwin['reasoning']}"
@@ -268,7 +268,7 @@ async def get_task_suggestion(request: GetSuggestionRequest, user: AuthUser = De
         )
         
         return {
-            "suggestion": suggestion.model_dump(),
+            "suggestion": suggestion.model_dump(by_alias=False),
             "alternatives_available": True,
             "message": "No more tasks match your context. Here's a quick activity!",
             "agent_reasoning": f"QuickWin Agent: {quickwin['reasoning']}"
@@ -290,7 +290,7 @@ async def get_task_suggestion(request: GetSuggestionRequest, user: AuthUser = De
     print(f"📊 Confidence: {suggestion.confidence_score:.0%}")
     
     return {
-        "suggestion": suggestion.model_dump(),
+        "suggestion": suggestion.model_dump(by_alias=False),
         "alternatives_available": len(remaining_tasks) > 0,
         "message": f"Based on your {session.context.time_available.value} minutes and {session.context.energy_level.value} energy:",
         "agent_reasoning": f"TaskSuggester: {suggestion.reasoning}"

@@ -3,8 +3,10 @@ Karma Backend - FastAPI Application
 A smart task suggestion system with multi-agent AI architecture.
 """
 
-from fastapi import FastAPI
+import re
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 
 from app.config import get_settings
@@ -13,7 +15,11 @@ from app.routes.presentation import router as presentation_router
 from app.database.connection import init_db, DATABASE_TYPE, DATABASE_PATH
 from app.auth import is_auth_enabled, CLERK_ENABLED
 from app.logging_config import setup_logging, get_logger
-from app.middleware import RequestLoggingMiddleware, SlowRequestLoggingMiddleware
+from app.middleware import (
+    RequestLoggingMiddleware,
+    SlowRequestLoggingMiddleware,
+    CORSSafetyNetMiddleware,
+)
 
 # Initialize logging
 setup_logging(level="DEBUG", log_to_file=True)
@@ -82,20 +88,40 @@ allowed_origins = [
         "http://127.0.0.1:3000",
 ]
 
-# Add frontend URL from settings if it's set and not already in the list
-if settings.frontend_url and settings.frontend_url not in allowed_origins:
-    allowed_origins.append(settings.frontend_url)
+# Add frontend URL from settings (with and without trailing slash for browser variance)
+if settings.frontend_url:
+    base = settings.frontend_url.rstrip("/")
+    for url in (base, base + "/"):
+        if url not in allowed_origins:
+            allowed_origins.append(url)
 
 # In production (Cloud Run), allow any *.run.app origin
+# Cloud Run sets K_SERVICE; we also check USE_CLOUD_STORAGE from deploy script
 import os
 allow_origin_regex = None
-if os.getenv("USE_CLOUD_STORAGE") == "true":  # Production indicator
-    # Allow any Cloud Run URL (https://*.run.app)
+if os.getenv("K_SERVICE") or os.getenv("USE_CLOUD_STORAGE") == "true":
     allow_origin_regex = r"https://.*\.run\.app"
 
 logger.info(f"CORS allowed origins: {allowed_origins}")
 if allow_origin_regex:
     logger.info(f"CORS allowed origin regex: {allow_origin_regex}")
+
+
+def _is_origin_allowed(origin: str | None) -> bool:
+    """Check if an Origin header value is allowed by CORS config."""
+    if not origin or not origin.strip():
+        return False
+    origin = origin.strip()
+    if origin in allowed_origins:
+        return True
+    if allow_origin_regex and re.match(allow_origin_regex, origin):
+        return True
+    # Trailing slash variant (browsers sometimes send with or without)
+    normalized = origin.rstrip("/") if origin.endswith("/") else origin + "/"
+    if normalized in allowed_origins:
+        return True
+    return False
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -109,12 +135,35 @@ app.add_middleware(
 # Add logging middleware (order matters - added after CORS)
 app.add_middleware(SlowRequestLoggingMiddleware)
 app.add_middleware(RequestLoggingMiddleware)
+# Safety net: ensure CORS headers on every response (e.g. 401, 404, 500)
+app.add_middleware(
+    CORSSafetyNetMiddleware,
+    allowed_origins=allowed_origins,
+    allow_origin_regex=allow_origin_regex,
+)
 
 # Include routers
 app.include_router(tasks_router)
 app.include_router(suggestions_router)
 app.include_router(sessions_router)
 app.include_router(presentation_router)
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """
+    Ensure 500 (and any unhandled) responses include CORS headers so the
+    browser does not report a CORS error when the real issue is a server error.
+    """
+    logger.exception("Unhandled exception: %s", exc)
+    content = {"detail": "Internal server error", "type": type(exc).__name__}
+    headers = {}
+    origin = request.headers.get("origin") or request.headers.get("Origin")
+    if origin and _is_origin_allowed(origin):
+        headers["Access-Control-Allow-Origin"] = origin
+        headers["Access-Control-Allow-Credentials"] = "true"
+        headers["Vary"] = "Origin"
+    return JSONResponse(status_code=500, content=content, headers=headers)
 
 
 @app.get("/")
@@ -143,6 +192,10 @@ async def health_check():
         "dummy_mode": not settings.is_ai_enabled,
         "auth_enabled": CLERK_ENABLED,
         "database": DATABASE_TYPE,
+        "cors": {
+            "allowed_origins": allowed_origins,
+            "allow_origin_regex": allow_origin_regex,
+        },
         "agents": [
             "TaskAnalyzer - Analyzes task properties",
             "TaskSuggester - Matches tasks to context",

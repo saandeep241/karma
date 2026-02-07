@@ -38,8 +38,11 @@ def serialize_for_json(obj: Any) -> Any:
     if isinstance(obj, (EnergyLevel, EmotionalState, TaskStatus, SubtaskStatus)):
         return obj.value
     if hasattr(obj, 'model_dump'):
-        # Pydantic model - convert to dict first
-        return serialize_for_json(obj.model_dump())
+        # Pydantic model - convert to dict (by_alias=False to avoid NoneType errors)
+        try:
+            return serialize_for_json(obj.model_dump(by_alias=False))
+        except TypeError:
+            return serialize_for_json(obj.model_dump())
     if isinstance(obj, list):
         return [serialize_for_json(item) for item in obj]
     if isinstance(obj, dict):
@@ -72,7 +75,7 @@ def save_tasks(tasks: list, date: str) -> dict:
         # Handle Task objects, dicts, and strings
         if hasattr(task, 'model_dump'):
             # It's a Pydantic model (Task)
-            task_data = task.model_dump()
+            task_data = task.model_dump(by_alias=False)
             task_text = task_data.get("text", "")
         elif isinstance(task, dict):
             task_data = task
