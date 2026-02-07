@@ -164,8 +164,14 @@ export async function deleteAllTasks(): Promise<{ success: boolean; deleted_coun
 }
 
 // Task Breakdown (Subtasks)
-export async function breakdownTask(taskId: string): Promise<TaskBreakdownResponse> {
-  return apiFetch<TaskBreakdownResponse>(`/tasks/${taskId}/breakdown`, {
+// When saveSubtasks is false (e.g. "Make it easy" flow), steps are returned for UI only and not persisted.
+export async function breakdownTask(
+  taskId: string,
+  options?: { saveSubtasks?: boolean }
+): Promise<TaskBreakdownResponse> {
+  const saveSubtasks = options?.saveSubtasks !== false;
+  const url = `/tasks/${taskId}/breakdown${saveSubtasks ? '' : '?save_subtasks=false'}`;
+  return apiFetch<TaskBreakdownResponse>(url, {
     method: 'POST',
   });
 }

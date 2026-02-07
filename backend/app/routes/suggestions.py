@@ -26,7 +26,13 @@ async def get_suggestion_from_storage(request: SuggestFromStorageRequest, user: 
     If a task has subtasks, suggests the next pending subtask.
     Otherwise suggests the full task.
     """
-    logger.info(f"Getting suggestion from storage (time: {request.time_available}min, energy: {request.energy_level})")
+    excluded = request.excluded_task_ids or []
+    logger.info(
+        f"Getting suggestion from storage (time: {request.time_available}min, energy: {request.energy_level}), "
+        f"excluded_task_ids: {len(excluded)} IDs"
+    )
+    if excluded:
+        logger.debug(f"Excluded task IDs: {excluded}")
     
     # Load all tasks from storage for this user
     tasks_by_date = await db_service.get_all_tasks_by_date(user.user_id)
@@ -133,8 +139,12 @@ async def get_suggestion_from_storage(request: SuggestFromStorageRequest, user: 
     session = session_store.create_session(user.user_id)
     session.context = context
     session.todo_list = TodoList(tasks=all_tasks)
-    session.suggested_task_ids = request.excluded_task_ids
+    session.suggested_task_ids = request.excluded_task_ids or []
     session_store.update_session(session)
+    
+    # Tasks passed to the agent are filtered by excluded_task_ids inside the suggester
+    after_exclusion = len(all_tasks) - len([t for t in all_tasks if t.id in (request.excluded_task_ids or [])])
+    logger.info(f"Suggestion candidates: {after_exclusion} tasks (after excluding {len(session.suggested_task_ids)} previously suggested)")
     
     # Get suggestion from agent - now includes ALL tasks with subtask information
     suggestion, reasoning_trace = await karma_orchestrator.suggest_task(

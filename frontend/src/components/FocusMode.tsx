@@ -76,13 +76,15 @@ export function FocusMode({ onExit }: FocusModeProps) {
       if (data?.suggestion?.task) {
         // Convert suggestion to QuickWin format for compatibility
         const task = data.suggestion.task;
-        const taskId = task.id || '';
-        
-        // Add this task ID to excluded list so it won't be suggested again
+        const isQuickWin = data.suggestion.is_generic_quickwin === true;
+        // When backend returns a QuickWin (nothing fit time/energy), task has a one-off id; treat as new so "Let's go" creates via completeQuickWin
+        const taskId = isQuickWin ? '' : (task.id || '');
+
+        // Only add to excluded list if it's a real task from the list (not a QuickWin)
         if (taskId && !excludedTaskIds.includes(taskId)) {
           setExcludedTaskIds(prev => [...prev, taskId]);
         }
-        
+
         setCurrentTask({
           id: taskId,
           text: task.text,
@@ -129,7 +131,7 @@ export function FocusMode({ onExit }: FocusModeProps) {
 
   // Breakdown task mutation
   const breakdownMutation = useMutation({
-    mutationFn: (taskId: string) => api.breakdownTask(taskId),
+    mutationFn: (taskId: string) => api.breakdownTask(taskId, { saveSubtasks: false }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] }); // Also invalidate stats

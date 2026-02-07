@@ -319,9 +319,15 @@ async def complete_task(task_id: str, user: AuthUser = Depends(require_auth)):
 
 
 @router.post("/tasks/{task_id}/breakdown")
-async def breakdown_task_by_id(task_id: str, user: AuthUser = Depends(require_auth)):
-    """Break down a task into steps by task ID."""
-    logger.info(f"Breaking down task: {task_id}")
+async def breakdown_task_by_id(
+    task_id: str,
+    save_subtasks: bool = True,
+    user: AuthUser = Depends(require_auth),
+):
+    """Break down a task into steps by task ID.
+    When save_subtasks=False (e.g. 'Make it easy' flow), returns steps for UI only; no subtasks are persisted.
+    Only the parent task completion is tracked when the user completes all steps in the UI."""
+    logger.info(f"Breaking down task: {task_id}, save_subtasks={save_subtasks}")
     
     # Get task from database
     task_data = await db_service.get_task(user.user_id, task_id)
@@ -331,6 +337,26 @@ async def breakdown_task_by_id(task_id: str, user: AuthUser = Depends(require_au
     
     # Filter task data and handle invalid category values
     filtered_data = {k: v for k, v in task_data.items() if k in Task.model_fields}
+    
+    # Normalize subtasks: DB uses "order", Pydantic Subtask expects "step_number"; ensure "instruction" exists
+    if filtered_data.get("subtasks"):
+        from app.models import Subtask
+        normalized = []
+        for i, s in enumerate(filtered_data["subtasks"]):
+            if isinstance(s, dict):
+                normalized.append({
+                    "id": s.get("id", str(uuid.uuid4())),
+                    "step_number": s.get("step_number", s.get("order", i + 1)),
+                    "instruction": s.get("instruction") or s.get("text", ""),
+                    "estimated_minutes": s.get("estimated_minutes"),
+                    "status": s.get("status", "pending"),
+                    "started_at": s.get("started_at"),
+                    "completed_at": s.get("completed_at"),
+                    "ai_reasoning": s.get("ai_reasoning"),
+                })
+            else:
+                normalized.append(s)
+        filtered_data["subtasks"] = normalized
     
     # Validate category - map invalid categories to valid ones or use OTHER
     if "category" in filtered_data and filtered_data["category"]:
@@ -359,23 +385,25 @@ async def breakdown_task_by_id(task_id: str, user: AuthUser = Depends(require_au
         user_id=user.user_id
     )
     
-    # Save subtasks to database (TaskBreakdown has 'steps' not 'subtasks')
+    # Optionally save subtasks to database (skip when save_subtasks=False, e.g. FocusMode "Make it easy")
     subtask_count = 0
     if breakdown and breakdown.steps:
         subtask_count = len(breakdown.steps)
-        # Convert TaskStep to subtask format
-        subtasks_data = [
-            {
-                "text": step.instruction,
-                "instruction": step.instruction,
-                "estimated_minutes": step.estimated_minutes or 5,
-                "order": step.step_number,
-                "status": "pending"
-            }
-            for step in breakdown.steps
-        ]
-        await db_service.save_subtasks(user.user_id, task_id, subtasks_data)
-        logger.info(f"Task {task_id} broken down into {subtask_count} subtasks")
+        if save_subtasks:
+            subtasks_data = [
+                {
+                    "text": step.instruction,
+                    "instruction": step.instruction,
+                    "estimated_minutes": step.estimated_minutes or 5,
+                    "order": step.step_number,
+                    "status": "pending"
+                }
+                for step in breakdown.steps
+            ]
+            await db_service.save_subtasks(user.user_id, task_id, subtasks_data)
+            logger.info(f"Task {task_id} broken down into {subtask_count} subtasks (saved)")
+        else:
+            logger.info(f"Task {task_id} broken down into {subtask_count} steps (ephemeral, not saved)")
     else:
         logger.warning(f"No subtasks generated for task {task_id}")
     
