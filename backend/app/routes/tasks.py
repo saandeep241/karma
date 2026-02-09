@@ -83,12 +83,9 @@ async def add_single_task(request: AddTaskRequest, user: AuthUser = Depends(requ
     task = Task(text=request.text)
     
     if request.category:
-        from app.models import TaskCategory
-        try:
-            task.category = TaskCategory(request.category.lower())
-            logger.debug(f"Task category set to: {request.category}")
-        except ValueError:
-            logger.warning(f"Invalid category ignored: {request.category}")
+        from app.models import normalize_task_category
+        task.category = normalize_task_category(request.category)
+        logger.debug(f"Task category set to: {task.category.value}")
     
     # Analyze and enrich the single task
     logger.debug("Sending task to orchestrator for analysis")
@@ -358,22 +355,10 @@ async def breakdown_task_by_id(
                 normalized.append(s)
         filtered_data["subtasks"] = normalized
     
-    # Validate category - map invalid categories to valid ones or use OTHER
+    # Normalize category (AI/DB may return synonyms like "creativity" -> "creative")
     if "category" in filtered_data and filtered_data["category"]:
-        category_value = filtered_data["category"].lower()
-        valid_categories = {c.value for c in TaskCategory}
-        if category_value not in valid_categories:
-            # Map common invalid categories to valid ones
-            category_mapping = {
-                "exercise": "health",
-                "hydration": "health",
-                "wellness": "health",
-                "mindfulness": "health",
-                "organization": "home",
-                "quickwin": "other",
-            }
-            filtered_data["category"] = category_mapping.get(category_value, "other")
-            logger.debug(f"Mapped invalid category '{category_value}' to '{filtered_data['category']}'")
+        from app.models import normalize_task_category
+        filtered_data["category"] = normalize_task_category(filtered_data["category"]).value
     
     task = Task(**filtered_data)
     logger.debug(f"Task to break down: {task.text[:50]}...")

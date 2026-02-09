@@ -119,7 +119,7 @@ Return JSON with this structure:
         "<how to know it's done>",
         ...
     ],
-    "category": "<work|personal|health|finance|learning|social|home|errands|creative|admin|other>",
+    "category": "<exactly one of: work|personal|health|finance|learning|social|home|errands|creative|admin|other - use 'creative' not 'creativity'>",
     "tags": ["<tag1>", "<tag2>"],
     "weather_info": "<if outdoor task, include weather recommendation>",
     "official_resources": "<if government task, include official URLs>",

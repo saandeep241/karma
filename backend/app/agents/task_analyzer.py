@@ -25,7 +25,7 @@ Your job is to analyze tasks and infer their properties:
 1. **Estimated Time**: How long will this task realistically take?
 2. **Energy Required**: Low (mindless), Medium (focused), or High (creative/complex)
 3. **Emotional Fit**: What moods suit this task? (stressed, anxious, calm, happy, tired, motivated, neutral, sleepy, focused, creative, bored)
-4. **Category**: work, personal, health, finance, learning, social, home, errands, creative, admin, other
+4. **Category**: Must be exactly one of: work, personal, health, finance, learning, social, home, errands, creative, admin, other (use "creative" not "creativity")
 5. **Tags**: 2-4 relevant keywords
 
 Be realistic and specific. A "quick email" is 5 minutes, but "write a report" is 30-60 minutes.
@@ -58,13 +58,13 @@ Return a JSON object with:
     "estimated_minutes": <integer: 5, 10, 15, 30, or 60>,
     "energy_required": "<low|medium|high>",
     "emotional_fit": ["<mood1>", "<mood2>"],
-    "category": "<category>",
+    "category": "<exactly one of: work|personal|health|finance|learning|social|home|errands|creative|admin|other>",
     "tags": ["<tag1>", "<tag2>"],
     "task_type": "<brief description of task type>",
     "reasoning": "<why you made these estimates>"
 }}
 
-JSON response:"""
+Use the exact category value (e.g. "creative" not "creativity"). JSON response:"""
 
         try:
             response = await self._simple_completion(
@@ -96,11 +96,9 @@ JSON response:"""
                     if e in [es.value for es in EmotionalState]
                 ]
                 
-                category = result.get("category", "other").lower()
-                if category in [c.value for c in TaskCategory]:
-                    task.category = TaskCategory(category)
-                else:
-                    task.category = TaskCategory.OTHER
+                from app.models import normalize_task_category
+                category = result.get("category", "other")
+                task.category = normalize_task_category(category)
                 
                 task.tags = result.get("tags", [])
                 task.task_type = result.get("task_type", "general")
