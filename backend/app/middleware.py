@@ -1,16 +1,76 @@
 """
-Logging middleware for automatic request/response tracking.
+Logging and CORS safety-net middleware.
 """
 
+import re
 import time
 import uuid
-from typing import Callable
+from typing import Callable, List, Optional
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.logging_config import get_api_logger
 
 logger = get_api_logger()
+
+
+def _is_origin_allowed_static(
+    origin: Optional[str],
+    allowed_origins: List[str],
+    allow_origin_regex: Optional[str],
+) -> bool:
+    """Check if Origin is allowed (used by safety net)."""
+    if not origin or not origin.strip():
+        return False
+    origin = origin.strip()
+    if origin in allowed_origins:
+        return True
+    if allow_origin_regex and re.match(allow_origin_regex, origin):
+        return True
+    base = origin.rstrip("/")
+    if base in allowed_origins or (base + "/") == origin:
+        return True
+    return False
+
+
+class CORSSafetyNetMiddleware(BaseHTTPMiddleware):
+    """
+    Ensures CORS headers are on every response when the request had an allowed Origin.
+    Handles cases where error responses (401, 403, 404, 500) or OPTIONS might
+    otherwise be returned without CORS headers.
+    """
+
+    def __init__(
+        self,
+        app,
+        *,
+        allowed_origins: List[str],
+        allow_origin_regex: Optional[str] = None,
+    ):
+        super().__init__(app)
+        self.allowed_origins = allowed_origins
+        self.allow_origin_regex = allow_origin_regex
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        origin = request.headers.get("origin") or request.headers.get("Origin")
+        response = await call_next(request)
+        if not origin:
+            return response
+        if not _is_origin_allowed_static(
+            origin, self.allowed_origins, self.allow_origin_regex
+        ):
+            return response
+        if response.headers.get("access-control-allow-origin"):
+            return response
+        # Add CORS headers so the browser does not treat this as a CORS failure
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Vary"] = "Origin"
+        logger.debug(
+            f"CORS safety net: added headers for origin {origin!r} "
+            f"(status={response.status_code} {request.method} {request.url.path})"
+        )
+        return response
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):

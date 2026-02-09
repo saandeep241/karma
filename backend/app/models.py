@@ -166,6 +166,10 @@ class TaskSuggestion(BaseModel):
     reasoning: str
     confidence_score: float = Field(ge=0.0, le=1.0)
     is_generic_quickwin: bool = False
+    # Subtask suggestion fields (optional)
+    suggested_subtask: Optional[Subtask] = None
+    subtask_instruction: Optional[str] = None
+    subtask_estimated_minutes: Optional[int] = None
 
 
 class QuickWinTask(BaseModel):

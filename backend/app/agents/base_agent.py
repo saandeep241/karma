@@ -310,7 +310,24 @@ class BaseAgent(ABC):
                 
                 # Check if AI wants to call tools
                 if message.tool_calls:
-                    messages.append(message)
+                    # Append a plain dict so the next API call doesn't serialize OpenAI
+                    # Pydantic models (which can cause by_alias=None errors)
+                    msg_dict = {
+                        "role": message.role,
+                        "content": message.content or "",
+                        "tool_calls": [
+                            {
+                                "id": tc.id,
+                                "type": getattr(tc, "type", "function"),
+                                "function": {
+                                    "name": tc.function.name,
+                                    "arguments": tc.function.arguments or "{}",
+                                },
+                            }
+                            for tc in message.tool_calls
+                        ],
+                    }
+                    messages.append(msg_dict)
                     
                     for tool_call in message.tool_calls:
                         tool_name = tool_call.function.name

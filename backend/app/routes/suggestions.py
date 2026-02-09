@@ -1,5 +1,6 @@
 """Suggestion and quick win routes."""
 
+from datetime import datetime
 from fastapi import APIRouter, HTTPException, Depends
 
 from app.models import (
@@ -25,89 +26,82 @@ async def get_suggestion_from_storage(request: SuggestFromStorageRequest, user: 
     If a task has subtasks, suggests the next pending subtask.
     Otherwise suggests the full task.
     """
-    logger.info(f"Getting suggestion from storage (time: {request.time_available}min, energy: {request.energy_level})")
+    excluded = request.excluded_task_ids or []
+    logger.info(
+        f"Getting suggestion from storage (time: {request.time_available}min, energy: {request.energy_level}), "
+        f"excluded_task_ids: {len(excluded)} IDs"
+    )
+    if excluded:
+        logger.debug(f"Excluded task IDs: {excluded}")
     
     # Load all tasks from storage for this user
     tasks_by_date = await db_service.get_all_tasks_by_date(user.user_id)
     
-    # Collect pending tasks and tasks with pending subtasks
+    # Collect ALL pending tasks (with and without subtasks) to send to agent
     all_tasks = []
-    tasks_with_subtasks = []
     
     for date, date_data in tasks_by_date.items():
         for task_data in date_data.get("tasks", []):
             task_status = task_data.get("status", "pending")
-            subtasks = task_data.get("subtasks", [])
             
-            # Check for pending subtasks
-            pending_subtasks = [s for s in subtasks if s.get("status") in ["pending", "in_progress"]]
+            # Only include pending or in_progress tasks
+            if task_status not in ["pending", "in_progress"]:
+                continue
             
-            if pending_subtasks:
-                # Task has pending subtasks - add both task and first pending subtask info
-                task = Task(
-                    id=task_data.get("id"),
-                    text=task_data.get("text"),
-                    estimated_minutes=task_data.get("estimated_minutes"),
-                    energy_required=task_data.get("energy_required"),
-                    category=task_data.get("category"),
-                    tags=task_data.get("tags", []),
-                    status=task_status,
-                    subtasks_generated=True
+            # Convert subtasks from dict to Subtask models
+            subtasks_data = task_data.get("subtasks", [])
+            subtasks = []
+            for st_data in subtasks_data:
+                from app.models import Subtask, SubtaskStatus
+                
+                # Parse datetime safely
+                started_at = None
+                completed_at = None
+                if st_data.get("started_at"):
+                    try:
+                        if isinstance(st_data["started_at"], str):
+                            started_at = datetime.fromisoformat(st_data["started_at"].replace('Z', '+00:00'))
+                        else:
+                            started_at = st_data["started_at"]
+                    except (ValueError, AttributeError):
+                        started_at = None
+                
+                if st_data.get("completed_at"):
+                    try:
+                        if isinstance(st_data["completed_at"], str):
+                            completed_at = datetime.fromisoformat(st_data["completed_at"].replace('Z', '+00:00'))
+                        else:
+                            completed_at = st_data["completed_at"]
+                    except (ValueError, AttributeError):
+                        completed_at = None
+                
+                subtask = Subtask(
+                    id=st_data.get("id", ""),
+                    step_number=st_data.get("order", 0),
+                    instruction=st_data.get("instruction") or st_data.get("text", ""),
+                    estimated_minutes=st_data.get("estimated_minutes", 5),
+                    status=SubtaskStatus(st_data.get("status", "pending")),
+                    started_at=started_at,
+                    completed_at=completed_at,
+                    ai_reasoning=st_data.get("ai_reasoning")
                 )
-                # Add subtask info for suggestion
-                next_subtask = pending_subtasks[0]
-                tasks_with_subtasks.append({
-                    "task": task,
-                    "next_subtask": next_subtask,
-                    "subtask_time": next_subtask.get("estimated_minutes", 10),
-                    "progress": f"{len(subtasks) - len(pending_subtasks)}/{len(subtasks)}"
-                })
-            elif task_status in ["pending", "in_progress"]:
-                # Regular task without subtasks
-                task = Task(
-                    id=task_data.get("id"),
-                    text=task_data.get("text"),
-                    estimated_minutes=task_data.get("estimated_minutes"),
-                    energy_required=task_data.get("energy_required"),
-                    category=task_data.get("category"),
-                    tags=task_data.get("tags", []),
-                    status=task_status
-                )
-                all_tasks.append(task)
+                subtasks.append(subtask)
+            
+            # Create Task model with all information including subtasks
+            task = Task(
+                id=task_data.get("id"),
+                text=task_data.get("text"),
+                estimated_minutes=task_data.get("estimated_minutes"),
+                energy_required=task_data.get("energy_required"),
+                category=task_data.get("category"),
+                tags=task_data.get("tags", []),
+                status=task_status,
+                subtasks=subtasks,
+                subtasks_generated=task_data.get("subtasks_generated", False)
+            )
+            all_tasks.append(task)
     
-    # Prioritize tasks with pending subtasks that fit the time
-    matching_subtask_tasks = [
-        t for t in tasks_with_subtasks 
-        if t["subtask_time"] <= request.time_available
-        and t["task"].id not in request.excluded_task_ids
-    ]
-    
-    if matching_subtask_tasks:
-        # Suggest the next subtask of an existing task
-        best_match = matching_subtask_tasks[0]
-        task = best_match["task"]
-        subtask = best_match["next_subtask"]
-        progress = best_match["progress"]
-        
-        # Create a suggestion for the subtask
-        suggestion = TaskSuggestion(
-            task=task,
-            reasoning=f"Continue working on '{task.text}' - Next step: {subtask.get('instruction')} (Progress: {progress} subtasks completed)",
-            confidence_score=0.95,
-            is_generic_quickwin=False
-        )
-        
-        return {
-            "session_id": "subtask_suggestion",
-            "suggestion": suggestion.model_dump(),
-            "alternatives_available": len(all_tasks) > 0 or len(tasks_with_subtasks) > 1,
-            "message": f"Continue your task - {subtask.get('estimated_minutes', 10)} min for next step:",
-            "has_subtask": True,
-            "next_subtask": subtask,
-            "progress": progress
-        }
-    
-    if not all_tasks and not tasks_with_subtasks:
+    if not all_tasks:
         # No tasks - use QuickWin agent
         context = UserContext(
             time_available=TimeAvailable(request.time_available),
@@ -129,7 +123,7 @@ async def get_suggestion_from_storage(request: SuggestFromStorageRequest, user: 
         
         return {
             "session_id": "quickwin",
-            "suggestion": suggestion.model_dump(),
+            "suggestion": suggestion.model_dump(by_alias=False),
             "alternatives_available": True,
             "message": "No pending tasks. Here's a quick activity!"
         }
@@ -145,10 +139,14 @@ async def get_suggestion_from_storage(request: SuggestFromStorageRequest, user: 
     session = session_store.create_session(user.user_id)
     session.context = context
     session.todo_list = TodoList(tasks=all_tasks)
-    session.suggested_task_ids = request.excluded_task_ids
+    session.suggested_task_ids = request.excluded_task_ids or []
     session_store.update_session(session)
     
-    # Get suggestion
+    # Tasks passed to the agent are filtered by excluded_task_ids inside the suggester
+    after_exclusion = len(all_tasks) - len([t for t in all_tasks if t.id in (request.excluded_task_ids or [])])
+    logger.info(f"Suggestion candidates: {after_exclusion} tasks (after excluding {len(session.suggested_task_ids)} previously suggested)")
+    
+    # Get suggestion from agent - now includes ALL tasks with subtask information
     suggestion, reasoning_trace = await karma_orchestrator.suggest_task(
         tasks=all_tasks,
         context=context,
@@ -174,7 +172,7 @@ async def get_suggestion_from_storage(request: SuggestFromStorageRequest, user: 
         
         return {
             "session_id": session.id,
-            "suggestion": suggestion.model_dump(),
+            "suggestion": suggestion.model_dump(by_alias=False),
             "alternatives_available": True,
             "message": "No tasks match your context. Here's a quick activity!"
         }
@@ -190,12 +188,24 @@ async def get_suggestion_from_storage(request: SuggestFromStorageRequest, user: 
     
     print(f"\n✅ TaskSuggester: Suggested '{suggestion.task.text}'")
     
-    return {
+    # Build response with subtask information if applicable
+    response_data = {
         "session_id": session.id,
-        "suggestion": suggestion.model_dump(),
+        "suggestion": suggestion.model_dump(by_alias=False),
         "alternatives_available": len(remaining_tasks) > 0,
         "message": f"Based on your {request.time_available} minutes and {request.energy_level} energy:"
     }
+    
+    # Add subtask info if this is a subtask suggestion
+    if suggestion.suggested_subtask:
+        response_data["has_subtask"] = True
+        response_data["next_subtask"] = suggestion.suggested_subtask.model_dump(by_alias=False)
+        if suggestion.subtask_instruction:
+            response_data["subtask_instruction"] = suggestion.subtask_instruction
+        if suggestion.subtask_estimated_minutes:
+            response_data["subtask_estimated_minutes"] = suggestion.subtask_estimated_minutes
+    
+    return response_data
 
 
 @router.post("/suggestion/get")
@@ -236,7 +246,7 @@ async def get_task_suggestion(request: GetSuggestionRequest, user: AuthUser = De
         )
         
         return {
-            "suggestion": suggestion.model_dump(),
+            "suggestion": suggestion.model_dump(by_alias=False),
             "alternatives_available": True,
             "message": "You don't have any tasks imported. Here's a quick activity!",
             "agent_reasoning": f"QuickWin Agent: {quickwin['reasoning']}"
@@ -268,7 +278,7 @@ async def get_task_suggestion(request: GetSuggestionRequest, user: AuthUser = De
         )
         
         return {
-            "suggestion": suggestion.model_dump(),
+            "suggestion": suggestion.model_dump(by_alias=False),
             "alternatives_available": True,
             "message": "No more tasks match your context. Here's a quick activity!",
             "agent_reasoning": f"QuickWin Agent: {quickwin['reasoning']}"
@@ -290,7 +300,7 @@ async def get_task_suggestion(request: GetSuggestionRequest, user: AuthUser = De
     print(f"📊 Confidence: {suggestion.confidence_score:.0%}")
     
     return {
-        "suggestion": suggestion.model_dump(),
+        "suggestion": suggestion.model_dump(by_alias=False),
         "alternatives_available": len(remaining_tasks) > 0,
         "message": f"Based on your {session.context.time_available.value} minutes and {session.context.energy_level.value} energy:",
         "agent_reasoning": f"TaskSuggester: {suggestion.reasoning}"

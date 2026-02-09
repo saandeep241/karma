@@ -113,12 +113,12 @@ VARIETY IS KEY: Each suggestion should be completely different from typical prod
 
     async def run(self, context: UserContext, excluded_suggestions: list[str] = None, user_id: str = None) -> dict:
         """
-        Generate a personalized quick win based on user context.
+        Generate a personalized quick win based on user context, preferences, and past behavior.
         
         Args:
             context: User's current context (time, energy, mood)
             excluded_suggestions: List of suggestions to avoid
-            user_id: User ID for token usage tracking
+            user_id: User ID for token usage tracking and preference learning
             
         Returns:
             Dictionary with quick win details
@@ -132,6 +132,48 @@ VARIETY IS KEY: Each suggestion should be completely different from typical prod
         self.session.add_thought("observation", 
             f"Generating quick win: {context.time_available.value}min, {context.energy_level.value} energy, {mood} mood")
         self.session.add_thought("observation", f"Avoiding {len(excluded)} previous suggestions")
+        
+        # Get user preferences and past behavior if user_id provided
+        user_preferences = ""
+        past_behavior = ""
+        if user_id:
+            try:
+                from app.services import db_service
+                
+                # Get learning insights (past behavior patterns)
+                insights = await db_service.get_learning_insights(user_id)
+                if insights:
+                    acceptance_rate = insights.get("acceptance_rate", 0)
+                    total_feedback = insights.get("total_feedback", 0)
+                    if total_feedback > 0:
+                        past_behavior = f"""
+PAST BEHAVIOR ANALYSIS:
+- Total suggestions received: {total_feedback}
+- Acceptance rate: {acceptance_rate:.0%}
+- Preferred energy levels: {insights.get('preferred_energy_levels', 'No clear pattern yet')}
+- Preferred categories: {insights.get('preferred_categories', 'No clear pattern yet')}
+"""
+                
+                # Get user's task history to infer preferences
+                all_tasks = await db_service.get_all_tasks(user_id)
+                if all_tasks:
+                    # Analyze task categories to infer interests
+                    categories = {}
+                    for task in all_tasks:
+                        cat = task.get("category", "other")
+                        categories[cat] = categories.get(cat, 0) + 1
+                    
+                    if categories:
+                        top_categories = sorted(categories.items(), key=lambda x: x[1], reverse=True)[:3]
+                        user_preferences = f"""
+USER PREFERENCES (inferred from task history):
+- Most common task categories: {', '.join([f'{cat} ({count} tasks)' for cat, count in top_categories])}
+- This suggests the user is interested in: {', '.join([cat for cat, _ in top_categories])}
+- Consider suggesting activities aligned with these interests
+"""
+            except Exception as e:
+                # If we can't get preferences, continue without them
+                self.session.add_thought("observation", f"Could not load user preferences: {e}")
         
         # Check if in dummy mode
         if self._is_dummy_mode():
@@ -178,6 +220,10 @@ USER CONTEXT:
 - Energy Level: {context.energy_level.value} → Suggest {energy_guidance.get(context.energy_level.value, 'balanced tasks')}
 - Current Mood: {mood} → Suggest {mood_guidance.get(mood, 'balanced activities')}
 
+{past_behavior}
+
+{user_preferences}
+
 {exclusion_text}
 
 INSPIRATION (but create something UNIQUE, not these exact tasks):
@@ -186,9 +232,18 @@ INSPIRATION (but create something UNIQUE, not these exact tasks):
 REQUIREMENTS:
 1. Must be completable in {context.time_available.value} minutes or less
 2. Must be SPECIFIC and UNIQUE (not generic productivity advice)
-3. Must be immediately actionable (no prep needed)
+3. Must be immediately actionable (no prep needed) - easy to start
 4. Should feel achievable and satisfying
 5. BE CREATIVE - surprise the user with something different!
+6. **Align with long-term interests**: If user preferences are available, suggest activities that align with their interests (e.g., if they have many "learning" tasks, suggest a quick learning activity)
+7. **Appropriate for mental state**: Match the suggestion to their current mood and energy level
+8. **Easy to start**: The first step should be tiny and obvious - remove all friction
+
+GOAL: Provide a suggestion that is:
+- Easy to start (low friction)
+- Aligned with long-term interests (if known)
+- Appropriate for current mental state
+- Immediately actionable
 
 Random seed for variety: {random.randint(1000, 9999)}
 
@@ -197,8 +252,9 @@ Return JSON:
     "task": "<the specific task - be detailed and creative>",
     "category": "<wellness|productivity|social|creative|organization|exercise|mindfulness|learning>",
     "estimated_minutes": <number>,
-    "why_this_task": "<1-2 sentences explaining why this is perfect for their current state>",
-    "first_step": "<the very first action to take - make it tiny and obvious>"
+    "why_this_task": "<1-2 sentences explaining why this is perfect for their current state and aligns with their interests>",
+    "first_step": "<the very first action to take - make it tiny and obvious, remove all friction>",
+    "aligned_with_interests": "<brief note on how this aligns with their long-term interests, if applicable>"
 }}
 
 JSON response:"""
@@ -230,6 +286,7 @@ JSON response:"""
                     "estimated_minutes": min(quickwin_data.get("estimated_minutes", 5), context.time_available.value),
                     "reasoning": quickwin_data.get("why_this_task", "This matches your current energy and time."),
                     "first_step": quickwin_data.get("first_step", "Start now!"),
+                    "aligned_with_interests": quickwin_data.get("aligned_with_interests", ""),
                     "ai_generated": True,
                     "generated_by": self.AGENT_NAME,
                     "generated_at": datetime.now().isoformat()

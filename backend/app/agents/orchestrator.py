@@ -105,7 +105,7 @@ class KarmaOrchestrator:
                 task_trace["enrichment"] = "success"
                 
                 # Save the fully analyzed and enriched task
-                save_task_with_details(analyzed_task.model_dump(), today)
+                save_task_with_details(analyzed_task.model_dump(by_alias=False), today)
                 
                 analyzed_tasks.append(analyzed_task)
                 
@@ -215,7 +215,7 @@ class KarmaOrchestrator:
             # The breakdown agent now also updates task.subtasks
             # Save the updated task with subtasks
             today = datetime.now().strftime("%Y-%m-%d")
-            save_task_with_details(task.model_dump(), today)
+            save_task_with_details(task.model_dump(by_alias=False), today)
             
             total_time = breakdown.total_estimated_minutes or sum(s.estimated_minutes or 5 for s in breakdown.steps)
             reasoning["steps_created"] = breakdown.total_steps

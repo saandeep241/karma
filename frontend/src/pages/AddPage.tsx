@@ -38,7 +38,12 @@ export function AddPage() {
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] }); // Also invalidate stats
       navigate('/browse');
+    },
+    onError: (error) => {
+      console.error('Failed to add task:', error);
+      // Don't navigate on error
     },
   });
 
@@ -46,7 +51,12 @@ export function AddPage() {
     mutationFn: (texts: string[]) => api.importTasks(texts),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] }); // Also invalidate stats
       navigate('/browse');
+    },
+    onError: (error) => {
+      console.error('Failed to import tasks:', error);
+      // Don't navigate on error - let user see the error
     },
   });
 
@@ -58,7 +68,13 @@ export function AddPage() {
 
   const handleSubmitBulk = (e: React.FormEvent) => {
     e.preventDefault();
-    const tasks = bulkTasks.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    // Handle numbered lists (e.g., "1. Task one", "2. Task two")
+    const lines = bulkTasks.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    const tasks = lines.map(line => {
+      // Remove leading numbers and dots (e.g., "1. ", "2. ", etc.)
+      return line.replace(/^\d+\.\s*/, '').trim();
+    }).filter(t => t.length > 0);
+    
     if (tasks.length === 0) return;
     importTasksMutation.mutate(tasks);
   };
@@ -67,6 +83,20 @@ export function AddPage() {
 
   return (
     <div className="max-w-xl mx-auto space-y-6 sm:space-y-10 animate-fade-in py-6 sm:py-8 px-4 sm:px-6">
+      {/* Back to Home Button */}
+      <div className="flex items-center gap-2 mb-4">
+        <button
+          onClick={() => navigate('/')}
+          className="flex items-center gap-2 text-gray-500 hover:text-gray-700 transition-colors text-sm"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
+          <span>Home</span>
+        </button>
+      </div>
+      
       <div className="text-center">
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-serif text-gray-900 mb-2">New Task</h1>
         <p className="text-sm sm:text-base text-gray-500">What's on your mind?</p>

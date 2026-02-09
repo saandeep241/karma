@@ -22,6 +22,21 @@ const MOODS: { value: Mood; label: string; emoji: string }[] = [
   { value: 'low_energy', label: 'Low Energy', emoji: '🔋' },
 ];
 
+/**
+ * Maps UI mood values to backend EmotionalState enum values.
+ * Backend expects: motivated, happy, calm, focused, creative, tired, sleepy, stressed, anxious, bored, neutral
+ */
+function mapMoodToBackendEmotionalState(mood: Mood): string {
+  const moodMap: Record<Mood, string> = {
+    'enthusiastic': 'motivated',  // Enthusiastic -> motivated (energized, ready to go)
+    'neutral': 'neutral',          // Neutral -> neutral (exact match)
+    'tired': 'tired',              // Tired -> tired (exact match)
+    'overwhelmed': 'stressed',    // Overwhelmed -> stressed (feeling pressured)
+    'low_energy': 'tired',         // Low Energy -> tired (similar state)
+  };
+  return moodMap[mood];
+}
+
 export function FocusMode({ onExit }: FocusModeProps) {
   const queryClient = useQueryClient();
   
@@ -41,44 +56,98 @@ export function FocusMode({ onExit }: FocusModeProps) {
   
   // Subtask state for breakdown view
   const [subtasks, setSubtasks] = useState<{ id: string; text: string; completed: boolean }[]>([]);
+  
+  // Track suggested and completed task IDs to avoid suggesting them again
+  const [excludedTaskIds, setExcludedTaskIds] = useState<string[]>([]);
 
   // Fetch a task suggestion
   const fetchSuggestion = useCallback(async () => {
     setIsLoadingTask(true);
     try {
-      const data = await api.getQuickWin(timeAvailable, mood);
-      if (data?.quickwin) {
-        setCurrentTask(data.quickwin);
+      // Use the new suggestion endpoint that considers all tasks
+      const energyLevel = mood === 'enthusiastic' ? 'high' : mood === 'tired' || mood === 'low_energy' ? 'low' : 'medium';
+      const backendEmotionalState = mapMoodToBackendEmotionalState(mood);
+      const data = await api.getStoredSuggestion({
+        time_available: timeAvailable,
+        energy_level: energyLevel,
+        emotional_state: backendEmotionalState,
+        excluded_task_ids: excludedTaskIds,
+      });
+      if (data?.suggestion?.task) {
+        // Convert suggestion to QuickWin format for compatibility
+        const task = data.suggestion.task;
+        const isQuickWin = data.suggestion.is_generic_quickwin === true;
+        // When backend returns a QuickWin (nothing fit time/energy), task has a one-off id; treat as new so "Let's go" creates via completeQuickWin
+        const taskId = isQuickWin ? '' : (task.id || '');
+
+        // Only add to excluded list if it's a real task from the list (not a QuickWin)
+        if (taskId && !excludedTaskIds.includes(taskId)) {
+          setExcludedTaskIds(prev => [...prev, taskId]);
+        }
+
+        setCurrentTask({
+          id: taskId,
+          text: task.text,
+          estimated_minutes: task.estimated_minutes || timeAvailable,
+          category: task.category || 'other',
+          is_dummy: task.is_dummy || false,
+        });
         setStep('suggestion');
+      } else {
+        // Fallback to quickwin if no suggestion
+        const backendEmotionalState = mapMoodToBackendEmotionalState(mood);
+        const quickwinData = await api.getQuickWin(timeAvailable, backendEmotionalState);
+        if (quickwinData?.quickwin) {
+          setCurrentTask(quickwinData.quickwin);
+          setStep('suggestion');
+        }
       }
     } catch (error) {
       console.error('Failed to fetch suggestion:', error);
+      // Fallback to quickwin on error
+      try {
+        const backendEmotionalState = mapMoodToBackendEmotionalState(mood);
+        const quickwinData = await api.getQuickWin(timeAvailable, backendEmotionalState);
+        if (quickwinData?.quickwin) {
+          setCurrentTask(quickwinData.quickwin);
+          setStep('suggestion');
+        }
+      } catch (fallbackError) {
+        console.error('Failed to fetch quickwin fallback:', fallbackError);
+      }
     } finally {
       setIsLoadingTask(false);
     }
-  }, [timeAvailable, mood]);
+  }, [timeAvailable, mood, excludedTaskIds]);
 
   // Add task mutation
   const addTaskMutation = useMutation({
     mutationFn: (quickwin: QuickWin) => api.completeQuickWin(quickwin),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] }); // Also invalidate stats
     },
   });
 
   // Breakdown task mutation
   const breakdownMutation = useMutation({
-    mutationFn: (taskId: string) => api.breakdownTask(taskId),
+    mutationFn: (taskId: string) => api.breakdownTask(taskId, { saveSubtasks: false }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] }); // Also invalidate stats
     },
   });
 
   // Complete task mutation
   const completeTaskMutation = useMutation({
     mutationFn: (taskId: string) => api.updateTaskStatus(taskId, 'completed'),
-    onSuccess: () => {
+    onSuccess: (_, taskId) => {
+      // Add completed task to excluded list so it won't be suggested again
+      if (taskId && !excludedTaskIds.includes(taskId)) {
+        setExcludedTaskIds(prev => [...prev, taskId]);
+      }
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] }); // Also invalidate stats
       setStep('completed');
     },
   });
@@ -112,32 +181,60 @@ export function FocusMode({ onExit }: FocusModeProps) {
     if (!currentTask) return;
     
     try {
-      const result = await addTaskMutation.mutateAsync(currentTask);
-      if (result?.success && result?.task_id) {
+      // If task already exists (has an ID from storage), update its status instead of creating a new one
+      if (currentTask.id && currentTask.id.trim() !== '') {
+        // Task exists in database - update its status to in_progress
+        await api.updateTaskStatus(currentTask.id, 'in_progress');
+        // Invalidate queries to refresh task list
+        queryClient.invalidateQueries({ queryKey: ['tasks'] });
+        queryClient.invalidateQueries({ queryKey: ['stats'] });
         setActiveTask({
-          id: result.task_id,
+          id: currentTask.id,
           text: currentTask.text,
-          status: 'pending',
+          status: 'in_progress',
           priority: 'medium',
           category: currentTask.category?.toLowerCase() || 'other',
           estimated_minutes: currentTask.estimated_minutes || timeAvailable,
           subtasks: [],
           created_at: new Date().toISOString(),
-          tags: ['quick-win'],
+          tags: currentTask.category ? [currentTask.category] : [],
           subtasks_generated: false,
           is_dummy: currentTask.is_dummy,
         } as Task);
         setStep('proceed_choice');
+      } else {
+        // Task doesn't exist (quickwin) - create a new task
+        const result = await addTaskMutation.mutateAsync(currentTask);
+        if (result?.success && result?.task_id) {
+          setActiveTask({
+            id: result.task_id,
+            text: currentTask.text,
+            status: 'pending',
+            priority: 'medium',
+            category: currentTask.category?.toLowerCase() || 'other',
+            estimated_minutes: currentTask.estimated_minutes || timeAvailable,
+            subtasks: [],
+            created_at: new Date().toISOString(),
+            tags: ['quick-win'],
+            subtasks_generated: false,
+            is_dummy: currentTask.is_dummy,
+          } as Task);
+          setStep('proceed_choice');
+        }
       }
     } catch (error) {
-      console.error('Failed to add task:', error);
+      console.error('Failed to add/update task:', error);
     }
   };
 
-  // Handle skip - get another suggestion
+  // Handle skip - go back to landing to select new mood/time
   const handleSkip = () => {
+    // Add skipped task to excluded list so it won't be suggested again immediately
+    if (currentTask?.id && !excludedTaskIds.includes(currentTask.id)) {
+      setExcludedTaskIds(prev => [...prev, currentTask.id]);
+    }
     setCurrentTask(null);
-    fetchSuggestion();
+    setStep('landing');
   };
 
   // Handle "Let's go (Direct)" - start timer immediately
@@ -197,6 +294,7 @@ export function FocusMode({ onExit }: FocusModeProps) {
     setActiveTask(null);
     setSubtasks([]);
     setStep('landing');
+    // Keep excludedTaskIds so we don't suggest the same tasks again
   };
 
   // Render based on current step
@@ -241,35 +339,35 @@ export function FocusMode({ onExit }: FocusModeProps) {
               <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest text-center mb-8">
                 CURRENT MOOD
               </p>
-              <div className="grid grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 max-w-full overflow-hidden">
                 {MOODS.slice(0, 3).map((m) => (
                   <button
                     key={m.value}
                     onClick={() => setMood(m.value)}
-                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-full text-[14px] font-medium transition-all border ${
+                    className={`flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 sm:py-3 rounded-full text-xs sm:text-[14px] font-medium transition-all border flex-shrink-0 ${
                       mood === m.value
                         ? 'bg-white border-gray-300 text-gray-900 shadow-sm scale-[1.02]'
                         : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'
                     }`}
                   >
-                    <span>{m.label}</span>
-                    <span className={mood === m.value ? 'text-gray-900' : 'text-gray-400'}>
+                    <span className="truncate">{m.label}</span>
+                    <span className={`flex-shrink-0 ${mood === m.value ? 'text-gray-900' : 'text-gray-400'}`}>
                       {m.value === 'enthusiastic' ? (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="14" height="14" className="sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <circle cx="12" cy="12" r="10"></circle>
                           <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
                           <line x1="9" y1="9" x2="9.01" y2="9"></line>
                           <line x1="15" y1="9" x2="15.01" y2="9"></line>
                         </svg>
                       ) : m.value === 'neutral' ? (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="14" height="14" className="sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <circle cx="12" cy="12" r="10"></circle>
                           <line x1="8" y1="15" x2="16" y2="15"></line>
                           <line x1="9" y1="9" x2="9.01" y2="9"></line>
                           <line x1="15" y1="9" x2="15.01" y2="9"></line>
                         </svg>
                       ) : (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="14" height="14" className="sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <circle cx="12" cy="12" r="10"></circle>
                           <path d="M16 16s-1.5-2-4-2-4 2-4 2"></path>
                           <line x1="9" y1="9" x2="9.01" y2="9"></line>
@@ -280,21 +378,21 @@ export function FocusMode({ onExit }: FocusModeProps) {
                   </button>
                 ))}
               </div>
-              <div className="flex justify-center gap-4">
+              <div className="flex justify-center gap-2 sm:gap-4 flex-wrap">
                 {MOODS.slice(3).map((m) => (
                   <button
                     key={m.value}
                     onClick={() => setMood(m.value)}
-                    className={`flex items-center justify-center gap-2 px-8 py-3 rounded-full text-[14px] font-medium transition-all border ${
+                    className={`flex items-center justify-center gap-1 sm:gap-2 px-4 sm:px-8 py-2 sm:py-3 rounded-full text-xs sm:text-[14px] font-medium transition-all border flex-shrink-0 ${
                       mood === m.value
                         ? 'bg-white border-gray-300 text-gray-900 shadow-sm scale-[1.02]'
                         : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'
                     }`}
                   >
-                    <span>{m.label}</span>
-                    <span className={mood === m.value ? 'text-gray-900' : 'text-gray-400'}>
+                    <span className="truncate">{m.label}</span>
+                    <span className={`flex-shrink-0 ${mood === m.value ? 'text-gray-900' : 'text-gray-400'}`}>
                       {m.value === 'overwhelmed' ? (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="14" height="14" className="sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polyline>
                         </svg>
                       ) : (
