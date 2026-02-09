@@ -93,11 +93,8 @@ class KarmaOrchestrator:
                 
                 # Update task with enrichment data
                 if enrichment.get("category"):
-                    from app.models import TaskCategory
-                    try:
-                        analyzed_task.category = TaskCategory(enrichment["category"])
-                    except ValueError:
-                        pass
+                    from app.models import normalize_task_category
+                    analyzed_task.category = normalize_task_category(enrichment["category"])
                 
                 if enrichment.get("tags"):
                     analyzed_task.tags = enrichment["tags"]

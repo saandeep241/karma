@@ -2,7 +2,7 @@
 
 from enum import Enum
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 import uuid
 
@@ -72,6 +72,31 @@ class TaskCategory(str, Enum):
     OTHER = "other"
 
 
+# Map AI/user input variants to valid TaskCategory values (e.g. "creativity" -> "creative")
+TASK_CATEGORY_ALIASES = {
+    "creativity": TaskCategory.CREATIVE,
+    "exercise": TaskCategory.HEALTH,
+    "hydration": TaskCategory.HEALTH,
+    "wellness": TaskCategory.HEALTH,
+    "mindfulness": TaskCategory.HEALTH,
+    "organization": TaskCategory.HOME,
+    "quickwin": TaskCategory.OTHER,
+}
+
+
+def normalize_task_category(value: str | None) -> TaskCategory:
+    """Convert a string (e.g. from AI or API) to a valid TaskCategory. Handles synonyms like 'creativity' -> 'creative'."""
+    if not value or not str(value).strip():
+        return TaskCategory.OTHER
+    raw = str(value).strip().lower()
+    if raw in TASK_CATEGORY_ALIASES:
+        return TASK_CATEGORY_ALIASES[raw]
+    try:
+        return TaskCategory(raw)
+    except ValueError:
+        return TaskCategory.OTHER
+
+
 # ============================================================================
 # Core Models
 # ============================================================================
@@ -107,6 +132,14 @@ class Task(BaseModel):
     suggested_count: int = 0  # Track how many times this was suggested
     # Auto-tagging by AI
     category: Optional[TaskCategory] = None  # work, personal, health, etc.
+
+    @field_validator("category", mode="before")
+    @classmethod
+    def _normalize_category(cls, v: object) -> object:
+        """Accept AI/DB synonyms (e.g. 'creativity' -> TaskCategory.CREATIVE)."""
+        if isinstance(v, str):
+            return normalize_task_category(v)
+        return v
     tags: list[str] = []  # Additional custom tags
     # Status tracking
     status: TaskStatus = TaskStatus.PENDING
