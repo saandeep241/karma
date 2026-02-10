@@ -26,22 +26,23 @@ class TaskSuggesterAgent(BaseAgent):
     
     SYSTEM_PROMPT = """You are the Task Suggester Agent for Karma, a productivity app.
 
-Your job is to suggest a task or subtask that fits the user's available time and energy. When no task or subtask fits, signal that a QuickWin (a short activity that fits their time and energy) should be suggested instead - do not re-scope a task that doesn't fit.
+Your job is to suggest a task or subtask from the user's provided task list that best fits their available time and energy. 
 
 CRITICAL RULES:
-1. **Prefer a fit**: Suggest a task or subtask that fits within available time and energy when one exists
-2. **Do not re-scope when nothing fits**: If no task or subtask fits within the user's time and energy, do not suggest re-scoping (e.g. "do just the first part"). Instead set suggest_quickwin to true so the system will suggest a QuickWin activity that fits
-3. **Time and energy matter**: Only suggest a task/subtask if its estimated time is within available time and energy level is compatible
+1. **Prioritize User Tasks**: Your primary goal is to find the best match among the tasks the user has already created.
+2. **Prefer a fit**: Suggest a task or subtask that fits within available time and energy when one exists.
+3. **Do not re-scope when nothing fits**: If no task or subtask fits within the user's time and energy, do not suggest re-scoping (e.g. "do just the first part"). Instead set suggest_quickwin to true so the system will suggest a QuickWin activity that fits.
+4. **Time and energy matter**: Only suggest a task/subtask if its estimated time is within available time and energy level is compatible.
 
 When evaluating tasks:
-1. **Time Fit**: Task or subtask must be completable within available time
-2. **Energy Match**: Don't suggest high-energy tasks to tired users
-3. **Emotional Fit**: Match task mood to user's emotional state when possible
-4. **Past Patterns**: Learn from what worked before
+1. **Time Fit**: Task or subtask must be completable within available time.
+2. **Energy Match**: Don't suggest high-energy tasks to tired users.
+3. **Emotional Fit**: Match task mood to user's emotional state when possible.
+4. **Past Patterns**: Learn from what worked before.
 
 If no task or subtask fits within time and energy: set suggest_quickwin to true. The system will then suggest a short QuickWin activity that fits.
 
-Be thoughtful and explain your reasoning clearly."""
+Be thoughtful and explain your reasoning clearly, specifically highlighting why the chosen user task is a good match for their current context."""
 
     async def run(
         self,
@@ -126,40 +127,41 @@ LEARNING FROM PAST:
 - Recent patterns: {insights.get('recent_patterns', 'No clear patterns yet')}
 """
         
-        prompt = f"""Select the BEST task for this user right now.
+        prompt = f"""Select the BEST task from the user's list for them right now.
 
 USER CONTEXT:
 - Available Time: {context.time_available.value} minutes
 - Energy Level: {context.energy_level.value}{emotional_context}
 {learning_context}
 
-AVAILABLE TASKS:
+AVAILABLE USER TASKS:
 {task_list}
 
 SELECTION STRATEGY (in priority order):
-1. **Perfect Match**: Find a task or subtask that fits within the user's available time AND energy → suggest it directly (set task_id, suggest_quickwin: false).
-2. **Nothing fits**: If NO task or subtask fits within the user's available time and energy, do NOT re-scope. Set suggest_quickwin to true (and task_id can be null). The system will then suggest a QuickWin activity that fits their time and energy.
+1. **Perfect Match**: Find a task or subtask from the list above that fits within the user's available time AND energy → suggest it directly (set task_id, suggest_quickwin: false).
+2. **Nothing fits**: If NO task or subtask from the user's list fits within the available time and energy, set suggest_quickwin to true. The system will then suggest a QuickWin activity that fits.
 
 CRITICAL RULES:
-- Only suggest a task or subtask if its estimated time is within available time and energy is compatible
-- If no task or subtask fits within available time and energy, set suggest_quickwin to true - do not pick a task or re-scope
-- When you suggest a task, make it actionable and low-friction
-- Prefer suggesting existing subtasks that fit over creating new ones
+- Only suggest a task or subtask if its estimated time is within available time and energy is compatible.
+- Your primary focus is finding the best match from the AVAILABLE USER TASKS provided above.
+- If no task or subtask fits within available time and energy, set suggest_quickwin to true - do not pick a task or re-scope.
+- When you suggest a task, make it actionable and low-friction.
+- Prefer suggesting existing subtasks that fit over creating new ones.
 
 For tasks with subtasks (only when suggesting a task that fits):
-- If an existing subtask fits the time → suggest that subtask
-- If no subtask fits but the task has subtasks and the full task fits → you may suggest the task; otherwise use suggest_quickwin
+- If an existing subtask fits the time → suggest that subtask.
+- If no subtask fits but the task has subtasks and the full task fits → you may suggest the task; otherwise use suggest_quickwin.
 
 Return JSON:
 {{
-    "suggest_quickwin": <true if no task/subtask fits time and energy, false if suggesting a task>,
+    "suggest_quickwin": <true if no user task/subtask fits time and energy, false if suggesting a task>,
     "task_id": "<selected task ID when suggest_quickwin is false - required when suggesting a task; null when suggest_quickwin is true>",
-    "reasoning": "<2-3 sentences explaining your choice>",
+    "reasoning": "<2-3 sentences explaining your choice, specifically why this user task is the best fit>",
     "confidence": <0.0-1.0>,
     "suggest_subtask": <true/false - true if suggesting a subtask (existing or new), only when suggest_quickwin is false>,
     "subtask_instruction": "<specific instruction for the subtask if suggest_subtask is true, or null>",
     "subtask_estimated_minutes": <minutes for the subtask if suggest_subtask is true, or null>,
-    "alternatives_note": "<brief note about other good options if any>",
+    "alternatives_note": "<brief note about other good options from the user's list if any>",
     "is_rescoped": <true/false - true if you re-scoped the task into a smaller subtask>
 }}
 
