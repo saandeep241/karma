@@ -4,11 +4,9 @@ import { api } from '../api/client';
 import type { QuickWin, Task } from '../types';
 
 // Types
-type Mood = 'enthusiastic' | 'neutral' | 'tired' | 'overwhelmed' | 'low_energy';
+type Mood = 'enthusiastic' | 'neutral' | 'tired';
 type TimeAvailable = number;
 type FlowStep = 'landing' | 'suggestion' | 'proceed_choice' | 'timer' | 'breakdown_timer' | 'completed';
-
-// Confetti component removed as themed celebration icon is preferred
 
 interface FocusModeProps {
   onExit: () => void;
@@ -18,23 +16,13 @@ const MOODS: { value: Mood; label: string; emoji: string }[] = [
   { value: 'enthusiastic', label: 'Enthusiastic', emoji: '🤩' },
   { value: 'neutral', label: 'Neutral', emoji: '😐' },
   { value: 'tired', label: 'Tired', emoji: '😴' },
-  { value: 'overwhelmed', label: 'Overwhelmed', emoji: '🤯' },
-  { value: 'low_energy', label: 'Low Energy', emoji: '🔋' },
 ];
 
-/**
- * Maps UI mood values to backend EmotionalState enum values.
- * Backend expects: motivated, happy, calm, focused, creative, tired, sleepy, stressed, anxious, bored, neutral
- */
-function mapMoodToBackendEmotionalState(mood: Mood): string {
-  const moodMap: Record<Mood, string> = {
-    'enthusiastic': 'motivated',  // Enthusiastic -> motivated (energized, ready to go)
-    'neutral': 'neutral',          // Neutral -> neutral (exact match)
-    'tired': 'tired',              // Tired -> tired (exact match)
-    'overwhelmed': 'stressed',    // Overwhelmed -> stressed (feeling pressured)
-    'low_energy': 'tired',         // Low Energy -> tired (similar state)
-  };
-  return moodMap[mood];
+/** Derive backend energy_level from mood (time + energy only; no emotional_state). */
+function moodToEnergyLevel(mood: Mood): 'high' | 'medium' | 'low' {
+  if (mood === 'enthusiastic') return 'high';
+  if (mood === 'tired') return 'low';
+  return 'medium';
 }
 
 export function FocusMode({ onExit }: FocusModeProps) {
@@ -65,14 +53,11 @@ export function FocusMode({ onExit }: FocusModeProps) {
     async (overrideExcludedTaskIds?: string[]) => {
     setIsLoadingTask(true);
     try {
-      // Use the new suggestion endpoint that considers all tasks
-      const energyLevel = mood === 'enthusiastic' ? 'high' : mood === 'tired' || mood === 'low_energy' ? 'low' : 'medium';
-      const backendEmotionalState = mapMoodToBackendEmotionalState(mood);
+      const energyLevel = moodToEnergyLevel(mood);
       const effectiveExcludedTaskIds = overrideExcludedTaskIds ?? excludedTaskIds;
       const data = await api.getStoredSuggestion({
         time_available: timeAvailable,
         energy_level: energyLevel,
-        emotional_state: backendEmotionalState,
         excluded_task_ids: effectiveExcludedTaskIds,
       });
       if (data?.suggestion?.task) {
@@ -97,8 +82,7 @@ export function FocusMode({ onExit }: FocusModeProps) {
         setStep('suggestion');
       } else {
         // Fallback to quickwin if no suggestion
-        const backendEmotionalState = mapMoodToBackendEmotionalState(mood);
-        const quickwinData = await api.getQuickWin(timeAvailable, backendEmotionalState);
+        const quickwinData = await api.getQuickWin(timeAvailable);
         if (quickwinData?.quickwin) {
           setCurrentTask(quickwinData.quickwin);
           setStep('suggestion');
@@ -106,10 +90,8 @@ export function FocusMode({ onExit }: FocusModeProps) {
       }
     } catch (error) {
       console.error('Failed to fetch suggestion:', error);
-      // Fallback to quickwin on error
       try {
-        const backendEmotionalState = mapMoodToBackendEmotionalState(mood);
-        const quickwinData = await api.getQuickWin(timeAvailable, backendEmotionalState);
+        const quickwinData = await api.getQuickWin(timeAvailable);
         if (quickwinData?.quickwin) {
           setCurrentTask(quickwinData.quickwin);
           setStep('suggestion');
@@ -344,13 +326,13 @@ export function FocusMode({ onExit }: FocusModeProps) {
               </div>
             </div>
 
-            {/* Current Mood */}
+            {/* Energy / mood: 3 options map to high / medium / low */}
             <div className="mb-12 w-full px-4">
               <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest text-center mb-8">
-                CURRENT MOOD
+                HOW ARE YOU FEELING?
               </p>
-              <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 max-w-full overflow-hidden">
-                {MOODS.slice(0, 3).map((m) => (
+              <div className="grid grid-cols-3 gap-2 sm:gap-4 max-w-full overflow-hidden">
+                {MOODS.map((m) => (
                   <button
                     key={m.value}
                     onClick={() => setMood(m.value)}
@@ -382,34 +364,6 @@ export function FocusMode({ onExit }: FocusModeProps) {
                           <path d="M16 16s-1.5-2-4-2-4 2-4 2"></path>
                           <line x1="9" y1="9" x2="9.01" y2="9"></line>
                           <line x1="15" y1="9" x2="15.01" y2="9"></line>
-                        </svg>
-                      )}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              <div className="flex justify-center gap-2 sm:gap-4 flex-wrap">
-                {MOODS.slice(3).map((m) => (
-                  <button
-                    key={m.value}
-                    onClick={() => setMood(m.value)}
-                    className={`flex items-center justify-center gap-1 sm:gap-2 px-4 sm:px-8 py-2 sm:py-3 rounded-full text-xs sm:text-[14px] font-medium transition-all border flex-shrink-0 ${
-                      mood === m.value
-                        ? 'bg-white border-gray-300 text-gray-900 shadow-sm scale-[1.02]'
-                        : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'
-                    }`}
-                  >
-                    <span className="truncate">{m.label}</span>
-                    <span className={`flex-shrink-0 ${mood === m.value ? 'text-gray-900' : 'text-gray-400'}`}>
-                      {m.value === 'overwhelmed' ? (
-                        <svg width="14" height="14" className="sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polyline>
-                        </svg>
-                      ) : (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="2" y="7" width="18" height="10" rx="2" ry="2"></rect>
-                          <line x1="22" y1="11" x2="22" y2="13"></line>
-                          <line x1="6" y1="11" x2="10" y2="11"></line>
                         </svg>
                       )}
                     </span>

@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from app.models import (
     Task, TodoList, TaskSuggestion, UserContext,
     GetSuggestionRequest, SuggestFromStorageRequest,
-    TimeAvailable, EnergyLevel, EmotionalState
+    TimeAvailable, EnergyLevel
 )
 from app.auth import require_auth, AuthUser
 from app.services.session_store import session_store
@@ -131,8 +131,7 @@ async def get_suggestion_from_storage(request: SuggestFromStorageRequest, user: 
     # Create context
     context = UserContext(
         time_available=TimeAvailable(request.time_available),
-        energy_level=EnergyLevel(request.energy_level),
-        emotional_state=EmotionalState(request.emotional_state) if request.emotional_state else None
+        energy_level=EnergyLevel(request.energy_level)
     )
     
     # Create/update session
@@ -325,13 +324,11 @@ async def _generate_quickwin(request: dict = None, user_id: str = None):
         # Get context from request or use defaults
         time_available = request.get("time_available", 10) if request else 10
         energy_level = request.get("energy_level", "medium") if request else "medium"
-        mood = request.get("mood", "neutral") if request else "neutral"
         
         # Create context
         context = UserContext(
             time_available=TimeAvailable(time_available),
-            energy_level=EnergyLevel(energy_level),
-            emotional_state=EmotionalState(mood) if mood else None
+            energy_level=EnergyLevel(energy_level)
         )
         
         print("\n" + "=" * 60)
@@ -365,7 +362,7 @@ async def _generate_quickwin(request: dict = None, user_id: str = None):
 
 @router.get("/options")
 async def get_options(user: AuthUser = Depends(require_auth)):
-    """Get available options for time, energy, and emotional state."""
+    """Get available options for time and energy."""
     return {
         "time_options": [
             {"value": t.value, "label": f"{t.value} minutes"} 
@@ -374,10 +371,6 @@ async def get_options(user: AuthUser = Depends(require_auth)):
         "energy_options": [
             {"value": e.value, "label": e.value.capitalize()} 
             for e in EnergyLevel
-        ],
-        "emotional_options": [
-            {"value": e.value, "label": e.value.capitalize()} 
-            for e in EmotionalState
         ]
     }
 

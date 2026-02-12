@@ -134,6 +134,11 @@ export function TaskCard({
             <span className="text-[var(--karma-text-muted)]">
               ~{task.estimated_minutes || 15} min
             </span>
+            {task.energy_required && (
+              <span className="text-[var(--karma-text-muted)]" title="AI-estimated energy level">
+                · {task.energy_required === 'low' ? '🔋 Low energy' : task.energy_required === 'high' ? '🔥 High energy' : '⚡ Medium energy'}
+              </span>
+            )}
             {task.tags && task.tags.length > 0 && (
               <div className="flex gap-1">
                 {task.tags.slice(0, 3).map((tag) => (

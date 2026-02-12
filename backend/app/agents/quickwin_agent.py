@@ -2,7 +2,7 @@
 Quick Win Agent
 
 Specializes in generating personalized micro-tasks:
-- Context-aware suggestions based on time, energy, mood
+- Context-aware suggestions based on time and energy
 - Immediately actionable (no preparation needed)
 - Provides first step to get started
 - Tracks history to avoid repetition
@@ -38,12 +38,7 @@ Guidelines:
    - Low energy: Simple, calming tasks (stretch, drink water, tidy one thing)
    - Medium energy: Moderate effort (reply to an email, review notes, plan tomorrow)
    - High energy: Engaging tasks (start a project, creative work, exercise)
-4. Consider their mood:
-   - Stressed/Anxious: Calming, stress-reducing activities
-   - Tired/Sleepy: Energizing but not overwhelming
-   - Motivated/Focused: Productive, goal-oriented tasks
-   - Bored: Engaging, interesting activities
-5. Must be completable in the given time
+4. Must be completable in the given time
 6. No preparation needed - can start immediately
 
 VARIETY IS KEY: Each suggestion should be completely different from typical productivity advice."""
@@ -116,7 +111,7 @@ VARIETY IS KEY: Each suggestion should be completely different from typical prod
         Generate a personalized quick win based on user context, preferences, and past behavior.
         
         Args:
-            context: User's current context (time, energy, mood)
+            context: User's current context (time, energy)
             excluded_suggestions: List of suggestions to avoid
             user_id: User ID for token usage tracking and preference learning
             
@@ -128,9 +123,8 @@ VARIETY IS KEY: Each suggestion should be completely different from typical prod
         excluded = excluded_suggestions or []
         excluded.extend(self.recent_suggestions)
         
-        mood = context.emotional_state.value if context.emotional_state else "neutral"
         self.session.add_thought("observation", 
-            f"Generating quick win: {context.time_available.value}min, {context.energy_level.value} energy, {mood} mood")
+            f"Generating quick win: {context.time_available.value}min, {context.energy_level.value} energy")
         self.session.add_thought("observation", f"Avoiding {len(excluded)} previous suggestions")
         
         # Get user preferences and past behavior if user_id provided
@@ -186,20 +180,6 @@ USER PREFERENCES (inferred from task history):
             "high": "engaging, productive tasks that use their energy well"
         }
         
-        mood_guidance = {
-            "stressed": "calming, stress-reducing activities",
-            "anxious": "grounding, simple tasks that provide a sense of control",
-            "calm": "productive tasks that maintain their peaceful state",
-            "happy": "tasks that channel their positive energy",
-            "tired": "gentle, energizing activities (not demanding)",
-            "sleepy": "light movement or refreshing activities",
-            "motivated": "goal-oriented, productive tasks",
-            "focused": "deep work or meaningful progress tasks",
-            "creative": "creative expression or brainstorming",
-            "bored": "engaging, interesting activities",
-            "neutral": "balanced, productive activities"
-        }
-        
         # Get some random ideas to inspire variety
         random_category = random.choice(list(self.QUICK_WIN_IDEAS.keys()))
         example_ideas = random.sample(self.QUICK_WIN_IDEAS[random_category], min(3, len(self.QUICK_WIN_IDEAS[random_category])))
@@ -218,7 +198,6 @@ Generate something COMPLETELY DIFFERENT."""
 USER CONTEXT:
 - Available Time: {context.time_available.value} minutes
 - Energy Level: {context.energy_level.value} → Suggest {energy_guidance.get(context.energy_level.value, 'balanced tasks')}
-- Current Mood: {mood} → Suggest {mood_guidance.get(mood, 'balanced activities')}
 
 {past_behavior}
 
@@ -236,7 +215,7 @@ REQUIREMENTS:
 4. Should feel achievable and satisfying
 5. BE CREATIVE - surprise the user with something different!
 6. **Align with long-term interests**: If user preferences are available, suggest activities that align with their interests (e.g., if they have many "learning" tasks, suggest a quick learning activity)
-7. **Appropriate for mental state**: Match the suggestion to their current mood and energy level
+7. **Appropriate for energy**: Match the suggestion to their current energy level
 8. **Easy to start**: The first step should be tiny and obvious - remove all friction
 
 GOAL: Provide a suggestion that is:
@@ -296,7 +275,7 @@ JSON response:"""
                 
                 self._save_reasoning(
                     decision_type="generation",
-                    input_context=f"Context: {context.time_available.value}min, {context.energy_level.value}, {mood}",
+                    input_context=f"Context: {context.time_available.value}min, {context.energy_level.value}",
                     conclusion=f"Quick win: {result['text']}",
                     confidence=0.9
                 )

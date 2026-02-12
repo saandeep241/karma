@@ -237,7 +237,6 @@ export async function getSuggestion(): Promise<SuggestionResponse> {
 export async function getStoredSuggestion(request: {
   time_available: number;
   energy_level: string;
-  emotional_state?: string;
   excluded_task_ids?: string[];
 }): Promise<SuggestionResponse> {
   return apiFetch<SuggestionResponse>('/suggestion/from-storage', {
