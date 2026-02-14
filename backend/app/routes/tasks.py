@@ -96,6 +96,9 @@ async def add_single_task(request: AddTaskRequest, user: AuthUser = Depends(requ
         today = datetime.now().strftime("%Y-%m-%d")
         task_dict = analyzed_tasks[0].model_dump(by_alias=False)
         task_dict["date"] = today
+        # Prefer user-specified time over LLM estimate when provided
+        if request.estimated_minutes is not None:
+            task_dict["estimated_minutes"] = request.estimated_minutes
         await db_service.save_task(user.user_id, task_dict)
         
         logger.info(f"Task added successfully: {task_dict['id']}")

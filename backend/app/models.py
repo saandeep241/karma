@@ -190,7 +190,6 @@ class UserContext(BaseModel):
     """User's current context for task matching."""
     time_available: TimeAvailable
     energy_level: EnergyLevel
-    emotional_state: Optional[EmotionalState] = None
 
 
 class TaskSuggestion(BaseModel):
@@ -257,7 +256,6 @@ class SetContextRequest(BaseModel):
     session_id: str
     time_available: TimeAvailable
     energy_level: EnergyLevel
-    emotional_state: Optional[EmotionalState] = None
 
 
 class GetSuggestionRequest(BaseModel):
@@ -295,7 +293,6 @@ class SuggestFromStorageRequest(BaseModel):
     """Request to get suggestion directly from stored tasks."""
     time_available: int
     energy_level: str
-    emotional_state: Optional[str] = None
     excluded_task_ids: list[str] = []
 
 
@@ -338,6 +335,7 @@ class AddTaskRequest(BaseModel):
     """Request to add a new task."""
     text: str
     category: Optional[str] = None
+    estimated_minutes: Optional[int] = None  # User's choice; overrides LLM estimate when provided
 
 
 # ============================================================================

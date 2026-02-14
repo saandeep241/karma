@@ -3,7 +3,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 
 from app.models import (
-    SetContextRequest, UserContext, TimeAvailable, EnergyLevel, EmotionalState
+    SetContextRequest, UserContext, TimeAvailable, EnergyLevel
 )
 from app.auth import require_auth, AuthUser
 from app.services.session_store import session_store
@@ -28,8 +28,7 @@ async def set_user_context(request: SetContextRequest, user: AuthUser = Depends(
     
     context = UserContext(
         time_available=request.time_available,
-        energy_level=request.energy_level,
-        emotional_state=request.emotional_state
+        energy_level=request.energy_level
     )
     
     session.context = context
@@ -39,8 +38,7 @@ async def set_user_context(request: SetContextRequest, user: AuthUser = Depends(
         "message": "Context set successfully",
         "context": {
             "time_available": context.time_available.value,
-            "energy_level": context.energy_level.value,
-            "emotional_state": context.emotional_state.value if context.emotional_state else None
+            "energy_level": context.energy_level.value
         }
     }
 

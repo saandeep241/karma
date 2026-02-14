@@ -36,8 +36,7 @@ CRITICAL RULES:
 When evaluating tasks:
 1. **Time Fit**: Task or subtask must be completable within available time
 2. **Energy Match**: Don't suggest high-energy tasks to tired users
-3. **Emotional Fit**: Match task mood to user's emotional state when possible
-4. **Past Patterns**: Learn from what worked before
+3. **Past Patterns**: Learn from what worked before
 
 If no task or subtask fits within time and energy: set suggest_quickwin to true. The system will then suggest a short QuickWin activity that fits.
 
@@ -55,7 +54,7 @@ Be thoughtful and explain your reasoning clearly."""
         
         Args:
             tasks: Available tasks to choose from
-            context: User's current context (time, energy, mood)
+            context: User's current context (time, energy)
             excluded_task_ids: Task IDs to exclude (already suggested/rejected)
             user_id: User ID for token usage tracking
             
@@ -114,8 +113,6 @@ Be thoughtful and explain your reasoning clearly."""
         
         task_list = "\n".join(task_list_parts)
         
-        emotional_context = f", Mood: {context.emotional_state.value}" if context.emotional_state else ""
-        
         # Include learning insights
         learning_context = ""
         if insights.get("total_feedback", 0) > 0:
@@ -130,7 +127,7 @@ LEARNING FROM PAST:
 
 USER CONTEXT:
 - Available Time: {context.time_available.value} minutes
-- Energy Level: {context.energy_level.value}{emotional_context}
+- Energy Level: {context.energy_level.value}
 {learning_context}
 
 AVAILABLE TASKS:

@@ -26,6 +26,9 @@ export interface Subtask {
   progress?: number; // 0-100 percentage
 }
 
+// Energy level estimated by AI for a task (low | medium | high)
+export type EnergyLevel = 'low' | 'medium' | 'high';
+
 // Task Model
 export interface Task {
   id: string;
@@ -43,6 +46,8 @@ export interface Task {
   subtasks_generated: boolean;
   is_dummy: boolean;
   agent_reasoning?: string;
+  /** AI-estimated energy level required for this task */
+  energy_required?: EnergyLevel;
 }
 
 // Task Enrichment from AI research

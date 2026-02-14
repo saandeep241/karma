@@ -423,7 +423,7 @@ class FeedbackRepository:
             accepted=accepted,
             context_time_available=context.get("time_available"),
             context_energy_level=context.get("energy_level"),
-            context_mood=context.get("mood"),
+            context_mood=context.get("emotional_state") or context.get("mood"),
             reasoning_used=reasoning_used,
         )
         

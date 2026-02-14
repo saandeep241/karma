@@ -4,11 +4,9 @@ import { api } from '../api/client';
 import type { QuickWin, Task } from '../types';
 
 // Types
-type Mood = 'enthusiastic' | 'neutral' | 'tired' | 'overwhelmed' | 'low_energy';
+type Mood = 'enthusiastic' | 'neutral' | 'tired';
 type TimeAvailable = number;
 type FlowStep = 'landing' | 'suggestion' | 'proceed_choice' | 'timer' | 'breakdown_timer' | 'completed';
-
-// Confetti component removed as themed celebration icon is preferred
 
 interface FocusModeProps {
   onExit: () => void;
@@ -18,23 +16,13 @@ const MOODS: { value: Mood; label: string; emoji: string }[] = [
   { value: 'enthusiastic', label: 'Enthusiastic', emoji: '🤩' },
   { value: 'neutral', label: 'Neutral', emoji: '😐' },
   { value: 'tired', label: 'Tired', emoji: '😴' },
-  { value: 'overwhelmed', label: 'Overwhelmed', emoji: '🤯' },
-  { value: 'low_energy', label: 'Low Energy', emoji: '🔋' },
 ];
 
-/**
- * Maps UI mood values to backend EmotionalState enum values.
- * Backend expects: motivated, happy, calm, focused, creative, tired, sleepy, stressed, anxious, bored, neutral
- */
-function mapMoodToBackendEmotionalState(mood: Mood): string {
-  const moodMap: Record<Mood, string> = {
-    'enthusiastic': 'motivated',  // Enthusiastic -> motivated (energized, ready to go)
-    'neutral': 'neutral',          // Neutral -> neutral (exact match)
-    'tired': 'tired',              // Tired -> tired (exact match)
-    'overwhelmed': 'stressed',    // Overwhelmed -> stressed (feeling pressured)
-    'low_energy': 'tired',         // Low Energy -> tired (similar state)
-  };
-  return moodMap[mood];
+/** Derive backend energy_level from mood (time + energy only; no emotional_state). */
+function moodToEnergyLevel(mood: Mood): 'high' | 'medium' | 'low' {
+  if (mood === 'enthusiastic') return 'high';
+  if (mood === 'tired') return 'low';
+  return 'medium';
 }
 
 export function FocusMode({ onExit }: FocusModeProps) {
@@ -59,19 +47,18 @@ export function FocusMode({ onExit }: FocusModeProps) {
   
   // Track suggested and completed task IDs to avoid suggesting them again
   const [excludedTaskIds, setExcludedTaskIds] = useState<string[]>([]);
-
+ 
   // Fetch a task suggestion
-  const fetchSuggestion = useCallback(async () => {
+  const fetchSuggestion = useCallback(
+    async (overrideExcludedTaskIds?: string[]) => {
     setIsLoadingTask(true);
     try {
-      // Use the new suggestion endpoint that considers all tasks
-      const energyLevel = mood === 'enthusiastic' ? 'high' : mood === 'tired' || mood === 'low_energy' ? 'low' : 'medium';
-      const backendEmotionalState = mapMoodToBackendEmotionalState(mood);
+      const energyLevel = moodToEnergyLevel(mood);
+      const effectiveExcludedTaskIds = overrideExcludedTaskIds ?? excludedTaskIds;
       const data = await api.getStoredSuggestion({
         time_available: timeAvailable,
         energy_level: energyLevel,
-        emotional_state: backendEmotionalState,
-        excluded_task_ids: excludedTaskIds,
+        excluded_task_ids: effectiveExcludedTaskIds,
       });
       if (data?.suggestion?.task) {
         // Convert suggestion to QuickWin format for compatibility
@@ -79,9 +66,9 @@ export function FocusMode({ onExit }: FocusModeProps) {
         const isQuickWin = data.suggestion.is_generic_quickwin === true;
         // When backend returns a QuickWin (nothing fit time/energy), task has a one-off id; treat as new so "Let's go" creates via completeQuickWin
         const taskId = isQuickWin ? '' : (task.id || '');
-
+ 
         // Only add to excluded list if it's a real task from the list (not a QuickWin)
-        if (taskId && !excludedTaskIds.includes(taskId)) {
+        if (taskId && !effectiveExcludedTaskIds.includes(taskId)) {
           setExcludedTaskIds(prev => [...prev, taskId]);
         }
 
@@ -95,8 +82,7 @@ export function FocusMode({ onExit }: FocusModeProps) {
         setStep('suggestion');
       } else {
         // Fallback to quickwin if no suggestion
-        const backendEmotionalState = mapMoodToBackendEmotionalState(mood);
-        const quickwinData = await api.getQuickWin(timeAvailable, backendEmotionalState);
+        const quickwinData = await api.getQuickWin(timeAvailable);
         if (quickwinData?.quickwin) {
           setCurrentTask(quickwinData.quickwin);
           setStep('suggestion');
@@ -104,10 +90,8 @@ export function FocusMode({ onExit }: FocusModeProps) {
       }
     } catch (error) {
       console.error('Failed to fetch suggestion:', error);
-      // Fallback to quickwin on error
       try {
-        const backendEmotionalState = mapMoodToBackendEmotionalState(mood);
-        const quickwinData = await api.getQuickWin(timeAvailable, backendEmotionalState);
+        const quickwinData = await api.getQuickWin(timeAvailable);
         if (quickwinData?.quickwin) {
           setCurrentTask(quickwinData.quickwin);
           setStep('suggestion');
@@ -118,7 +102,9 @@ export function FocusMode({ onExit }: FocusModeProps) {
     } finally {
       setIsLoadingTask(false);
     }
-  }, [timeAvailable, mood, excludedTaskIds]);
+  },
+  [timeAvailable, mood, excludedTaskIds]
+  );
 
   // Add task mutation
   const addTaskMutation = useMutation({
@@ -227,14 +213,20 @@ export function FocusMode({ onExit }: FocusModeProps) {
     }
   };
 
-  // Handle skip - go back to landing to select new mood/time
-  const handleSkip = () => {
+  // Handle skip - fetch another suggestion using the same context
+  const handleSkip = async () => {
+    if (!currentTask) return;
+
     // Add skipped task to excluded list so it won't be suggested again immediately
-    if (currentTask?.id && !excludedTaskIds.includes(currentTask.id)) {
-      setExcludedTaskIds(prev => [...prev, currentTask.id]);
+    let nextExcludedIds = excludedTaskIds;
+    if (currentTask.id && !excludedTaskIds.includes(currentTask.id)) {
+      nextExcludedIds = [...excludedTaskIds, currentTask.id];
+      setExcludedTaskIds(nextExcludedIds);
     }
+
     setCurrentTask(null);
-    setStep('landing');
+    // Immediately fetch another suggestion using the same time/mood context
+    await fetchSuggestion(nextExcludedIds);
   };
 
   // Handle "Let's go (Direct)" - start timer immediately
@@ -334,13 +326,13 @@ export function FocusMode({ onExit }: FocusModeProps) {
               </div>
             </div>
 
-            {/* Current Mood */}
+            {/* Energy / mood: 3 options map to high / medium / low */}
             <div className="mb-12 w-full px-4">
               <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest text-center mb-8">
-                CURRENT MOOD
+                HOW ARE YOU FEELING?
               </p>
-              <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4 max-w-full overflow-hidden">
-                {MOODS.slice(0, 3).map((m) => (
+              <div className="grid grid-cols-3 gap-2 sm:gap-4 max-w-full overflow-hidden">
+                {MOODS.map((m) => (
                   <button
                     key={m.value}
                     onClick={() => setMood(m.value)}
@@ -378,39 +370,11 @@ export function FocusMode({ onExit }: FocusModeProps) {
                   </button>
                 ))}
               </div>
-              <div className="flex justify-center gap-2 sm:gap-4 flex-wrap">
-                {MOODS.slice(3).map((m) => (
-                  <button
-                    key={m.value}
-                    onClick={() => setMood(m.value)}
-                    className={`flex items-center justify-center gap-1 sm:gap-2 px-4 sm:px-8 py-2 sm:py-3 rounded-full text-xs sm:text-[14px] font-medium transition-all border flex-shrink-0 ${
-                      mood === m.value
-                        ? 'bg-white border-gray-300 text-gray-900 shadow-sm scale-[1.02]'
-                        : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'
-                    }`}
-                  >
-                    <span className="truncate">{m.label}</span>
-                    <span className={`flex-shrink-0 ${mood === m.value ? 'text-gray-900' : 'text-gray-400'}`}>
-                      {m.value === 'overwhelmed' ? (
-                        <svg width="14" height="14" className="sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polyline>
-                        </svg>
-                      ) : (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="2" y="7" width="18" height="10" rx="2" ry="2"></rect>
-                          <line x1="22" y1="11" x2="22" y2="13"></line>
-                          <line x1="6" y1="11" x2="10" y2="11"></line>
-                        </svg>
-                      )}
-                    </span>
-                  </button>
-                ))}
-              </div>
             </div>
 
             {/* Start Button */}
             <button
-              onClick={fetchSuggestion}
+              onClick={() => fetchSuggestion()}
               disabled={isLoadingTask}
               className="w-full py-5 bg-[#0066cc] hover:bg-[#0052a3] text-white font-bold rounded-full transition-all disabled:opacity-50 text-[17px] shadow-lg shadow-blue-100"
             >
@@ -425,6 +389,16 @@ export function FocusMode({ onExit }: FocusModeProps) {
         );
 
       case 'suggestion':
+        if (!currentTask && isLoadingTask) {
+          return (
+            <div className="w-full max-w-lg flex flex-col items-center justify-center min-h-[280px] animate-card-entrance">
+              <div className="flex items-center justify-center gap-3 text-gray-500 text-[18px]">
+                <span className="spinner" style={{ width: '1.2rem', height: '1.2rem', borderWidth: '2px' }} />
+                Fetching a new task...
+              </div>
+            </div>
+          );
+        }
         if (!currentTask) return null;
         return (
           <div className="w-full max-w-lg flex flex-col items-center animate-card-entrance">
@@ -445,7 +419,8 @@ export function FocusMode({ onExit }: FocusModeProps) {
             <div className="flex gap-4 w-full px-4">
               <button
                 onClick={handleSkip}
-                className="flex-1 py-4 px-6 border border-gray-100 hover:border-gray-200 text-gray-500 font-bold rounded-full transition-all text-[15px] flex items-center justify-center gap-2"
+                disabled={isLoadingTask}
+                className="flex-1 py-4 px-6 border border-gray-100 hover:border-gray-200 text-gray-500 font-bold rounded-full transition-all text-[15px] flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 <span>↻</span> Skip
               </button>

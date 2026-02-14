@@ -12,7 +12,7 @@ from typing import Optional
 
 from app.models import (
     Task, TaskSuggestion, TaskBreakdown, UserContext,
-    EnergyLevel, EmotionalState, GENERIC_QUICKWIN_TASKS
+    EnergyLevel, GENERIC_QUICKWIN_TASKS
 )
 from app.services.tools import (
     save_tasks, save_reasoning, record_user_feedback,
@@ -149,8 +149,7 @@ class KarmaOrchestrator:
             "operation": "suggest_task",
             "context": {
                 "time": context.time_available.value,
-                "energy": context.energy_level.value,
-                "mood": context.emotional_state.value if context.emotional_state else None
+                "energy": context.energy_level.value
             },
             "agents_used": ["TaskSuggester"]
         }
@@ -237,7 +236,7 @@ class KarmaOrchestrator:
         Returns:
             Quick win dictionary
         """
-        print(f"\n🎯 Orchestrator: Generating quick win for {context.energy_level.value} energy, {context.emotional_state.value if context.emotional_state else 'neutral'} mood...")
+        print(f"\n🎯 Orchestrator: Generating quick win for {context.energy_level.value} energy...")
         
         try:
             quickwin = await self.quickwin.run(context, user_id=user_id)
@@ -297,8 +296,7 @@ class KarmaOrchestrator:
             task_id=task.id,
             user_context={
                 "time_available": context.time_available.value,
-                "energy_level": context.energy_level.value,
-                "emotional_state": context.emotional_state.value if context.emotional_state else None
+                "energy_level": context.energy_level.value
             },
             reasoning_used=reasoning
         )
