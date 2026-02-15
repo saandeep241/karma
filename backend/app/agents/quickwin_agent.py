@@ -187,7 +187,7 @@ USER PREFERENCES (inferred from task history):
         if excluded:
             exclusion_text = f"""
 DO NOT suggest any of these (already suggested):
-{chr(10).join(f'- {s}' for s in excluded[-5:])}
+{chr(10).join(f'- {s}' for s in excluded[-10:])}
 
 Generate something COMPLETELY DIFFERENT."""
         
@@ -231,7 +231,7 @@ JSON response:"""
             self.model = self.QUICKWIN_MODEL
             response = await self._simple_completion(
                 prompt, 
-                temperature=0.4, 
+                temperature=0.6, 
                 max_tokens=400,
                 user_id=user_id,
                 operation_type="quickwin"
