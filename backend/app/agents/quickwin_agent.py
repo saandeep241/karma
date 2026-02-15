@@ -228,7 +228,7 @@ JSON response:"""
         try:
             response = await self._simple_completion(
                 prompt, 
-                temperature=0.7, 
+                temperature=0.4, 
                 max_tokens=400,
                 user_id=user_id,
                 operation_type="quickwin"
