@@ -103,8 +103,10 @@ async def get_suggestion_from_storage(request: SuggestFromStorageRequest, user: 
     
     if not all_tasks:
         # No tasks - use QuickWin agent
+        valid_times_early = sorted([t.value for t in TimeAvailable])
+        snapped_time_early = min(valid_times_early, key=lambda v: abs(v - request.time_available))
         context = UserContext(
-            time_available=TimeAvailable(request.time_available),
+            time_available=TimeAvailable(snapped_time_early),
             energy_level=EnergyLevel(request.energy_level)
         )
         quickwin = await karma_orchestrator.generate_quickwin(context, user_id=user.user_id)
@@ -128,9 +130,13 @@ async def get_suggestion_from_storage(request: SuggestFromStorageRequest, user: 
             "message": "No pending tasks. Here's a quick activity!"
         }
     
+    # Snap the requested time to the nearest valid TimeAvailable value
+    valid_times = sorted([t.value for t in TimeAvailable])
+    snapped_time = min(valid_times, key=lambda v: abs(v - request.time_available))
+    
     # Create context
     context = UserContext(
-        time_available=TimeAvailable(request.time_available),
+        time_available=TimeAvailable(snapped_time),
         energy_level=EnergyLevel(request.energy_level)
     )
     
@@ -325,9 +331,13 @@ async def _generate_quickwin(request: dict = None, user_id: str = None):
         time_available = request.get("time_available", 10) if request else 10
         energy_level = request.get("energy_level", "medium") if request else "medium"
         
+        # Snap to nearest valid time
+        valid_times_qw = sorted([t.value for t in TimeAvailable])
+        snapped_time_qw = min(valid_times_qw, key=lambda v: abs(v - time_available))
+        
         # Create context
         context = UserContext(
-            time_available=TimeAvailable(time_available),
+            time_available=TimeAvailable(snapped_time_qw),
             energy_level=EnergyLevel(energy_level)
         )
         

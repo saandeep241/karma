@@ -139,7 +139,7 @@ GOOD: "Read one pre-saved article without switching tabs." (Zero-decision, resto
         
         task_list = "\n".join(task_list_parts)
         
-        emotional_context = f", Mood: {context.emotional_state.value}" if context.emotional_state else ""
+        emotional_context = f", Mood: {context.emotional_state.value}" if hasattr(context, 'emotional_state') and context.emotional_state else ""
         
         # Include learning insights
         learning_context = ""

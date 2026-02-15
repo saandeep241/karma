@@ -205,7 +205,7 @@ DO NOT suggest any of these (already suggested):
 
 Generate something COMPLETELY DIFFERENT."""
         
-        emotional_context = f", Mood: {context.emotional_state.value}" if context.emotional_state else ""
+        emotional_context = f", Mood: {context.emotional_state.value}" if hasattr(context, 'emotional_state') and context.emotional_state else ""
         
         prompt = f"""Generate ONE specific, actionable micro-task for this user.
 
