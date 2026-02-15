@@ -18,6 +18,19 @@ from .base_agent import BaseAgent
 
 logger = get_logger("TaskSuggester")
 
+MAX_TIME_GAP = 2
+
+
+def _is_eligible(task_minutes: int, available_minutes: int, task_energy: str, user_energy: str) -> bool:
+    """Check if a task/subtask passes the hard eligibility rules."""
+    if task_minutes > available_minutes:
+        return False
+    if (available_minutes - task_minutes) > MAX_TIME_GAP:
+        return False
+    if task_energy != user_energy:
+        return False
+    return True
+
 
 class TaskSuggesterAgent(BaseAgent):
     """Agent that suggests the best task for the user's context."""
@@ -25,46 +38,31 @@ class TaskSuggesterAgent(BaseAgent):
     AGENT_NAME = "TaskSuggester"
     
     SYSTEM_PROMPT = """IDENTITY & CORE RULES (Initialization)
-You are the Task Suggester Agent for Karma, a productivity app. Your job is to suggest a task or subtask that best fits the user's available time and energy.
+You are the Task Suggester Agent for Karma, a productivity app. Your job is to select a task or subtask from the ELIGIBLE list provided to you.
 
 CRITICAL CONSTRAINT: Any suggested task or subtask text must be UNDER 20 WORDS.
 
+HARD CONSTRAINTS (non-negotiable, already enforced by pre-filter):
+1. Exact energy match: task energy_required MUST equal user energy (low==low, medium==medium, high==high).
+2. Time fit: estimated_minutes <= available_minutes.
+3. Time-tightness: (available_minutes - estimated_minutes) <= 2. If gap > 2, task is ineligible.
+4. If no eligible task/subtask exists, set suggest_quickwin=true, task_id=null. Do NOT rescope.
+
 STYLE GUIDELINES:
-- Direct & Disciplined: Use a direct tone. Avoid artificial creativity, sentimental framing, or lifestyle-fluff language.
-- Immediately Executable: Tasks must be self-contained and finite. They must not assume prior artifacts, checklists, or documents.
-- No Dependencies: Do not generate tasks that require searching, brainstorming, or abstract ideation.
-- Bounded Outputs: Scope tasks by numbers (e.g., "3 items," "5 bullets") rather than ambiguity.
-- Match Activation: Match the task strictly to the activation level of the mood.
+- Direct & Disciplined: Use a direct tone. No sentimental framing or lifestyle-fluff.
+- Immediately Executable: Tasks must be self-contained and finite.
+- Bounded Outputs: Scope by numbers (e.g., "3 items") rather than ambiguity.
 
-When evaluating tasks:
-1. Time Fit: Task must be completable within available time.
-2. Energy Match: Don't suggest high-energy tasks to tired users.
-3. Prioritize User Tasks: Your primary goal is to find the best match among the tasks the user has already created.
+SELECTION LOGIC:
+- You will ONLY receive tasks that already pass all hard constraints.
+- Pick the single best match from the eligible list.
+- If the eligible list is empty, set suggest_quickwin=true.
 
-TASK SELECTION LOGIC:
-Select the BEST task from the user's list for them right now.
-
-SELECTION STRATEGY (in priority order):
-1. Perfect Match: Find a task or subtask from the list that fits within the user's available time AND energy → suggest it directly (set task_id, suggest_quickwin: false).
-2. Nothing fits: If NO task or subtask from the user's list fits within the available time and energy, set suggest_quickwin to true. The system will then suggest a QuickWin activity that fits.
-
-CRITICAL RULES:
-- If no task or subtask fits within available time and energy, set suggest_quickwin to true - do not pick a task or re-scope.
-- Prefer suggesting existing subtasks that fit over creating new ones.
-- Word Count: Ensure the final output text for the task is under 20 words.
-
-FEW-SHOT EXAMPLES & GUIDANCE:
-Context: Mood: Neutral | Time: Short
-BAD: "Spend 10 minutes brainstorming video ideas focusing on fun concepts." (Abstract, brainstorming-heavy).
-GOOD: "Extract three actionable insights from one page of any book." (Self-contained, bounded, calm).
-
-Context: Mood: Enthusiastic | Time: Short
-BAD: "Select an item and write a playful letter to a friend describing its origins." (Artificial, sentimental).
-GOOD: "Outline one sharp insight to share publicly; structure into 3–5 bullets." (Action-oriented, strategic).
-
-Context: Mood: Tired | Time: Short
-BAD: "Create a themed playlist called 'Cozy Reading' with 5-7 songs." (Decision-heavy, requires searching).
-GOOD: "Read one pre-saved article without switching tabs." (Zero-decision, restorative)."""
+FEW-SHOT EXAMPLES:
+available=10, energy=medium, task energy=low → INELIGIBLE (energy mismatch).
+available=10, energy=medium, task energy=medium, est=7min (gap=3) → INELIGIBLE (gap > 2).
+available=10, energy=medium, task energy=medium, est=9min (gap=1) → ELIGIBLE, pick it.
+available=5, energy=low, task energy=low, est=5min (gap=0) → ELIGIBLE, pick it."""
 
     async def run(
         self,
@@ -75,191 +73,209 @@ GOOD: "Read one pre-saved article without switching tabs." (Zero-decision, resto
     ) -> Optional[TaskSuggestion]:
         """
         Suggest the best task for the user's context.
-        
-        Args:
-            tasks: Available tasks to choose from
-            context: User's current context (time, energy)
-            excluded_task_ids: Task IDs to exclude (already suggested/rejected)
-            user_id: User ID for token usage tracking
-            
-        Returns:
-            TaskSuggestion with the recommended task and reasoning
         """
         self._start_session()
         excluded_task_ids = excluded_task_ids or []
+        available_minutes = context.time_available.value
+        user_energy = context.energy_level.value
         
-        # Filter available tasks (excluded = previously suggested / skipped / completed in this flow)
         available_tasks = [t for t in tasks if t.id not in excluded_task_ids]
         
-        # CRITICAL: Never return None - always provide a suggestion
-        # If no tasks available, we'll still suggest something via QuickWin in the route handler
         if not available_tasks:
             if self.session:
                 self.session.add_thought(
                     "observation",
-                    f"No tasks available after filtering (excluded {len(excluded_task_ids)} IDs: previously suggested/skipped/completed)"
+                    f"No tasks available after filtering (excluded {len(excluded_task_ids)} IDs)"
                 )
-            # Return None here, but route will handle it with QuickWin
             return None
         
         if self.session:
-            self.session.add_thought("observation", 
-                f"Selecting from {len(available_tasks)} tasks for {context.time_available.value}min, {context.energy_level.value} energy")
-        
-        # Check if in dummy mode
-        if self._is_dummy_mode():
-            return self._dummy_suggest(available_tasks, context)
-        
-        # Get learning insights
-        insights = get_learning_insights()
-        
-        # Build task list for AI with subtask information
-        task_list_parts = []
+            self.session.add_thought("observation",
+                f"Pre-filter: {len(available_tasks)} tasks, {available_minutes}min, {user_energy} energy, max gap={MAX_TIME_GAP}")
+
+        eligible_tasks = []
+        eligible_subtasks = []
+
         for t in available_tasks:
-            task_info = f"- ID: {t.id}\n  Task: \"{t.text}\"\n  Est: {t.estimated_minutes}min, Energy: {t.energy_required.value if t.energy_required else 'unknown'}, Category: {t.category.value if t.category else 'unknown'}"
-            
-            # Add subtask information if available
+            t_energy = t.energy_required.value if t.energy_required else "unknown"
+            t_minutes = t.estimated_minutes or 15
+
+            if _is_eligible(t_minutes, available_minutes, t_energy, user_energy):
+                eligible_tasks.append(t)
+
             if t.subtasks:
-                pending_subtasks = [s for s in t.subtasks if s.status.value in ["pending", "in_progress"]]
-                completed_count = len([s for s in t.subtasks if s.status.value == "completed"])
-                
-                if pending_subtasks:
-                    task_info += f"\n  Has {len(pending_subtasks)} pending subtasks ({completed_count}/{len(t.subtasks)} completed)"
-                    # List pending subtasks with their time estimates
-                    for st in pending_subtasks[:3]:  # Show first 3 pending subtasks
-                        task_info += f"\n    - Subtask: \"{st.instruction}\" ({st.estimated_minutes}min, status: {st.status.value})"
-                    if len(pending_subtasks) > 3:
-                        task_info += f"\n    ... and {len(pending_subtasks) - 3} more pending subtasks"
-                else:
-                    task_info += f"\n  Has {len(t.subtasks)} subtasks (all completed)"
-            elif t.subtasks_generated:
-                task_info += "\n  Subtasks were generated but none are pending"
-            
+                for st in t.subtasks:
+                    if st.status.value not in ("pending", "in_progress"):
+                        continue
+                    st_minutes = st.estimated_minutes or t_minutes
+                    if _is_eligible(st_minutes, available_minutes, t_energy, user_energy):
+                        eligible_subtasks.append((t, st))
+
+        if self.session:
+            self.session.add_thought("observation",
+                f"Eligible: {len(eligible_tasks)} tasks, {len(eligible_subtasks)} subtasks")
+
+        if not eligible_tasks and not eligible_subtasks:
+            if self.session:
+                self.session.add_thought("conclusion",
+                    "No task/subtask passes hard constraints → QuickWin")
+            logger.info(
+                "TaskSuggester: no eligible tasks (available=%dmin, energy=%s, gap<=%d). Routing to QuickWin.",
+                available_minutes, user_energy, MAX_TIME_GAP,
+            )
+            return None
+
+        if self._is_dummy_mode():
+            return self._dummy_suggest_from_eligible(eligible_tasks, eligible_subtasks, context)
+
+        task_list_parts = []
+        for t in eligible_tasks:
+            task_info = f"- ID: {t.id}\n  Task: \"{t.text}\"\n  Est: {t.estimated_minutes}min, Energy: {t.energy_required.value if t.energy_required else 'unknown'}, Category: {t.category.value if t.category else 'unknown'}"
             task_list_parts.append(task_info)
-        
+
+        for t, st in eligible_subtasks:
+            task_info = f"- Parent ID: {t.id}\n  Parent Task: \"{t.text}\"\n  Subtask: \"{st.instruction}\"\n  Subtask Est: {st.estimated_minutes}min, Energy: {t.energy_required.value if t.energy_required else 'unknown'}"
+            task_list_parts.append(task_info)
+
         task_list = "\n".join(task_list_parts)
-        
+
         emotional_context = f", Mood: {context.emotional_state.value}" if hasattr(context, 'emotional_state') and context.emotional_state else ""
-        
-        # Include learning insights
+
+        insights = get_learning_insights()
         learning_context = ""
         if insights.get("total_feedback", 0) > 0:
             learning_context = f"""
 LEARNING FROM PAST:
-- Total feedback received: {insights.get('total_feedback', 0)}
 - Acceptance rate: {insights.get('acceptance_rate', 0):.0%}
 - Recent patterns: {insights.get('recent_patterns', 'No clear patterns yet')}
 """
-        
-        prompt = f"""Select the BEST task from the user's list for them right now.
+
+        prompt = f"""Pick the single best task from this ELIGIBLE list.
 
 USER CONTEXT:
-- Available Time: {context.time_available.value} minutes
-- Energy Level: {context.energy_level.value}{emotional_context}
+- Available Time: {available_minutes} minutes
+- Energy Level: {user_energy}{emotional_context}
 {learning_context}
 
-AVAILABLE USER TASKS:
+ELIGIBLE TASKS (all pass hard constraints):
 {task_list}
 
-Return JSON:
+Pick one. Return JSON:
 {{
-    "suggest_quickwin": <true if no user task/subtask fits time and energy, false if suggesting a task>,
-    "task_id": "<selected task ID when suggest_quickwin is false; null when true>",
-    "reasoning": "<1 sentence explaining why this task fits the context directly>",
+    "suggest_quickwin": false,
+    "task_id": "<selected task ID>",
+    "reasoning": "<1 sentence>",
     "confidence": <0.0-1.0>,
-    "suggest_subtask": <true/false - true if suggesting a subtask>,
-    "subtask_instruction": "<specific instruction under 20 words if suggest_subtask is true>",
-    "subtask_estimated_minutes": <minutes for the subtask if suggest_subtask is true>,
-    "is_rescoped": <false>
+    "suggest_subtask": <true if picking a subtask>,
+    "subtask_instruction": "<subtask instruction if suggest_subtask, else null>",
+    "subtask_estimated_minutes": <subtask minutes if suggest_subtask, else null>,
+    "is_rescoped": false
 }}
 
 JSON response:"""
 
-        # Log LLM request context for debugging (why a task was or wasn't picked)
         logger.info(
-            "TaskSuggester LLM request: time_available=%s min, energy=%s. Tasks sent to LLM:\n%s",
-            context.time_available.value,
-            context.energy_level.value,
-            task_list,
+            "TaskSuggester LLM request: time_available=%s min, energy=%s. Eligible tasks sent to LLM:\n%s",
+            available_minutes, user_energy, task_list,
         )
         logger.debug("TaskSuggester full LLM prompt:\n%s", prompt)
 
         try:
             response = await self._simple_completion(
-                prompt, 
-                temperature=0.5, 
+                prompt,
+                temperature=0.0,
                 max_tokens=400,
                 user_id=user_id,
                 operation_type="suggest"
             )
-            
+
             json_start = response.find('{')
             json_end = response.rfind('}') + 1
-            
+
             if json_start >= 0 and json_end > json_start:
                 result = json.loads(response[json_start:json_end])
-                
-                # If AI determined nothing fits time/energy, signal QuickWin (return None)
+
                 if result.get("suggest_quickwin") is True:
                     logger.info(
                         "TaskSuggester LLM response (suggest_quickwin=true): %s",
                         json.dumps(result, indent=2),
                     )
                     if self.session:
-                        self.session.add_thought(
-                            "conclusion",
-                            "No task fits time/energy; suggesting QuickWin instead"
-                        )
+                        self.session.add_thought("conclusion",
+                            "LLM returned suggest_quickwin=true despite eligible list")
                     return None
-                
-                # Find the selected task
+
+                eligible_ids = set(t.id for t in eligible_tasks)
+                eligible_ids.update(t.id for t, _ in eligible_subtasks)
+
+                selected_task_id = result.get("task_id")
+                if selected_task_id not in eligible_ids:
+                    logger.warning(
+                        "TaskSuggester LLM returned non-eligible task_id=%s. Routing to QuickWin.",
+                        selected_task_id,
+                    )
+                    if self.session:
+                        self.session.add_thought("conclusion",
+                            f"LLM selected ineligible task {selected_task_id} → QuickWin")
+                    return None
+
                 selected_task = next(
-                    (t for t in available_tasks if t.id == result.get("task_id")),
+                    (t for t in available_tasks if t.id == selected_task_id),
                     None
                 )
-                
+
                 if selected_task:
                     suggest_subtask = result.get("suggest_subtask", False)
                     subtask_instruction = result.get("subtask_instruction")
                     subtask_minutes = result.get("subtask_estimated_minutes")
-                    
-                    # If suggesting a subtask, find the matching existing subtask or create info for new one
+
                     suggested_subtask = None
                     if suggest_subtask and subtask_instruction:
-                        # Check if this matches an existing pending subtask
-                        pending_subtasks = [s for s in selected_task.subtasks if s.status.value in ["pending", "in_progress"]]
+                        eligible_subtask_map = {
+                            st.instruction: st for _, st in eligible_subtasks
+                            if _.id == selected_task.id
+                        }
+                        pending_subtasks = [s for s in selected_task.subtasks if s.status.value in ("pending", "in_progress")]
                         matching_subtask = next(
-                            (s for s in pending_subtasks if subtask_instruction.lower() in s.instruction.lower() or s.instruction.lower() in subtask_instruction.lower()),
+                            (s for s in pending_subtasks
+                             if s.instruction in eligible_subtask_map
+                             and (subtask_instruction.lower() in s.instruction.lower()
+                                  or s.instruction.lower() in subtask_instruction.lower())),
                             None
                         )
-                        
                         if matching_subtask:
                             suggested_subtask = matching_subtask
-                        else:
-                            # Create a new subtask suggestion (will be created when user accepts)
+                        elif subtask_minutes and _is_eligible(subtask_minutes, available_minutes, selected_task.energy_required.value if selected_task.energy_required else user_energy, user_energy):
                             suggested_subtask = Subtask(
                                 step_number=len(selected_task.subtasks) + 1,
                                 instruction=subtask_instruction,
-                                estimated_minutes=subtask_minutes or min(context.time_available.value, 10),
+                                estimated_minutes=subtask_minutes,
                                 status=SubtaskStatus.PENDING
                             )
-                    
+                        else:
+                            logger.warning(
+                                "TaskSuggester LLM subtask fails constraints (est=%s, avail=%s). Ignoring subtask.",
+                                subtask_minutes, available_minutes,
+                            )
+                            suggest_subtask = False
+                            subtask_instruction = None
+                            subtask_minutes = None
+
                     conclusion_text = f"Suggested: {selected_task.text}"
                     if suggest_subtask and subtask_instruction:
                         conclusion_text += f" - Subtask: {subtask_instruction}"
-                    
+
                     if self.session:
                         self.session.add_thought("conclusion", conclusion_text)
-                    
+
                     self._save_reasoning(
                         decision_type="suggestion",
-                        input_context=f"Context: {context.time_available.value}min, {context.energy_level.value}",
+                        input_context=f"Context: {available_minutes}min, {user_energy}",
                         conclusion=conclusion_text,
                         confidence=result.get("confidence", 0.7)
                     )
-                    
-                    # Create suggestion with subtask info if applicable
-                    suggestion = TaskSuggestion(
+
+                    return TaskSuggestion(
                         task=selected_task,
                         reasoning=result.get("reasoning", "This task matches your current context."),
                         confidence_score=min(1.0, max(0.0, result.get("confidence", 0.7))),
@@ -267,11 +283,9 @@ JSON response:"""
                         subtask_instruction=subtask_instruction if suggest_subtask else None,
                         subtask_estimated_minutes=subtask_minutes if suggest_subtask else None
                     )
-                    
-                    return suggestion
                 else:
                     raise ValueError(f"AI selected unknown task ID: {result.get('task_id')}")
-        
+
         except json.JSONDecodeError as e:
             if self.session:
                 self.session.add_thought("error", f"Failed to parse AI response: {e}")
@@ -280,62 +294,41 @@ JSON response:"""
             if self.session:
                 self.session.add_thought("error", f"Suggestion failed: {e}")
             raise ValueError(f"Task suggestion failed: {e}")
-    
-    def _dummy_suggest(self, tasks: list[Task], context: UserContext) -> Optional[TaskSuggestion]:
-        """Generate dummy suggestion when AI is not enabled."""
+
+    def _dummy_suggest_from_eligible(
+        self,
+        eligible_tasks: list[Task],
+        eligible_subtasks: list[tuple],
+        context: UserContext
+    ) -> Optional[TaskSuggestion]:
+        """Dummy suggestion from pre-filtered eligible lists."""
         if self.session:
-            self.session.add_thought("dummy_mode", "AI disabled - using dummy suggestion")
-        
-        # Simple matching: find first task that fits time and energy
-        time_available = context.time_available.value
-        energy = context.energy_level
-        
-        # Score tasks
-        scored_tasks = []
-        for task in tasks:
-            score = 0
-            
-            # Time fit
-            task_time = task.estimated_minutes or 15
-            if task_time <= time_available:
-                score += 2
-            elif task_time <= time_available * 1.5:
-                score += 1
-            
-            # Energy fit
-            if task.energy_required:
-                if task.energy_required == energy:
-                    score += 2
-                elif (energy == EnergyLevel.HIGH) or (energy == EnergyLevel.MEDIUM and task.energy_required == EnergyLevel.LOW):
-                    score += 1
-            
-            scored_tasks.append((task, score))
-        
-        # Sort by score and pick best
-        scored_tasks.sort(key=lambda x: x[1], reverse=True)
-        
-        # If no task fits time and energy (best score 0), return None so route uses QuickWin
-        if scored_tasks and scored_tasks[0][1] == 0:
+            self.session.add_thought("dummy_mode", "AI disabled - using dummy suggestion from eligible list")
+
+        if eligible_subtasks:
+            parent_task, subtask = eligible_subtasks[0]
             if self.session:
-                self.session.add_thought(
-                    "conclusion",
-                    "[DUMMY] No task fits time/energy; route will suggest QuickWin"
-                )
-            return None
-        
-        if scored_tasks:
-            selected_task = scored_tasks[0][0]
-            selected_task.is_dummy = True
-            
-            if self.session:
-                self.session.add_thought("conclusion", f"[DUMMY] Selected: {selected_task.text}")
-            
+                self.session.add_thought("conclusion", f"[DUMMY] Selected subtask: {subtask.instruction}")
             return TaskSuggestion(
-                task=selected_task,
-                reasoning=f"[DUMMY MODE] Selected based on time ({selected_task.estimated_minutes or 15}min) and energy match. AI is disabled - set OPENAI_KARMA=true for smarter suggestions.",
+                task=parent_task,
+                reasoning=f"[DUMMY MODE] Subtask matches time and energy. AI disabled.",
+                confidence_score=0.5,
+                suggested_subtask=subtask,
+                subtask_instruction=subtask.instruction,
+                subtask_estimated_minutes=subtask.estimated_minutes
+            )
+
+        if eligible_tasks:
+            selected = eligible_tasks[0]
+            selected.is_dummy = True
+            if self.session:
+                self.session.add_thought("conclusion", f"[DUMMY] Selected: {selected.text}")
+            return TaskSuggestion(
+                task=selected,
+                reasoning=f"[DUMMY MODE] Task matches time and energy. AI disabled.",
                 confidence_score=0.5
             )
-        
+
         return None
 
 

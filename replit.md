@@ -55,6 +55,10 @@ Configured for autoscale deployment:
 - Run: `cd backend && python -m uvicorn app.main:app --host 0.0.0.0 --port 5000`
 
 ## Recent Changes
+- 2026-02-15: Deterministic task selection: TaskSuggester temp=0.0, exact energy match, time-tightness gap<=2, code-level pre-filtering
+- 2026-02-15: QuickWin time-tightness: estimated_minutes clamped to [available-2, available], temp=0.7
+- 2026-02-15: Post-LLM validation: selected task_id checked against eligible list, subtask estimates validated
+- 2026-02-15: Debug logging in BaseAgent for all agent LLM interactions (system prompt, user prompt, raw response, tokens)
 - 2026-01-15: Synced with remote ss/front-end-backend branch (latest: "subtasks slider")
 - 2026-01-15: Fixed unused import in Layout.tsx, updated fastapi-clerk-auth version
 - 2026-01-15: Configured Vite for port 5000 with allowedHosts
