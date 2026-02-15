@@ -20,6 +20,7 @@ class QuickWinAgent(BaseAgent):
     """Agent that generates personalized quick win micro-tasks."""
     
     AGENT_NAME = "QuickWin"
+    QUICKWIN_MODEL = "gpt-4o"
     
     # Track recently suggested quick wins to avoid repetition
     recent_suggestions: list[str] = []
@@ -226,6 +227,8 @@ Return JSON:
 JSON response:"""
 
         try:
+            original_model = self.model
+            self.model = self.QUICKWIN_MODEL
             response = await self._simple_completion(
                 prompt, 
                 temperature=0.4, 
@@ -233,6 +236,7 @@ JSON response:"""
                 user_id=user_id,
                 operation_type="quickwin"
             )
+            self.model = original_model
             
             json_start = response.find('{')
             json_end = response.rfind('}') + 1
