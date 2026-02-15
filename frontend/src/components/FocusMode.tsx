@@ -407,7 +407,7 @@ export function FocusMode({ onExit }: FocusModeProps) {
             </h2>
             
             <h1 className="text-[42px] font-sans font-bold text-center mb-4 text-[#1a1a1a] leading-tight tracking-tight">
-              {currentTask.text}?
+              {currentTask.text}
             </h1>
 
             {currentTask.category && (
