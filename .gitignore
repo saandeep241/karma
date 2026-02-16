@@ -32,6 +32,11 @@ backend/data/**/*
 # Database is local to each developer - never commit it
 *.db
 
+# Reference/planning docs
+consolidated_prompt.md
+interactive_consolidated_prompt.md
+test_task_list.md
+
 # OS
 .DS_Store
 Thumbs.db
