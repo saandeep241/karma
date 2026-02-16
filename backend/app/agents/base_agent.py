@@ -18,7 +18,10 @@ from openai import OpenAI
 from app.config import get_settings
 from app.services.tools import save_reasoning
 from app.services import db_service
+from app.logging_config import get_logger
 from .agent_tools import AGENT_TOOLS, execute_tool
+
+logger = get_logger("BaseAgent")
 
 
 class AgentSession:
@@ -181,6 +184,19 @@ class BaseAgent(ABC):
                     detail=f"Monthly token limit exceeded. Used {limit_info.get('tokens_used_this_month', 0):,} / {limit_info.get('monthly_limit', 0):,} tokens this month."
                 )
         
+        logger.info(
+            "%s LLM call: model=%s, temperature=%s, max_tokens=%s",
+            self.AGENT_NAME, self.model, temperature, max_tokens,
+        )
+        logger.debug(
+            "%s SYSTEM PROMPT sent to LLM:\n%s",
+            self.AGENT_NAME, self.SYSTEM_PROMPT,
+        )
+        logger.debug(
+            "%s USER PROMPT sent to LLM:\n%s",
+            self.AGENT_NAME, prompt,
+        )
+        
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[
@@ -190,6 +206,21 @@ class BaseAgent(ABC):
             temperature=temperature,
             max_tokens=max_tokens
         )
+        
+        raw_response = response.choices[0].message.content
+        logger.debug(
+            "%s LLM raw response:\n%s",
+            self.AGENT_NAME, raw_response,
+        )
+        
+        if response.usage:
+            logger.info(
+                "%s LLM tokens used: %d total (%d prompt + %d completion)",
+                self.AGENT_NAME,
+                response.usage.total_tokens,
+                response.usage.prompt_tokens,
+                response.usage.completion_tokens,
+            )
         
         # Track token usage if user_id is provided (fire and forget)
         if user_id and response.usage:
@@ -210,7 +241,7 @@ class BaseAgent(ABC):
                 operation_type=operation_type
             )
         
-        return response.choices[0].message.content
+        return raw_response
     
     async def _completion_with_tools(
         self,

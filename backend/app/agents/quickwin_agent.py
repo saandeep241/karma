@@ -20,30 +20,44 @@ class QuickWinAgent(BaseAgent):
     """Agent that generates personalized quick win micro-tasks."""
     
     AGENT_NAME = "QuickWin"
+    QUICKWIN_MODEL = "gpt-4o"
     
     # Track recently suggested quick wins to avoid repetition
     recent_suggestions: list[str] = []
     MAX_HISTORY = 10
     
-    SYSTEM_PROMPT = """You are the Quick Win Agent for Karma, a productivity app.
+    SYSTEM_PROMPT = """IDENTITY & CORE RULES (Initialization)
+You are the Quick Win Agent for Karma, a productivity app. Your job is to generate ONE specific, immediately actionable micro-task for the user.
 
-Your job is to generate SPECIFIC, IMMEDIATELY ACTIONABLE micro-tasks that someone can do RIGHT NOW.
+CRITICAL CONSTRAINTS:
+1. The generated task text must be UNDER 20 WORDS.
+2. Time-tightness: The estimated_minutes you return MUST satisfy:
+   estimated_minutes <= available_minutes AND (available_minutes - estimated_minutes) <= 2.
+   Example: available=5 → estimated_minutes must be 3, 4, or 5.
+   Example: available=10 → estimated_minutes must be 8, 9, or 10.
+3. Zero Decision: The user should not have to choose anything to start.
 
-CRITICAL: You MUST generate a UNIQUE and CREATIVE suggestion each time. Never suggest generic tasks like "review your to-do list" or "organize your tasks". Be creative and varied!
+STYLE GUIDELINES:
+- Direct & Disciplined: Use a direct tone. No sentimental framing or lifestyle-fluff.
+- Immediately Executable: Tasks must be self-contained and finite. No prior artifacts needed.
+- No Dependencies: Do not generate tasks that require searching, brainstorming, or abstract ideation.
+- Bounded Outputs: Scope by numbers (e.g., "3 items," "5 bullets") rather than ambiguity.
+- Match Activation: Match the task strictly to the activation level of the energy.
 
-Guidelines:
-1. Be SPECIFIC - not "organize something" but "organize the top drawer of your desk"
-2. Be CREATIVE - suggest interesting, varied activities
-3. Match the user's energy level:
-   - Low energy: Simple, calming tasks (stretch, drink water, tidy one thing)
-   - Medium energy: Moderate effort (reply to an email, review notes, plan tomorrow)
-   - High energy: Engaging tasks (start a project, creative work, exercise)
-4. Must be completable in the given time
-6. No preparation needed - can start immediately
+FEW-SHOT EXAMPLES:
+Context: Energy: low | Available: 5 min
+BAD: "Create a themed playlist called 'Cozy Reading' with 5-7 songs." (Decision-heavy, requires searching).
+GOOD: "Read one pre-saved article without switching tabs." (Zero-decision, restorative, est=4min, gap=1).
 
-VARIETY IS KEY: Each suggestion should be completely different from typical productivity advice."""
+Context: Energy: medium | Available: 10 min
+BAD: "Spend 10 minutes brainstorming video ideas focusing on fun concepts." (Abstract, brainstorming-heavy).
+GOOD: "Write 3 bullet-point notes from yesterday's meeting." (Self-contained, bounded, est=9min, gap=1).
 
-    # Diverse quick win categories to ensure variety
+Context: Energy: high | Available: 15 min
+BAD: "Select an item and write a playful letter to a friend describing its origins." (Artificial, sentimental).
+GOOD: "Outline one sharp insight to share publicly; structure into 3-5 bullets." (Action-oriented, est=14min, gap=1)."""
+
+    # Diverse quick win ideas for variety (fallback and inspiration)
     QUICK_WIN_IDEAS = {
         "wellness": [
             "Do 10 shoulder rolls, 5 each direction",
@@ -108,24 +122,19 @@ VARIETY IS KEY: Each suggestion should be completely different from typical prod
 
     async def run(self, context: UserContext, excluded_suggestions: list[str] = None, user_id: str = None) -> dict:
         """
-        Generate a personalized quick win based on user context, preferences, and past behavior.
-        
-        Args:
-            context: User's current context (time, energy)
-            excluded_suggestions: List of suggestions to avoid
-            user_id: User ID for token usage tracking and preference learning
-            
-        Returns:
-            Dictionary with quick win details
+        Generate a personalized quick win based on user context.
         """
         self._start_session()
         
         excluded = excluded_suggestions or []
         excluded.extend(self.recent_suggestions)
+        available_minutes = context.time_available.value
+        min_minutes = max(1, available_minutes - 2)
         
-        self.session.add_thought("observation", 
-            f"Generating quick win: {context.time_available.value}min, {context.energy_level.value} energy")
-        self.session.add_thought("observation", f"Avoiding {len(excluded)} previous suggestions")
+        if self.session:
+            self.session.add_thought("observation", 
+                f"Generating quick win: {available_minutes}min, {context.energy_level.value} energy, time-tight window={min_minutes}-{available_minutes}min")
+            self.session.add_thought("observation", f"Avoiding {len(excluded)} previous suggestions")
         
         # Get user preferences and past behavior if user_id provided
         user_preferences = ""
@@ -134,7 +143,6 @@ VARIETY IS KEY: Each suggestion should be completely different from typical prod
             try:
                 from app.services import db_service
                 
-                # Get learning insights (past behavior patterns)
                 insights = await db_service.get_learning_insights(user_id)
                 if insights:
                     acceptance_rate = insights.get("acceptance_rate", 0)
@@ -142,16 +150,12 @@ VARIETY IS KEY: Each suggestion should be completely different from typical prod
                     if total_feedback > 0:
                         past_behavior = f"""
 PAST BEHAVIOR ANALYSIS:
-- Total suggestions received: {total_feedback}
 - Acceptance rate: {acceptance_rate:.0%}
-- Preferred energy levels: {insights.get('preferred_energy_levels', 'No clear pattern yet')}
 - Preferred categories: {insights.get('preferred_categories', 'No clear pattern yet')}
 """
                 
-                # Get user's task history to infer preferences
                 all_tasks = await db_service.get_all_tasks(user_id)
                 if all_tasks:
-                    # Analyze task categories to infer interests
                     categories = {}
                     for task in all_tasks:
                         cat = task.get("category", "other")
@@ -161,43 +165,44 @@ PAST BEHAVIOR ANALYSIS:
                         top_categories = sorted(categories.items(), key=lambda x: x[1], reverse=True)[:3]
                         user_preferences = f"""
 USER PREFERENCES (inferred from task history):
-- Most common task categories: {', '.join([f'{cat} ({count} tasks)' for cat, count in top_categories])}
-- This suggests the user is interested in: {', '.join([cat for cat, _ in top_categories])}
-- Consider suggesting activities aligned with these interests
+- Top categories: {', '.join([f'{cat} ({count})' for cat, count in top_categories])}
 """
             except Exception as e:
-                # If we can't get preferences, continue without them
-                self.session.add_thought("observation", f"Could not load user preferences: {e}")
+                if self.session:
+                    self.session.add_thought("observation", f"Could not load user preferences: {e}")
         
-        # Check if in dummy mode
         if self._is_dummy_mode():
             return self._dummy_quickwin(context, excluded)
         
-        # Build context-specific guidance
         energy_guidance = {
             "low": "simple, low-effort tasks that don't require much thinking",
             "medium": "moderate effort tasks that are productive but not draining",
             "high": "engaging, productive tasks that use their energy well"
         }
         
-        # Get some random ideas to inspire variety
         random_category = random.choice(list(self.QUICK_WIN_IDEAS.keys()))
         example_ideas = random.sample(self.QUICK_WIN_IDEAS[random_category], min(3, len(self.QUICK_WIN_IDEAS[random_category])))
         
-        # Build exclusion list for prompt
         exclusion_text = ""
         if excluded:
             exclusion_text = f"""
 DO NOT suggest any of these (already suggested):
-{chr(10).join(f'- {s}' for s in excluded[-5:])}
+{chr(10).join(f'- {s}' for s in excluded[-10:])}
 
 Generate something COMPLETELY DIFFERENT."""
+        
+        emotional_context = f", Mood: {context.emotional_state.value}" if hasattr(context, 'emotional_state') and context.emotional_state else ""
         
         prompt = f"""Generate ONE specific, actionable micro-task for this user.
 
 USER CONTEXT:
-- Available Time: {context.time_available.value} minutes
-- Energy Level: {context.energy_level.value} → Suggest {energy_guidance.get(context.energy_level.value, 'balanced tasks')}
+- Available Time: {available_minutes} minutes
+- Energy Level: {context.energy_level.value}{emotional_context}
+- Goal: Suggest {energy_guidance.get(context.energy_level.value, 'balanced tasks')}
+
+TIME-TIGHTNESS RULE (mandatory):
+- estimated_minutes MUST be between {min_minutes} and {available_minutes} (inclusive).
+- The gap (available - estimated) must be <= 2.
 
 {past_behavior}
 
@@ -205,48 +210,33 @@ USER CONTEXT:
 
 {exclusion_text}
 
-INSPIRATION (but create something UNIQUE, not these exact tasks):
+INSPIRATION (create something UNIQUE and under 20 words):
 {chr(10).join(f'- {idea}' for idea in example_ideas)}
-
-REQUIREMENTS:
-1. Must be completable in {context.time_available.value} minutes or less
-2. Must be SPECIFIC and UNIQUE (not generic productivity advice)
-3. Must be immediately actionable (no prep needed) - easy to start
-4. Should feel achievable and satisfying
-5. BE CREATIVE - surprise the user with something different!
-6. **Align with long-term interests**: If user preferences are available, suggest activities that align with their interests (e.g., if they have many "learning" tasks, suggest a quick learning activity)
-7. **Appropriate for energy**: Match the suggestion to their current energy level
-8. **Easy to start**: The first step should be tiny and obvious - remove all friction
-
-GOAL: Provide a suggestion that is:
-- Easy to start (low friction)
-- Aligned with long-term interests (if known)
-- Appropriate for current mental state
-- Immediately actionable
 
 Random seed for variety: {random.randint(1000, 9999)}
 
 Return JSON:
 {{
-    "task": "<the specific task - be detailed and creative>",
+    "task": "<the specific task - under 20 words>",
     "category": "<wellness|productivity|social|creative|organization|exercise|mindfulness|learning>",
-    "estimated_minutes": <number>,
-    "why_this_task": "<1-2 sentences explaining why this is perfect for their current state and aligns with their interests>",
-    "first_step": "<the very first action to take - make it tiny and obvious, remove all friction>",
-    "aligned_with_interests": "<brief note on how this aligns with their long-term interests, if applicable>"
+    "estimated_minutes": <number between {min_minutes} and {available_minutes}>,
+    "why_this_task": "<1 sentence>",
+    "first_step": "<tiny, obvious first action>"
 }}
 
 JSON response:"""
 
         try:
-            # Use higher temperature for more variety
+            original_model = self.model
+            self.model = self.QUICKWIN_MODEL
             response = await self._simple_completion(
                 prompt, 
-                temperature=0.95, 
+                temperature=0.6, 
                 max_tokens=400,
                 user_id=user_id,
                 operation_type="quickwin"
             )
+            self.model = original_model
             
             json_start = response.find('{')
             json_end = response.rfind('}') + 1
@@ -255,27 +245,28 @@ JSON response:"""
                 quickwin_data = json.loads(response[json_start:json_end])
                 
                 task_text = quickwin_data.get("task", "Take a short break")
+                raw_est = quickwin_data.get("estimated_minutes", available_minutes)
+                clamped_est = max(min_minutes, min(raw_est, available_minutes))
                 
-                # Add to history to avoid repetition
                 self._add_to_history(task_text)
                 
                 result = {
                     "text": task_text,
                     "category": quickwin_data.get("category", "wellness"),
-                    "estimated_minutes": min(quickwin_data.get("estimated_minutes", 5), context.time_available.value),
+                    "estimated_minutes": clamped_est,
                     "reasoning": quickwin_data.get("why_this_task", "This matches your current energy and time."),
                     "first_step": quickwin_data.get("first_step", "Start now!"),
-                    "aligned_with_interests": quickwin_data.get("aligned_with_interests", ""),
                     "ai_generated": True,
                     "generated_by": self.AGENT_NAME,
                     "generated_at": datetime.now().isoformat()
                 }
                 
-                self.session.add_thought("conclusion", f"Generated: {result['text']}")
+                if self.session:
+                    self.session.add_thought("conclusion", f"Generated: {result['text']} (est={clamped_est}min, gap={available_minutes - clamped_est})")
                 
                 self._save_reasoning(
                     decision_type="generation",
-                    input_context=f"Context: {context.time_available.value}min, {context.energy_level.value}",
+                    input_context=f"Context: {available_minutes}min, {context.energy_level.value}",
                     conclusion=f"Quick win: {result['text']}",
                     confidence=0.9
                 )
@@ -283,28 +274,29 @@ JSON response:"""
                 return result
         
         except json.JSONDecodeError as e:
-            self.session.add_thought("error", f"Failed to parse AI response: {e}")
-            # Fallback to a random pre-defined quick win
+            if self.session:
+                self.session.add_thought("error", f"Failed to parse AI response: {e}")
             return self._get_fallback_quickwin(context, excluded)
         except Exception as e:
-            self.session.add_thought("error", f"Generation failed: {e}")
+            if self.session:
+                self.session.add_thought("error", f"Generation failed: {e}")
             raise ValueError(f"Quick win generation failed: {e}")
     
     def _add_to_history(self, suggestion: str):
         """Add a suggestion to history to avoid repetition."""
-        # Normalize the suggestion for comparison
         normalized = suggestion.lower().strip()
         
         if normalized not in [s.lower() for s in self.recent_suggestions]:
             self.recent_suggestions.append(suggestion)
         
-        # Keep only recent history
         if len(self.recent_suggestions) > self.MAX_HISTORY:
             self.recent_suggestions = self.recent_suggestions[-self.MAX_HISTORY:]
     
     def _get_fallback_quickwin(self, context: UserContext, excluded: list[str]) -> dict:
         """Get a fallback quick win from pre-defined list."""
-        # Choose category based on energy
+        available_minutes = context.time_available.value
+        min_minutes = max(1, available_minutes - 2)
+        
         if context.energy_level.value == "low":
             categories = ["wellness", "hydration", "mindfulness"]
         elif context.energy_level.value == "high":
@@ -312,8 +304,7 @@ JSON response:"""
         else:
             categories = list(self.QUICK_WIN_IDEAS.keys())
         
-        # Find a suggestion not in excluded list
-        for _ in range(20):  # Try up to 20 times
+        for _ in range(20):
             category = random.choice(categories)
             ideas = self.QUICK_WIN_IDEAS[category]
             idea = random.choice(ideas)
@@ -323,18 +314,17 @@ JSON response:"""
                 return {
                     "text": idea,
                     "category": category,
-                    "estimated_minutes": min(5, context.time_available.value),
-                    "reasoning": f"A quick {category} activity to boost your day!",
+                    "estimated_minutes": min(available_minutes, max(min_minutes, 3)),
+                    "reasoning": f"A quick {category} activity that fits your time window.",
                     "first_step": "Start right now!",
                     "ai_generated": False,
                     "generated_by": self.AGENT_NAME
                 }
         
-        # Ultimate fallback
         return {
             "text": "Take 5 deep breaths and stretch your arms above your head",
             "category": "wellness",
-            "estimated_minutes": 2,
+            "estimated_minutes": min(available_minutes, max(min_minutes, 2)),
             "reasoning": "A simple reset for body and mind.",
             "first_step": "Stand up or sit up straight.",
             "ai_generated": False,
@@ -347,19 +337,17 @@ JSON response:"""
     
     def _dummy_quickwin(self, context: UserContext, excluded: list[str]) -> dict:
         """Generate dummy quick win when AI is not enabled."""
-        self.session.add_thought("dummy_mode", "AI disabled - using dummy quick win")
+        if self.session:
+            self.session.add_thought("dummy_mode", "AI disabled - using dummy quick win")
         
-        # Use the fallback mechanism which picks from pre-defined list
         result = self._get_fallback_quickwin(context, excluded)
-        
-        # Mark as dummy but don't modify the text
         result["is_dummy"] = True
         
-        self.session.add_thought("conclusion", f"Generated: {result['text']}")
+        if self.session:
+            self.session.add_thought("conclusion", f"Generated: {result['text']}")
         
         return result
 
 
 # Singleton instance
 quickwin_agent = QuickWinAgent()
-

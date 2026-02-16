@@ -103,8 +103,11 @@ async def get_suggestion_from_storage(request: SuggestFromStorageRequest, user: 
     
     if not all_tasks:
         # No tasks - use QuickWin agent
+        valid_times_early = sorted([t.value for t in TimeAvailable])
+        candidates_up = [v for v in valid_times_early if v >= request.time_available]
+        snapped_time_early = candidates_up[0] if candidates_up else valid_times_early[-1]
         context = UserContext(
-            time_available=TimeAvailable(request.time_available),
+            time_available=TimeAvailable(snapped_time_early),
             energy_level=EnergyLevel(request.energy_level)
         )
         quickwin = await karma_orchestrator.generate_quickwin(context, user_id=user.user_id)
@@ -128,9 +131,14 @@ async def get_suggestion_from_storage(request: SuggestFromStorageRequest, user: 
             "message": "No pending tasks. Here's a quick activity!"
         }
     
+    # Snap the requested time UP to the next valid TimeAvailable value
+    valid_times = sorted([t.value for t in TimeAvailable])
+    candidates = [v for v in valid_times if v >= request.time_available]
+    snapped_time = candidates[0] if candidates else valid_times[-1]
+    
     # Create context
     context = UserContext(
-        time_available=TimeAvailable(request.time_available),
+        time_available=TimeAvailable(snapped_time),
         energy_level=EnergyLevel(request.energy_level)
     )
     
@@ -325,9 +333,14 @@ async def _generate_quickwin(request: dict = None, user_id: str = None):
         time_available = request.get("time_available", 10) if request else 10
         energy_level = request.get("energy_level", "medium") if request else "medium"
         
+        # Snap time UP to next valid value
+        valid_times_qw = sorted([t.value for t in TimeAvailable])
+        candidates_qw = [v for v in valid_times_qw if v >= time_available]
+        snapped_time_qw = candidates_qw[0] if candidates_qw else valid_times_qw[-1]
+        
         # Create context
         context = UserContext(
-            time_available=TimeAvailable(time_available),
+            time_available=TimeAvailable(snapped_time_qw),
             energy_level=EnergyLevel(energy_level)
         )
         
