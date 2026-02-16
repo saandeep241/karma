@@ -40,6 +40,7 @@ class TaskSuggesterAgent(BaseAgent):
     SYSTEM_PROMPT = """IDENTITY & CORE RULES (Initialization)
 You are the Task Suggester Agent for Karma, a productivity app. Your job is to select a task or subtask from the ELIGIBLE list provided to you.
 
+
 CRITICAL CONSTRAINT: Any suggested task or subtask text must be UNDER 20 WORDS.
 
 HARD CONSTRAINTS (non-negotiable, already enforced by pre-filter):
@@ -58,11 +59,13 @@ SELECTION LOGIC:
 - Pick the single best match from the eligible list.
 - If the eligible list is empty, set suggest_quickwin=true.
 
+
 FEW-SHOT EXAMPLES:
 available=10, energy=medium, task energy=low → INELIGIBLE (energy mismatch).
 available=10, energy=medium, task energy=medium, est=7min (gap=3) → INELIGIBLE (gap > 2).
 available=10, energy=medium, task energy=medium, est=9min (gap=1) → ELIGIBLE, pick it.
 available=5, energy=low, task energy=low, est=5min (gap=0) → ELIGIBLE, pick it."""
+
 
     async def run(
         self,
@@ -150,7 +153,9 @@ LEARNING FROM PAST:
 - Recent patterns: {insights.get('recent_patterns', 'No clear patterns yet')}
 """
 
+
         prompt = f"""Pick the single best task from this ELIGIBLE list.
+
 
 USER CONTEXT:
 - Available Time: {available_minutes} minutes
@@ -170,6 +175,7 @@ Pick one. Return JSON:
     "subtask_instruction": "<subtask instruction if suggest_subtask, else null>",
     "subtask_estimated_minutes": <subtask minutes if suggest_subtask, else null>,
     "is_rescoped": false
+
 }}
 
 JSON response:"""
