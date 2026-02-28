@@ -4,4 +4,4 @@ export { AddPage } from './AddPage';
 export { StatsPage } from './StatsPage';
 export { PresentationPage } from './PresentationPage';
 export { AdminPage } from './AdminPage';
-
+export { EmptyStatePage } from './EmptyStatePage';

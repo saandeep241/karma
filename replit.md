@@ -54,7 +54,11 @@ Configured for autoscale deployment:
 - Build: `cd frontend && npm install && npm run build`
 - Run: `cd backend && python -m uvicorn app.main:app --host 0.0.0.0 --port 5000`
 
+## Dev-Only Preview Hooks
+- `?emptyState=1` on the home page renders the Empty State / Intro screen (gated by `!import.meta.env.PROD`)
+
 ## Recent Changes
+- 2026-02-28: Added EmptyStatePage component + dev-only preview hook (?emptyState=1) in HomePage
 - 2026-02-15: Deterministic task selection: TaskSuggester temp=0.0, exact energy match, time-tightness gap<=2, code-level pre-filtering
 - 2026-02-15: QuickWin time-tightness: estimated_minutes clamped to [available-2, available], temp=0.7
 - 2026-02-15: Post-LLM validation: selected task_id checked against eligible list, subtask estimates validated
