@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const STARTER_CATEGORIES = [
   'Productivity',
@@ -10,6 +11,7 @@ const STARTER_CATEGORIES = [
 ];
 
 export function EmptyStatePage() {
+  const navigate = useNavigate();
   const [taskInput, setTaskInput] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
@@ -69,7 +71,10 @@ export function EmptyStatePage() {
         </div>
       </div>
 
-      <button className="w-full max-w-xl bg-[#0066cc] hover:bg-[#0052a3] text-white py-3.5 rounded-full text-base font-bold transition-all shadow-[0_8px_24px_rgba(0,102,204,0.25)]">
+      <button
+        onClick={() => navigate('/', { replace: true })}
+        className="w-full max-w-xl bg-[#0066cc] hover:bg-[#0052a3] text-white py-3.5 rounded-full text-base font-bold transition-all shadow-[0_8px_24px_rgba(0,102,204,0.25)]"
+      >
         Save & Continue
       </button>
     </div>
