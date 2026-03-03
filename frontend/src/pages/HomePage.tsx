@@ -3,10 +3,15 @@ import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
 import { FocusMode } from '../components';
 import { api } from '../api/client';
+import { EmptyStatePage } from './EmptyStatePage';
 
 export function HomePage() {
   const location = useLocation();
   const [showFocusMode, setShowFocusMode] = useState(false);
+
+  const searchParams = new URLSearchParams(location.search);
+  const shouldPreviewEmptyState =
+    searchParams.get('emptyState') === '1' && !import.meta.env.PROD;
 
   // Reset focus mode when navigating to home (e.g., clicking logo)
   useEffect(() => {
@@ -20,6 +25,10 @@ export function HomePage() {
     queryFn: api.getStats,
     refetchInterval: 60000,
   });
+
+  if (shouldPreviewEmptyState) {
+    return <EmptyStatePage />;
+  }
 
   if (showFocusMode) {
     return (
