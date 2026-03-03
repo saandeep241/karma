@@ -80,6 +80,14 @@ export function AddPage() {
   };
 
   const isLoading = addTaskMutation.isPending || importTasksMutation.isPending;
+  const parsedBulkTasks = bulkTasks
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 0)
+    .map(line => line.replace(/^\d+\.\s*/, '').trim())
+    .filter(t => t.length > 0);
+  const bulkTaskCount = parsedBulkTasks.length;
+  const importingCount = importTasksMutation.variables?.length ?? bulkTaskCount;
 
   return (
     <div className="max-w-xl mx-auto space-y-6 sm:space-y-10 animate-fade-in py-6 sm:py-8 px-4 sm:px-6">
@@ -214,8 +222,20 @@ export function AddPage() {
             disabled={!bulkTasks.trim() || isLoading}
             className="w-full py-3 sm:py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl sm:rounded-2xl shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-sm sm:text-base"
           >
-            {isLoading ? <LoadingSpinner size="sm" /> : `Import ${bulkTasks.split('\n').filter(l => l.trim()).length} tasks`}
+            {importTasksMutation.isPending ? (
+              <>
+                <LoadingSpinner size="sm" />
+                <span>{`Importing ${importingCount} task${importingCount === 1 ? '' : 's'}...`}</span>
+              </>
+            ) : (
+              `Import ${bulkTaskCount} task${bulkTaskCount === 1 ? '' : 's'}`
+            )}
           </button>
+          {importTasksMutation.isPending && (
+            <p className="text-xs text-blue-600 text-center">
+              {`Importing ${importingCount} task${importingCount === 1 ? '' : 's'}...`}
+            </p>
+          )}
         </form>
       )}
     </div>

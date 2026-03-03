@@ -52,14 +52,20 @@ class KarmaOrchestrator:
         logger.debug("  - QuickWin: Generates micro-tasks")
         logger.debug("  - Breakdown: Creates step-by-step plans")
     
-    async def analyze_tasks(self, tasks: list[Task], user_id: str = None) -> tuple[list[Task], dict]:
+    async def analyze_tasks(
+        self,
+        tasks: list[Task],
+        user_id: str = None,
+        include_enrichment: bool = True
+    ) -> tuple[list[Task], dict]:
         """
         Analyze a list of tasks using the TaskAnalyzer agent.
-        Also enriches each task using the TaskEnricher agent.
+        Optionally enrich each task using the TaskEnricher agent.
         
         Args:
             tasks: List of tasks to analyze
             user_id: User ID for token usage tracking
+            include_enrichment: Whether to run TaskEnricher after analysis
             
         Returns:
             Tuple of (analyzed_tasks, reasoning_trace)
@@ -71,7 +77,7 @@ class KarmaOrchestrator:
             "orchestrator": "KarmaOrchestrator",
             "operation": "analyze_tasks",
             "started_at": datetime.now().isoformat(),
-            "agents_used": ["TaskAnalyzer", "TaskEnricher"],
+            "agents_used": ["TaskAnalyzer"] + (["TaskEnricher"] if include_enrichment else []),
             "task_traces": []
         }
         
@@ -86,20 +92,23 @@ class KarmaOrchestrator:
                 analyzed_task = await self.analyzer.run(task, user_id=user_id)
                 task_trace["analysis"] = "success"
                 
-                # Step 2: Enrich the task
-                print(f"   📚 Enriching: {task.text[:50]}...")
-                enrichment = await self.enricher.run(analyzed_task, user_id=user_id)
-                analyzed_task.enrichment = enrichment
-                
-                # Update task with enrichment data
-                if enrichment.get("category"):
-                    from app.models import normalize_task_category
-                    analyzed_task.category = normalize_task_category(enrichment["category"])
-                
-                if enrichment.get("tags"):
-                    analyzed_task.tags = enrichment["tags"]
-                
-                task_trace["enrichment"] = "success"
+                if include_enrichment:
+                    # Step 2: Enrich the task
+                    print(f"   📚 Enriching: {task.text[:50]}...")
+                    enrichment = await self.enricher.run(analyzed_task, user_id=user_id)
+                    analyzed_task.enrichment = enrichment
+
+                    # Update task with enrichment data
+                    if enrichment.get("category"):
+                        from app.models import normalize_task_category
+                        analyzed_task.category = normalize_task_category(enrichment["category"])
+
+                    if enrichment.get("tags"):
+                        analyzed_task.tags = enrichment["tags"]
+
+                    task_trace["enrichment"] = "success"
+                else:
+                    task_trace["enrichment"] = "skipped"
                 
                 # Save the fully analyzed and enriched task
                 save_task_with_details(analyzed_task.model_dump(by_alias=False), today)
@@ -324,4 +333,3 @@ class KarmaOrchestrator:
 
 # Create the main orchestrator instance
 karma_orchestrator = KarmaOrchestrator()
-

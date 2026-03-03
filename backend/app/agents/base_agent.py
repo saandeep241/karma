@@ -117,6 +117,29 @@ class BaseAgent(ABC):
         """Start a new agent session."""
         self.session = AgentSession(self.AGENT_NAME)
         return self.session
+
+    def _schedule_background_task(self, coro, task_name: str):
+        """
+        Schedule a background coroutine and consume exceptions so they don't
+        bubble up as unhandled task exceptions.
+        """
+        try:
+            loop = asyncio.get_running_loop()
+            task = loop.create_task(coro)
+
+            def _on_done(t):
+                try:
+                    t.result()
+                except Exception as e:
+                    logger.warning("%s background task failed: %s", task_name, e)
+
+            task.add_done_callback(_on_done)
+        except RuntimeError:
+            # No event loop running; execute synchronously as a fallback.
+            try:
+                asyncio.run(coro)
+            except Exception as e:
+                logger.warning("%s fallback execution failed: %s", task_name, e)
     
     async def _check_token_limit(self, user_id: str, estimated_tokens: int) -> tuple[bool, dict]:
         """
@@ -139,11 +162,8 @@ class BaseAgent(ABC):
     def _record_token_usage_async(self, user_id: str, prompt_tokens: int, completion_tokens: int, total_tokens: int, task_id: Optional[str] = None, operation_type: Optional[str] = None):
         """Helper to record token usage asynchronously (fire and forget)."""
         try:
-            # Try to get the current event loop
-            try:
-                loop = asyncio.get_running_loop()
-                # We're in an async context, schedule the coroutine
-                loop.create_task(db_service.record_token_usage(
+            self._schedule_background_task(
+                db_service.record_token_usage(
                     user_id=user_id,
                     agent_name=self.AGENT_NAME,
                     prompt_tokens=prompt_tokens,
@@ -152,19 +172,9 @@ class BaseAgent(ABC):
                     model=self.model,
                     task_id=task_id,
                     operation_type=operation_type
-                ))
-            except RuntimeError:
-                # No event loop running, create a new one (shouldn't happen in our async routes)
-                asyncio.run(db_service.record_token_usage(
-                    user_id=user_id,
-                    agent_name=self.AGENT_NAME,
-                    prompt_tokens=prompt_tokens,
-                    completion_tokens=completion_tokens,
-                    total_tokens=total_tokens,
-                    model=self.model,
-                    task_id=task_id,
-                    operation_type=operation_type
-                ))
+                ),
+                "record_token_usage"
+            )
         except Exception as e:
             # Don't fail the request if token tracking fails
             print(f"⚠️ Failed to record token usage: {e}")
@@ -225,11 +235,10 @@ class BaseAgent(ABC):
         # Track token usage if user_id is provided (fire and forget)
         if user_id and response.usage:
             # Increment monthly usage counter
-            try:
-                loop = asyncio.get_running_loop()
-                loop.create_task(db_service.increment_token_usage(user_id, response.usage.total_tokens))
-            except RuntimeError:
-                asyncio.run(db_service.increment_token_usage(user_id, response.usage.total_tokens))
+            self._schedule_background_task(
+                db_service.increment_token_usage(user_id, response.usage.total_tokens),
+                "increment_token_usage"
+            )
             
             # Record detailed usage
             self._record_token_usage_async(
@@ -321,11 +330,10 @@ class BaseAgent(ABC):
                 # Track token usage for each API call (accumulated across iterations)
                 if user_id and response.usage:
                     # Increment monthly usage counter
-                    try:
-                        loop = asyncio.get_running_loop()
-                        loop.create_task(db_service.increment_token_usage(user_id, response.usage.total_tokens))
-                    except RuntimeError:
-                        asyncio.run(db_service.increment_token_usage(user_id, response.usage.total_tokens))
+                    self._schedule_background_task(
+                        db_service.increment_token_usage(user_id, response.usage.total_tokens),
+                        "increment_token_usage"
+                    )
                     
                     # Record detailed usage
                     self._record_token_usage_async(
@@ -430,4 +438,3 @@ class BaseAgent(ABC):
     async def run(self, *args, **kwargs):
         """Main entry point for the agent. Override in subclasses."""
         pass
-
