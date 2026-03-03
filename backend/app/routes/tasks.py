@@ -29,7 +29,7 @@ router = APIRouter(prefix="/api", tags=["tasks"])
 async def import_todo_list(request: ImportTodoListRequest, user: AuthUser = Depends(require_auth)):
     """
     Import a todo list from text content.
-    Uses TaskAnalyzer and TaskEnricher agents to process tasks.
+    Uses TaskAnalyzer to quickly process tasks for bulk import.
     """
     logger.info("Importing todo list from text content")
     session = session_store.create_session(user.user_id)
@@ -45,10 +45,14 @@ async def import_todo_list(request: ImportTodoListRequest, user: AuthUser = Depe
             detail="No valid tasks found in the provided text"
         )
     
-    logger.info(f"ORCHESTRATOR: Processing {len(tasks)} imported tasks (agents: TaskAnalyzer, TaskEnricher)")
+    logger.info(f"ORCHESTRATOR: Processing {len(tasks)} imported tasks (agent: TaskAnalyzer only)")
     
     # Use orchestrator to analyze and enrich tasks
-    analyzed_tasks, reasoning_trace = await karma_orchestrator.analyze_tasks(tasks, user_id=user.user_id)
+    analyzed_tasks, reasoning_trace = await karma_orchestrator.analyze_tasks(
+        tasks,
+        user_id=user.user_id,
+        include_enrichment=False
+    )
     
     logger.info(f"Orchestrator processed {len(analyzed_tasks)} tasks successfully")
     
@@ -87,9 +91,13 @@ async def add_single_task(request: AddTaskRequest, user: AuthUser = Depends(requ
         task.category = normalize_task_category(request.category)
         logger.debug(f"Task category set to: {task.category.value}")
     
-    # Analyze and enrich the single task
-    logger.debug("Sending task to orchestrator for analysis")
-    analyzed_tasks, _ = await karma_orchestrator.analyze_tasks([task], user_id=user.user_id)
+    # Analyze single task (skip enrichment by default for faster adds)
+    logger.debug("Sending task to orchestrator for analysis-only")
+    analyzed_tasks, _ = await karma_orchestrator.analyze_tasks(
+        [task],
+        user_id=user.user_id,
+        include_enrichment=False
+    )
     
     if analyzed_tasks:
         # Save to database

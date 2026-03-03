@@ -51,10 +51,18 @@ else:
     print(f"🔗 Using SQLite database at: {DATABASE_PATH}")
 
 # Create async engine
+engine_kwargs = {
+    "echo": False,  # Set to True for SQL debugging
+    "future": True,
+}
+
+# Increase SQLite lock wait timeout to reduce "database is locked" under write bursts.
+if not settings.use_postgresql:
+    engine_kwargs["connect_args"] = {"timeout": 30}
+
 engine = create_async_engine(
     DATABASE_URL,
-    echo=False,  # Set to True for SQL debugging
-    future=True,
+    **engine_kwargs,
 )
 
 # Enable foreign keys for SQLite on every connection (only for SQLite)
@@ -64,6 +72,8 @@ if not settings.use_postgresql:
         """Enable foreign keys for SQLite on each connection."""
         cursor = dbapi_conn.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.execute("PRAGMA busy_timeout=30000")
+        cursor.execute("PRAGMA journal_mode=WAL")
         cursor.close()
 
 # Create async session factory
@@ -133,4 +143,3 @@ def get_sync_session():
     
     Session = sessionmaker(bind=sync_engine)
     return Session()
-
