@@ -15,8 +15,7 @@ const queryClient = new QueryClient({
   },
 });
 
-const isClerkActive = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY &&
-  !(import.meta.env.VITE_DISABLE_AUTH === 'true' && !import.meta.env.PROD);
+const isClerkActive = import.meta.env.PROD && !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 function AppRoutes() {
   return (

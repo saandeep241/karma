@@ -4,8 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { checkAdmin } from '../api/client';
 
-const isClerkActive = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY &&
-  !(import.meta.env.VITE_DISABLE_AUTH === 'true' && !import.meta.env.PROD);
+const isClerkActive = import.meta.env.PROD && !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 function useClerkUser() {
   try {

@@ -58,7 +58,7 @@ Configured for autoscale deployment:
 
 ## Dev-Only Flags
 - `?emptyState=1` on the home page renders the Empty State / Intro screen (gated by `!import.meta.env.PROD`)
-- `DISABLE_AUTH=true` in `backend/.env` + `VITE_DISABLE_AUTH=true` in `frontend/.env` disables Clerk auth for local testing. Both flags are production-safe: frontend checks `!import.meta.env.PROD`, backend checks `REPLIT_DEPLOYMENT !== "1"`. Backend returns `legacy-user` when disabled. Set both to `false` to re-enable auth.
+- Clerk auth is automatically bypassed in dev, no env var needed. Frontend uses `!import.meta.env.PROD` (Vite handles this). Backend uses fail-closed logic: Clerk is enabled by default, then only disabled when all env signals confirm dev mode (all of `ENV`, `NODE_ENV`, `ENVIRONMENT` unset or "dev"/"development", and `REPLIT_DEPLOYMENT` is not "1"). If any signal says production, Clerk stays on.
 
 ## Key Patterns
 - **Cache invalidation**: After any mutation that changes task count (add, delete, complete, archive, onboarding), both `['tasks']` and `['stats']` TanStack Query caches must be invalidated.
