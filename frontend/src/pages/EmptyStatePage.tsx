@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
 
 const STARTER_CATEGORIES = [
@@ -13,6 +14,7 @@ const STARTER_CATEGORIES = [
 
 export function EmptyStatePage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [taskInput, setTaskInput] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -91,6 +93,8 @@ export function EmptyStatePage() {
               task_text: taskInput.trim() || undefined,
               categories: selectedCategories,
             });
+            await queryClient.invalidateQueries({ queryKey: ['stats'] });
+            await queryClient.invalidateQueries({ queryKey: ['tasks'] });
             navigate('/', { replace: true });
           } catch (err: any) {
             setError(err.message || 'Something went wrong. Please try again.');
