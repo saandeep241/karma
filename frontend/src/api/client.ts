@@ -391,6 +391,24 @@ export async function getTokenLimit(): Promise<{
   return apiFetch('/tokens/limit');
 }
 
+// Onboarding
+export interface OnboardingRequest {
+  task_text?: string;
+  categories: string[];
+}
+
+export interface OnboardingResponse {
+  tasks_created: number;
+  tasks: Task[];
+}
+
+export async function completeOnboarding(request: OnboardingRequest): Promise<OnboardingResponse> {
+  return apiFetch<OnboardingResponse>('/onboarding/complete', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+}
+
 // Export all functions as a single API object for convenience
 export const api = {
   checkHealth,
@@ -427,6 +445,7 @@ export const api = {
   updateUserTokenLimit,
   resetUserTokenUsage,
   getTokenLimit,
+  completeOnboarding,
 };
 
 export default api;

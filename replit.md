@@ -58,6 +58,7 @@ Configured for autoscale deployment:
 - `?emptyState=1` on the home page renders the Empty State / Intro screen (gated by `!import.meta.env.PROD`)
 
 ## Recent Changes
+- 2026-03-07: Added onboarding persistence — `POST /api/onboarding/complete` endpoint persists user-entered tasks and starter-category tasks. Starter task catalog externalized to `backend/app/config/starter_tasks.json`. Frontend `EmptyStatePage` wired to call the API on "Save & Continue".
 - 2026-02-28: Added EmptyStatePage component + dev-only preview hook (?emptyState=1) in HomePage
 - 2026-02-15: Deterministic task selection: TaskSuggester temp=0.0, exact energy match, time-tightness gap<=2, code-level pre-filtering
 - 2026-02-15: QuickWin time-tightness: estimated_minutes clamped to [available-2, available], temp=0.7
