@@ -33,13 +33,18 @@ if CLERK_DOMAIN and not CLERK_JWKS_URL:
     CLERK_JWKS_URL = f"https://{domain}/.well-known/jwks.json"
 
 _DISABLE_AUTH = os.getenv("DISABLE_AUTH", "").lower() == "true"
-_IS_PRODUCTION = os.getenv("REPLIT_DEPLOYMENT", "") == "1"
+_IS_PRODUCTION = (
+    os.getenv("REPLIT_DEPLOYMENT", "") == "1"
+    or os.getenv("ENV", "").lower() == "production"
+    or os.getenv("NODE_ENV", "").lower() == "production"
+    or os.getenv("ENVIRONMENT", "").lower() == "production"
+)
 
 CLERK_ENABLED = bool(CLERK_SECRET_KEY and (CLERK_JWKS_URL or CLERK_DOMAIN))
 
 if _DISABLE_AUTH:
     if _IS_PRODUCTION:
-        print("⛔ DISABLE_AUTH=true ignored in production (REPLIT_DEPLOYMENT=1)")
+        print("⛔ DISABLE_AUTH=true ignored in production")
     else:
         CLERK_ENABLED = False
         print("⚠️ Auth disabled via DISABLE_AUTH flag (dev only)")
