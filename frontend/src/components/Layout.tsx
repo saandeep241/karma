@@ -10,7 +10,6 @@ export function Layout() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Check if user is admin
   const { data: adminCheck, error: adminError } = useQuery({
     queryKey: ['admin', 'check'],
     queryFn: checkAdmin,
@@ -20,7 +19,6 @@ export function Layout() {
   
   const isAdmin = adminCheck?.is_admin || false;
   
-  // Debug logging
   useEffect(() => {
     if (isLoaded && user) {
       console.log('🔍 Checking admin status for user:', user.id);

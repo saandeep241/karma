@@ -18,9 +18,11 @@ karma/
 ├── backend/                 # FastAPI Python backend
 │   ├── app/
 │   │   ├── agents/          # AI agents (orchestrator, analyzer, suggester, etc.)
+│   │   ├── config/          # External config files
+│   │   │   └── starter_tasks.json  # 6 categories × 4 tasks each
 │   │   ├── database/        # SQLite + SQLAlchemy
-│   │   ├── routes/          # API endpoints
-│   │   ├── auth.py          # Clerk authentication
+│   │   ├── routes/          # API endpoints (incl. onboarding.py)
+│   │   ├── auth.py          # Clerk authentication (CLERK_ENABLED flag)
 │   │   ├── config.py        # Configuration
 │   │   └── main.py          # FastAPI app
 │   └── requirements.txt
@@ -29,7 +31,7 @@ karma/
 │   ├── src/
 │   │   ├── api/             # API client
 │   │   ├── components/      # React components
-│   │   └── pages/           # Page components
+│   │   └── pages/           # Page components (incl. EmptyStatePage.tsx)
 │   ├── package.json
 │   └── vite.config.ts
 │
@@ -57,8 +59,12 @@ Configured for autoscale deployment:
 ## Dev-Only Preview Hooks
 - `?emptyState=1` on the home page renders the Empty State / Intro screen (gated by `!import.meta.env.PROD`)
 
+## Key Patterns
+- **Cache invalidation**: After any mutation that changes task count (add, delete, complete, archive, onboarding), both `['tasks']` and `['stats']` TanStack Query caches must be invalidated.
+- **Auth bypass for testing**: Setting `CLERK_SECRET_KEY=""` in `backend/.env` and commenting out `VITE_CLERK_PUBLISHABLE_KEY` in `frontend/.env` disables Clerk auth; backend returns `legacy-user`.
+
 ## Recent Changes
-- 2026-03-07: Added onboarding persistence — `POST /api/onboarding/complete` endpoint persists user-entered tasks and starter-category tasks. Starter task catalog externalized to `backend/app/config/starter_tasks.json`. Frontend `EmptyStatePage` wired to call the API on "Save & Continue".
+- 2026-03-07: Added onboarding persistence — `POST /api/onboarding/complete` endpoint (body: `{task_text, categories}`) persists user-entered tasks and starter-category tasks via AI analysis. Starter task catalog externalized to `backend/app/config/starter_tasks.json` (6 categories × 4 tasks). Frontend `EmptyStatePage` wired to call the API on "Save & Continue". Fixed stale cache bugs in BrowsePage (delete/archive now also invalidate `['stats']`).
 - 2026-02-28: Added EmptyStatePage component + dev-only preview hook (?emptyState=1) in HomePage
 - 2026-02-15: Deterministic task selection: TaskSuggester temp=0.0, exact energy match, time-tightness gap<=2, code-level pre-filtering
 - 2026-02-15: QuickWin time-tightness: estimated_minutes clamped to [available-2, available], temp=0.7
