@@ -56,12 +56,12 @@ Configured for autoscale deployment:
 - Build: `cd frontend && npm install && npm run build`
 - Run: `cd backend && python -m uvicorn app.main:app --host 0.0.0.0 --port 5000`
 
-## Dev-Only Preview Hooks
+## Dev-Only Flags
 - `?emptyState=1` on the home page renders the Empty State / Intro screen (gated by `!import.meta.env.PROD`)
+- `DISABLE_AUTH=true` in `backend/.env` + `VITE_DISABLE_AUTH=true` in `frontend/.env` disables Clerk auth for local testing. Both flags are production-safe: frontend checks `!import.meta.env.PROD`, backend checks `REPLIT_DEPLOYMENT !== "1"`. Backend returns `legacy-user` when disabled. Set both to `false` to re-enable auth.
 
 ## Key Patterns
 - **Cache invalidation**: After any mutation that changes task count (add, delete, complete, archive, onboarding), both `['tasks']` and `['stats']` TanStack Query caches must be invalidated.
-- **Auth bypass for testing**: Setting `CLERK_SECRET_KEY=""` in `backend/.env` and commenting out `VITE_CLERK_PUBLISHABLE_KEY` in `frontend/.env` disables Clerk auth; backend returns `legacy-user`.
 
 ## Recent Changes
 - 2026-03-07: Added onboarding persistence — `POST /api/onboarding/complete` endpoint (body: `{task_text, categories}`) persists user-entered tasks and starter-category tasks via AI analysis. Starter task catalog externalized to `backend/app/config/starter_tasks.json` (6 categories × 4 tasks). Frontend `EmptyStatePage` wired to call the API on "Save & Continue". Fixed stale cache bugs in BrowsePage (delete/archive now also invalidate `['stats']`).

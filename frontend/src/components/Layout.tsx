@@ -4,16 +4,29 @@ import { useState, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { checkAdmin } from '../api/client';
 
+const isClerkActive = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY &&
+  !(import.meta.env.VITE_DISABLE_AUTH === 'true' && !import.meta.env.PROD);
+
+function useClerkUser() {
+  try {
+    if (!isClerkActive) throw new Error('skip');
+    const { user, isLoaded } = useUser();
+    const { signOut } = useClerk();
+    return { user, isLoaded, signOut };
+  } catch {
+    return { user: null as any, isLoaded: true, signOut: async () => {} };
+  }
+}
+
 export function Layout() {
-  const { user, isLoaded } = useUser();
-  const { signOut } = useClerk();
+  const { user, isLoaded, signOut } = useClerkUser();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const { data: adminCheck, error: adminError } = useQuery({
     queryKey: ['admin', 'check'],
     queryFn: checkAdmin,
-    enabled: isLoaded && !!user,
+    enabled: isClerkActive ? (isLoaded && !!user) : true,
     retry: false,
   });
   

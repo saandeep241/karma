@@ -4,10 +4,14 @@ import { ClerkProvider } from '@clerk/clerk-react'
 import './index.css'
 import App from './App.tsx'
 
-// Get Clerk publishable key from environment
-const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+const RAW_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+const AUTH_DISABLED = import.meta.env.VITE_DISABLE_AUTH === 'true' && !import.meta.env.PROD
 
-if (!PUBLISHABLE_KEY) {
+const PUBLISHABLE_KEY = AUTH_DISABLED ? undefined : RAW_KEY
+
+if (AUTH_DISABLED) {
+  console.warn('Auth disabled via VITE_DISABLE_AUTH (dev only)')
+} else if (!PUBLISHABLE_KEY) {
   console.warn('Missing VITE_CLERK_PUBLISHABLE_KEY - Auth will be disabled')
 }
 
