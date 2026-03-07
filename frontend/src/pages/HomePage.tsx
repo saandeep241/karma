@@ -20,14 +20,24 @@ export function HomePage() {
     }
   }, [location.key, location.pathname, location.search]);
 
-  const { data: statsData } = useQuery({
+  const { data: statsData, isLoading: isStatsLoading, isError: isStatsError } = useQuery({
     queryKey: ['stats'],
     queryFn: api.getStats,
     refetchInterval: 60000,
   });
 
   if (shouldPreviewEmptyState) {
-    return <EmptyStatePage />;
+    if (isStatsLoading) {
+      return (
+        <div className="flex items-center justify-center min-h-[calc(100vh-120px)]">
+          <div className="text-gray-400 text-sm">Loading...</div>
+        </div>
+      );
+    }
+
+    if (!isStatsError && statsData && (statsData as any).total === 0) {
+      return <EmptyStatePage />;
+    }
   }
 
   if (showFocusMode) {
