@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 
 from app.config import get_settings
-from app.routes import tasks_router, suggestions_router, sessions_router
+from app.routes import tasks_router, suggestions_router, sessions_router, onboarding_router
 from app.routes.presentation import router as presentation_router
 from app.database.connection import init_db, DATABASE_TYPE, DATABASE_PATH
 from app.auth import is_auth_enabled, CLERK_ENABLED
@@ -146,6 +146,7 @@ app.add_middleware(
 app.include_router(tasks_router)
 app.include_router(suggestions_router)
 app.include_router(sessions_router)
+app.include_router(onboarding_router)
 app.include_router(presentation_router)
 
 

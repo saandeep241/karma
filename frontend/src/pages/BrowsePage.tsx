@@ -90,6 +90,7 @@ export function BrowsePage() {
     mutationFn: () => api.deleteAllTasks(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
       setShowDeleteConfirm(false);
     },
   });
@@ -99,6 +100,7 @@ export function BrowsePage() {
     mutationFn: (taskId: string) => api.deleteTask(taskId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
   });
 
@@ -107,6 +109,7 @@ export function BrowsePage() {
     mutationFn: (taskId: string) => api.updateTaskStatus(taskId, 'completed'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
   });
 

@@ -32,7 +32,18 @@ if CLERK_DOMAIN and not CLERK_JWKS_URL:
     domain = CLERK_DOMAIN.replace("https://", "").replace("http://", "").rstrip("/")
     CLERK_JWKS_URL = f"https://{domain}/.well-known/jwks.json"
 
+_IS_DEV = (
+    os.getenv("ENV", "").lower() in ("development", "dev", "")
+    and os.getenv("NODE_ENV", "").lower() in ("development", "dev", "")
+    and os.getenv("ENVIRONMENT", "").lower() in ("development", "dev", "")
+    and os.getenv("REPLIT_DEPLOYMENT", "") != "1"
+)
+
 CLERK_ENABLED = bool(CLERK_SECRET_KEY and (CLERK_JWKS_URL or CLERK_DOMAIN))
+
+if _IS_DEV and CLERK_ENABLED:
+    CLERK_ENABLED = False
+    print("⚠️ Dev mode — Clerk auth bypassed")
 
 # Security scheme
 security = HTTPBearer(auto_error=False)

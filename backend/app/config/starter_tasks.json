@@ -1,0 +1,38 @@
+{
+  "Productivity": [
+    {"text": "Organize your workspace for 15 minutes", "estimated_minutes": 15, "energy_required": "medium"},
+    {"text": "Review and prioritize your to-do list", "estimated_minutes": 10, "energy_required": "low"},
+    {"text": "Clear out your email inbox", "estimated_minutes": 20, "energy_required": "low"},
+    {"text": "Plan your week ahead", "estimated_minutes": 15, "energy_required": "medium"}
+  ],
+  "Personal Development": [
+    {"text": "Read for 20 minutes", "estimated_minutes": 20, "energy_required": "low"},
+    {"text": "Watch an educational video or tutorial", "estimated_minutes": 30, "energy_required": "low"},
+    {"text": "Write in a journal for 10 minutes", "estimated_minutes": 10, "energy_required": "low"},
+    {"text": "Practice a new skill for 15 minutes", "estimated_minutes": 15, "energy_required": "medium"}
+  ],
+  "Home Cleaning": [
+    {"text": "Wipe down kitchen counters and surfaces", "estimated_minutes": 10, "energy_required": "medium"},
+    {"text": "Vacuum or sweep the floors", "estimated_minutes": 20, "energy_required": "high"},
+    {"text": "Do a load of laundry", "estimated_minutes": 10, "energy_required": "low"},
+    {"text": "Declutter one drawer or shelf", "estimated_minutes": 15, "energy_required": "medium"}
+  ],
+  "Artistic": [
+    {"text": "Sketch or doodle for 15 minutes", "estimated_minutes": 15, "energy_required": "low"},
+    {"text": "Listen to a new album or playlist", "estimated_minutes": 30, "energy_required": "low"},
+    {"text": "Write a short poem or creative paragraph", "estimated_minutes": 15, "energy_required": "medium"},
+    {"text": "Try a simple DIY craft project", "estimated_minutes": 30, "energy_required": "medium"}
+  ],
+  "Health & Fitness": [
+    {"text": "Go for a 30-minute walk", "estimated_minutes": 30, "energy_required": "medium"},
+    {"text": "Do a 10-minute stretching routine", "estimated_minutes": 10, "energy_required": "low"},
+    {"text": "Drink 8 glasses of water today", "estimated_minutes": 5, "energy_required": "low"},
+    {"text": "Prepare a healthy meal", "estimated_minutes": 30, "energy_required": "medium"}
+  ],
+  "Finance": [
+    {"text": "Review your recent bank transactions", "estimated_minutes": 15, "energy_required": "low"},
+    {"text": "Set or update a monthly budget", "estimated_minutes": 20, "energy_required": "medium"},
+    {"text": "Pay any outstanding bills", "estimated_minutes": 10, "energy_required": "low"},
+    {"text": "Research one way to save money this month", "estimated_minutes": 15, "energy_required": "low"}
+  ]
+}

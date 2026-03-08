@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { api } from '../api/client';
 
 const STARTER_CATEGORIES = [
   'Productivity',
@@ -12,8 +14,11 @@ const STARTER_CATEGORIES = [
 
 export function EmptyStatePage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [taskInput, setTaskInput] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const toggleCategory = (category: string) => {
     setSelectedCategories((prev) =>
@@ -71,11 +76,36 @@ export function EmptyStatePage() {
         </div>
       </div>
 
+      {error && (
+        <p className="text-red-500 text-sm mb-4 max-w-xl w-full text-center">{error}</p>
+      )}
+
       <button
-        onClick={() => navigate('/', { replace: true })}
-        className="w-full max-w-xl bg-[#0066cc] hover:bg-[#0052a3] text-white py-3.5 rounded-full text-base font-bold transition-all shadow-[0_8px_24px_rgba(0,102,204,0.25)]"
+        onClick={async () => {
+          if (!taskInput.trim() && selectedCategories.length === 0) {
+            setError('Please enter tasks or select at least one category.');
+            return;
+          }
+          setIsSubmitting(true);
+          setError(null);
+          try {
+            await api.completeOnboarding({
+              task_text: taskInput.trim() || undefined,
+              categories: selectedCategories,
+            });
+            await queryClient.invalidateQueries({ queryKey: ['stats'] });
+            await queryClient.invalidateQueries({ queryKey: ['tasks'] });
+            navigate('/', { replace: true });
+          } catch (err: any) {
+            setError(err.message || 'Something went wrong. Please try again.');
+          } finally {
+            setIsSubmitting(false);
+          }
+        }}
+        disabled={isSubmitting}
+        className="w-full max-w-xl bg-[#0066cc] hover:bg-[#0052a3] text-white py-3.5 rounded-full text-base font-bold transition-all shadow-[0_8px_24px_rgba(0,102,204,0.25)] disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        Save & Continue
+        {isSubmitting ? 'Saving...' : 'Save & Continue'}
       </button>
     </div>
   );

@@ -4,11 +4,12 @@ import { ClerkProvider } from '@clerk/clerk-react'
 import './index.css'
 import App from './App.tsx'
 
-// Get Clerk publishable key from environment
-const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+const PUBLISHABLE_KEY = import.meta.env.PROD
+  ? import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+  : undefined;
 
-if (!PUBLISHABLE_KEY) {
-  console.warn('Missing VITE_CLERK_PUBLISHABLE_KEY - Auth will be disabled')
+if (!import.meta.env.PROD) {
+  console.warn('Dev mode — Clerk auth bypassed');
 }
 
 createRoot(document.getElementById('root')!).render(
