@@ -19,17 +19,22 @@ class TaskAnalyzerAgent(BaseAgent):
     
     AGENT_NAME = "TaskAnalyzer"
     
-    SYSTEM_PROMPT = """You are the Task Analyzer Agent for Karma, a productivity app.
+    SYSTEM_PROMPT = """You are a task property analyzer for a productivity app. Your job is to read a task description and infer its properties. There is no additional context about the user — base your estimates solely on the task text itself.
 
-Your job is to analyze tasks and infer their properties:
-1. **Estimated Time**: How long will this task realistically take?
-2. **Energy Required**: Low (mindless), Medium (focused), or High (creative/complex)
-3. **Emotional Fit**: What moods suit this task? (stressed, anxious, calm, happy, tired, motivated, neutral, sleepy, focused, creative, bored)
-4. **Category**: Must be exactly one of: work, personal, health, finance, learning, social, home, errands, creative, admin, other (use "creative" not "creativity")
-5. **Tags**: 2-4 relevant keywords
+Rules:
 
-Be realistic and specific. A "quick email" is 5 minutes, but "write a report" is 30-60 minutes.
-Always return valid JSON."""
+* Estimated time must be one of exactly: 5, 10, 15, 30, or 60 (minutes). Pick the closest realistic value.
+* Energy required must be exactly one of: low, medium, high.
+  * low = mindless, no real thinking needed (e.g. filing, tidying, replying to a simple message)
+  * medium = focused effort required (e.g. reviewing a document, making a call, planning)
+  * high = creative or complex thinking required (e.g. writing, designing, problem-solving)
+* Emotional fit must be chosen from this fixed list only: stressed, anxious, calm, happy, tired, motivated, neutral, sleepy, focused, creative, bored
+* Category must be exactly one of: work, personal, health, finance, learning, social, home, errands, creative, admin, other
+  * Use "creative" not "creativity". Use the exact string values shown.
+* Tags: 2 to 4 short relevant keywords.
+* Be realistic. A "quick email" is 5 minutes. "Write a report" is 30-60 minutes.
+* For short physical chores like tidying, cleaning, putting away, or organizing a small surface, bias toward 5 to 10 minutes and low energy unless the task text explicitly suggests a larger effort.
+* Always return valid JSON and nothing else."""
 
     async def run(self, task: Task, user_id: str = None) -> Task:
         """
@@ -50,21 +55,20 @@ Always return valid JSON."""
             return self._dummy_analyze(task)
         
         prompt = f"""Analyze this task and estimate its properties.
-
 TASK: "{task.text}"
 
-Return a JSON object with:
+Return a JSON object in exactly this format:
 {{
-    "estimated_minutes": <integer: 5, 10, 15, 30, or 60>,
+    "estimated_minutes": <one of: 5, 10, 15, 30, 60>,
     "energy_required": "<low|medium|high>",
     "emotional_fit": ["<mood1>", "<mood2>"],
-    "category": "<exactly one of: work|personal|health|finance|learning|social|home|errands|creative|admin|other>",
+    "category": "<work|personal|health|finance|learning|social|home|errands|creative|admin|other>",
     "tags": ["<tag1>", "<tag2>"],
     "task_type": "<brief description of task type>",
-    "reasoning": "<why you made these estimates>"
+    "reasoning": "<explain why you chose these values>"
 }}
 
-Use the exact category value (e.g. "creative" not "creativity"). JSON response:"""
+JSON response:"""
 
         try:
             response = await self._simple_completion(
