@@ -12,35 +12,53 @@ settings = get_settings()
 
 # Determine which database to use
 if settings.use_postgresql:
-    # PostgreSQL/Cloud SQL configuration
-    connection_name = settings.cloud_sql_connection_name
-    db_user = settings.database_user
-    db_password = settings.database_password
-    db_name = settings.database_name
-    
-    if not db_password:
-        raise ValueError("DATABASE_PASSWORD is required for PostgreSQL but not set")
-    
-    # Use Unix socket for Cloud SQL (recommended for Cloud Run)
-    # Format: postgresql+asyncpg://USER:PASSWORD@/DATABASE?host=/cloudsql/CONNECTION_NAME
-    # URL encode password to handle special characters
-    from urllib.parse import quote_plus
-    encoded_password = quote_plus(db_password)
-    
-    if connection_name:
-        DATABASE_URL = f"postgresql+asyncpg://{db_user}:{encoded_password}@/{db_name}?host=/cloudsql/{connection_name}"
-        print(f"🔗 Using PostgreSQL via Cloud SQL Unix socket: {connection_name}")
-    elif settings.database_host:
-        # Fallback to TCP connection if host is provided
-        db_host = settings.database_host
-        db_port = settings.database_port
-        DATABASE_URL = f"postgresql+asyncpg://{db_user}:{encoded_password}@{db_host}:{db_port}/{db_name}"
-        print(f"🔗 Using PostgreSQL via TCP: {db_host}:{db_port}")
-    else:
-        raise ValueError("Either CLOUD_SQL_CONNECTION_NAME or DATABASE_HOST must be set for PostgreSQL")
-    
     DATABASE_TYPE = "PostgreSQL"
     DATABASE_PATH = None
+
+    if settings.database_url:
+        # Replit (and other providers) supply a standard postgresql:// URL.
+        # asyncpg requires the postgresql+asyncpg:// scheme.
+        # asyncpg also does not accept sslmode= in the URL — strip it and
+        # pass ssl via connect_args instead.
+        from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
+        raw_url = settings.database_url
+        if raw_url.startswith("postgres://"):
+            raw_url = raw_url.replace("postgres://", "postgresql://", 1)
+
+        parsed = urlparse(raw_url)
+        qs = parse_qs(parsed.query, keep_blank_values=True)
+        sslmode = qs.pop("sslmode", ["disable"])[0]  # remove from URL; default disable
+        clean_query = urlencode({k: v[0] for k, v in qs.items()})
+        clean_parsed = parsed._replace(query=clean_query, scheme="postgresql+asyncpg")
+        DATABASE_URL = urlunparse(clean_parsed)
+
+        # Translate sslmode to asyncpg ssl argument
+        _SSL_REQUIRE = sslmode in ("require", "verify-ca", "verify-full")
+        print(f"🔗 Using PostgreSQL via DATABASE_URL (ssl={'on' if _SSL_REQUIRE else 'off'})")
+
+    else:
+        # Cloud SQL / explicit credentials configuration
+        from urllib.parse import quote_plus
+        connection_name = settings.cloud_sql_connection_name
+        db_user = settings.database_user
+        db_password = settings.database_password
+        db_name = settings.database_name
+
+        if not db_password:
+            raise ValueError("DATABASE_PASSWORD is required for PostgreSQL but not set")
+
+        encoded_password = quote_plus(db_password)
+
+        if connection_name:
+            DATABASE_URL = f"postgresql+asyncpg://{db_user}:{encoded_password}@/{db_name}?host=/cloudsql/{connection_name}"
+            print(f"🔗 Using PostgreSQL via Cloud SQL Unix socket: {connection_name}")
+        elif settings.database_host:
+            db_host = settings.database_host
+            db_port = settings.database_port
+            DATABASE_URL = f"postgresql+asyncpg://{db_user}:{encoded_password}@{db_host}:{db_port}/{db_name}"
+            print(f"🔗 Using PostgreSQL via TCP: {db_host}:{db_port}")
+        else:
+            raise ValueError("Either CLOUD_SQL_CONNECTION_NAME or DATABASE_HOST must be set for PostgreSQL")
 else:
     # SQLite configuration (local development)
     DATA_DIR = Path(__file__).parent.parent.parent / "data"
@@ -56,9 +74,12 @@ engine_kwargs = {
     "future": True,
 }
 
-# Increase SQLite lock wait timeout to reduce "database is locked" under write bursts.
 if not settings.use_postgresql:
+    # Increase SQLite lock wait timeout to reduce "database is locked" under write bursts.
     engine_kwargs["connect_args"] = {"timeout": 30}
+elif settings.database_url and _SSL_REQUIRE:
+    # asyncpg requires ssl to be passed as a connect_arg, not in the URL
+    engine_kwargs["connect_args"] = {"ssl": "require"}
 
 engine = create_async_engine(
     DATABASE_URL,
@@ -97,6 +118,8 @@ async def init_db():
     
     if DATABASE_PATH:
         print(f"📦 Database initialized: {DATABASE_TYPE} at {DATABASE_PATH}")
+    elif settings.database_url:
+        print(f"📦 Database initialized: {DATABASE_TYPE} (via DATABASE_URL)")
     else:
         print(f"📦 Database initialized: {DATABASE_TYPE} (Cloud SQL: {settings.cloud_sql_connection_name})")
 
@@ -117,22 +140,29 @@ def get_sync_session():
     from sqlalchemy.orm import sessionmaker
     
     if settings.use_postgresql:
-        # PostgreSQL synchronous connection
-        connection_name = settings.cloud_sql_connection_name
-        db_user = settings.database_user
-        db_password = settings.database_password
-        db_name = settings.database_name
-        
-        from urllib.parse import quote_plus
-        encoded_password = quote_plus(db_password)
-        
-        if connection_name:
-            sync_url = f"postgresql://{db_user}:{encoded_password}@/{db_name}?host=/cloudsql/{connection_name}"
-        elif settings.database_host:
-            sync_url = f"postgresql://{db_user}:{encoded_password}@{settings.database_host}:{settings.database_port}/{db_name}"
+        if settings.database_url:
+            raw_url = settings.database_url
+            if raw_url.startswith("postgresql+asyncpg://"):
+                sync_url = raw_url.replace("postgresql+asyncpg://", "postgresql://", 1)
+            elif raw_url.startswith("postgres://"):
+                sync_url = raw_url.replace("postgres://", "postgresql://", 1)
+            else:
+                sync_url = raw_url
         else:
-            raise ValueError("PostgreSQL configuration incomplete")
-        
+            from urllib.parse import quote_plus
+            connection_name = settings.cloud_sql_connection_name
+            db_user = settings.database_user
+            db_password = settings.database_password
+            db_name = settings.database_name
+            encoded_password = quote_plus(db_password)
+
+            if connection_name:
+                sync_url = f"postgresql://{db_user}:{encoded_password}@/{db_name}?host=/cloudsql/{connection_name}"
+            elif settings.database_host:
+                sync_url = f"postgresql://{db_user}:{encoded_password}@{settings.database_host}:{settings.database_port}/{db_name}"
+            else:
+                raise ValueError("PostgreSQL configuration incomplete")
+
         sync_engine = create_engine(sync_url, echo=False)
     else:
         # SQLite synchronous connection

@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     admin_emails: str = ""  # Comma-separated list of admin emails
     
     # Database configuration (PostgreSQL/Cloud SQL)
+    database_url: Optional[str] = None  # Full PostgreSQL URL (e.g. from Replit: postgresql://user:pass@host:port/db)
     cloud_sql_connection_name: Optional[str] = None  # Cloud SQL connection name (e.g., project:region:instance)
     database_user: Optional[str] = None  # Database user
     database_password: Optional[str] = None  # Database password (from Secret Manager in production)
@@ -69,8 +70,11 @@ class Settings(BaseSettings):
     
     @property
     def use_postgresql(self) -> bool:
-        """Check if PostgreSQL should be used (Cloud SQL)."""
-        return bool(self.cloud_sql_connection_name and self.database_user and self.database_name)
+        """Check if PostgreSQL should be used."""
+        return bool(
+            self.database_url
+            or (self.cloud_sql_connection_name and self.database_user and self.database_name)
+        )
 
 
 @lru_cache()
