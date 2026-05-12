@@ -4,9 +4,11 @@ A smart task suggestion system with multi-agent AI architecture.
 """
 
 import re
+from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
 from app.config import get_settings
@@ -95,12 +97,12 @@ if settings.frontend_url:
         if url not in allowed_origins:
             allowed_origins.append(url)
 
-# In production (Cloud Run), allow any *.run.app origin
-# Cloud Run sets K_SERVICE; we also check USE_CLOUD_STORAGE from deploy script
 import os
-allow_origin_regex = None
+# Always allow *.replit.app for Replit deployments
+allow_origin_regex = r"https://.*\.replit\.app"
+# Also allow *.run.app when running on Google Cloud Run
 if os.getenv("K_SERVICE") or os.getenv("USE_CLOUD_STORAGE") == "true":
-    allow_origin_regex = r"https://.*\.run\.app"
+    allow_origin_regex = r"https://(.*\.replit\.app|.*\.run\.app)"
 
 logger.info(f"CORS allowed origins: {allowed_origins}")
 if allow_origin_regex:
@@ -167,18 +169,6 @@ async def global_exception_handler(request: Request, exc: Exception):
     return JSONResponse(status_code=500, content=content, headers=headers)
 
 
-@app.get("/")
-async def root():
-    """Root endpoint."""
-    from app.database.connection import DATABASE_TYPE
-    return {
-        "app": "Karma Backend API",
-        "version": "5.0.0",
-        "docs": "/docs",
-        "health": "/api/health",
-        "database": DATABASE_TYPE
-    }
-
 
 @app.get("/api/health")
 async def health_check():
@@ -216,6 +206,18 @@ async def health_check():
             "clerk_authentication"
         ]
     }
+
+
+FRONTEND_DIST = Path(__file__).parent.parent.parent / "frontend" / "dist"
+
+if FRONTEND_DIST.exists():
+    assets_dir = FRONTEND_DIST / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        return FileResponse(str(FRONTEND_DIST / "index.html"))
 
 
 if __name__ == "__main__":
