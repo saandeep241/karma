@@ -39,8 +39,8 @@ export function HomePage() {
     return <EmptyStatePage />;
   }
 
-  // All environments: show onboarding for users who have no tasks yet
-  if (!isStatsError && statsData && (statsData as any).total === 0) {
+  // All environments: show onboarding only if the user has never completed it
+  if (!isStatsError && statsData && (statsData as any).total === 0 && !(statsData as any).onboarding_completed) {
     return <EmptyStatePage />;
   }
 

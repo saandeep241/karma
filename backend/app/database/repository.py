@@ -7,7 +7,7 @@ from sqlalchemy import select, update, delete, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from .models import TaskModel, SubtaskModel, FeedbackModel, QuickWinHistoryModel, TokenUsageModel, UserTokenLimitModel
+from .models import TaskModel, SubtaskModel, FeedbackModel, QuickWinHistoryModel, TokenUsageModel, UserTokenLimitModel, UserPreferencesModel
 
 
 class TaskRepository:
@@ -706,4 +706,39 @@ class UserTokenLimitRepository:
             .order_by(UserTokenLimitModel.user_id)
         )
         return list(result.scalars().all())
+
+
+class UserPreferencesRepository:
+    """Repository for per-user preferences including onboarding state."""
+
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get(self, user_id: str) -> Optional[UserPreferencesModel]:
+        """Get preferences for a user, or None if not yet created."""
+        result = await self.session.execute(
+            select(UserPreferencesModel).where(UserPreferencesModel.user_id == user_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def mark_onboarding_complete(self, user_id: str) -> UserPreferencesModel:
+        """Record that a user has completed onboarding."""
+        prefs = await self.get(user_id)
+        if prefs is None:
+            prefs = UserPreferencesModel(
+                user_id=user_id,
+                onboarding_completed_at=datetime.utcnow(),
+            )
+            self.session.add(prefs)
+        elif prefs.onboarding_completed_at is None:
+            prefs.onboarding_completed_at = datetime.utcnow()
+        await self.session.commit()
+        await self.session.refresh(prefs)
+        print(f"✅ [PREFS] Onboarding marked complete for user {user_id[:8]}...")
+        return prefs
+
+    async def has_completed_onboarding(self, user_id: str) -> bool:
+        """Return True if the user has previously completed onboarding."""
+        prefs = await self.get(user_id)
+        return prefs is not None and prefs.onboarding_completed_at is not None
 
