@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'react-router-dom';
 import { TaskCard, LoadingSpinner, EmptyState } from '../components';
 import { api } from '../api/client';
 import type { Task, TaskStatus, TaskPriority } from '../types';
@@ -9,7 +10,9 @@ type SortBy = 'created' | 'priority' | 'time' | 'date';
 
 export function BrowsePage() {
   const queryClient = useQueryClient();
-  const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
+  const location = useLocation();
+  const initialFilter = (new URLSearchParams(location.search).get('status') as FilterStatus) || 'all';
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>(initialFilter);
   const [sortBy, setSortBy] = useState<SortBy>('date');
   const [breakingDownTaskId, setBreakingDownTaskId] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);

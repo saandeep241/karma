@@ -6,4 +6,5 @@ export { EmptyState } from './EmptyState';
 export { LoadingSpinner } from './LoadingSpinner';
 export { FocusMode } from './FocusMode';
 export { AuthTokenProvider } from './AuthTokenProvider';
+export { AllCaughtUp } from './AllCaughtUp';
 

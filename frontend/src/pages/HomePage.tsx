@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
-import { FocusMode } from '../components';
+import { FocusMode, AllCaughtUp } from '../components';
 import { api } from '../api/client';
 import { EmptyStatePage } from './EmptyStatePage';
 
@@ -43,6 +43,16 @@ export function HomePage() {
   // Returning users who deleted or completed all their tasks skip onboarding.
   if (!isStatsError && statsData && statsData.total === 0 && !statsData.has_completed_onboarding) {
     return <EmptyStatePage />;
+  }
+
+  // Returning users who have completed onboarding but have no pending tasks
+  if (!isStatsError && statsData && statsData.has_completed_onboarding && (statsData.pending_tasks ?? 0) === 0) {
+    return (
+      <AllCaughtUp
+        completedToday={statsData.completed_today ?? 0}
+        completedThisWeek={statsData.completed_this_week ?? 0}
+      />
+    );
   }
 
   if (showFocusMode) {
