@@ -549,13 +549,6 @@ async def update_user_token_limit(user_id: str, new_limit: int) -> dict:
         return await repo.update_limit(user_id, new_limit)
 
 
-async def mark_onboarding_complete(user_id: str) -> None:
-    """Mark a user as having completed onboarding."""
-    async with async_session() as session:
-        repo = UserPreferencesRepository(session)
-        await repo.mark_onboarding_complete(user_id)
-
-
 async def get_user_has_completed_onboarding(user_id: str) -> bool:
     """Return True if the user has ever completed onboarding."""
     async with async_session() as session:
