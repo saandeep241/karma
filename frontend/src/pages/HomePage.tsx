@@ -34,11 +34,13 @@ export function HomePage() {
     );
   }
 
-  if (!isStatsError && statsData && (statsData as any).total === 0) {
+  // Dev-only: ?emptyState=1 forces the empty state preview even if the user has tasks
+  if (shouldPreviewEmptyState) {
     return <EmptyStatePage />;
   }
 
-  if (shouldPreviewEmptyState) {
+  // All environments: show onboarding for users who have no tasks yet
+  if (!isStatsError && statsData && (statsData as any).total === 0) {
     return <EmptyStatePage />;
   }
 
