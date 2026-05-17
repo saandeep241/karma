@@ -37,7 +37,13 @@ async def save_task(user_id: str, task_data: dict, date: str = None) -> dict:
         repo = TaskRepository(session)
         task = await repo.create(user_id, task_data)
         logger.info(f"Task saved: {task.id}")
-        return {"success": True, "task_id": task.id, "task": task.to_dict()}
+        result = {"success": True, "task_id": task.id, "task": task.to_dict()}
+
+    # Any task-creation path marks the user as having been active (not a brand-new user).
+    # This is idempotent — once the flag is true it stays true.
+    await mark_onboarding_complete(user_id)
+
+    return result
 
 
 async def get_task(user_id: str, task_id: str) -> Optional[dict]:
@@ -541,4 +547,44 @@ async def update_user_token_limit(user_id: str, new_limit: int) -> dict:
     async with async_session() as session:
         repo = UserTokenLimitRepository(session)
         return await repo.update_limit(user_id, new_limit)
+
+
+async def mark_onboarding_complete(user_id: str) -> None:
+    """Mark a user as having completed onboarding."""
+    async with async_session() as session:
+        repo = UserPreferencesRepository(session)
+        await repo.mark_onboarding_complete(user_id)
+
+
+async def get_user_has_completed_onboarding(user_id: str) -> bool:
+    """Return True if the user has ever completed onboarding."""
+    async with async_session() as session:
+        repo = UserPreferencesRepository(session)
+        return await repo.has_completed_onboarding(user_id)
+
+
+async def backfill_onboarding_flag() -> int:
+    """
+    One-time startup backfill: set has_completed_onboarding for every user who
+    already has at least one task but no user_preferences row yet.
+
+    Returns the number of users updated.
+    """
+    from sqlalchemy import select, distinct
+    from app.database.models import TaskModel
+
+    updated = 0
+    async with async_session() as session:
+        result = await session.execute(select(distinct(TaskModel.user_id)))
+        user_ids_with_tasks = [row[0] for row in result.all()]
+
+        for uid in user_ids_with_tasks:
+            repo = UserPreferencesRepository(session)
+            already_set = await repo.has_completed_onboarding(uid)
+            if not already_set:
+                await repo.mark_onboarding_complete(uid)
+                updated += 1
+
+    logger.info(f"Onboarding backfill: updated {updated} / {len(user_ids_with_tasks)} users")
+    return updated
 

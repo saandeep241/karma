@@ -139,6 +139,7 @@ async def get_all_tasks(user: AuthUser = Depends(require_auth)):
 async def get_stats(user: AuthUser = Depends(require_auth)):
     """Get overall task statistics for UI badges."""
     stats = await db_service.get_task_stats(user.user_id)
+    stats["has_completed_onboarding"] = await db_service.get_user_has_completed_onboarding(user.user_id)
     return stats
 
 

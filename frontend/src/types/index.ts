@@ -160,6 +160,10 @@ export interface StatsData {
   tasks_by_priority: Record<TaskPriority, number>;
   average_completion_time_minutes: number;
   recent_completions?: Task[];
+  /** True once the user has created at least one task (via any path). Survives task deletion. */
+  has_completed_onboarding: boolean;
+  /** Raw total task count returned by the stats endpoint. */
+  total: number;
 }
 
 // Form Types

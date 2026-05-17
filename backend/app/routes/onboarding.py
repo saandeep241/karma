@@ -104,4 +104,7 @@ async def complete_onboarding(
     await db_service.mark_onboarding_complete(user.user_id)
     logger.info(f"Onboarding complete: {len(saved)} tasks created for user_id={user.user_id}")
 
+    await db_service.mark_onboarding_complete(user.user_id)
+    logger.info(f"Onboarding flag set for user_id={user.user_id}")
+
     return OnboardingResponse(tasks_created=len(saved), tasks=saved)

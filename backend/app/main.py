@@ -44,6 +44,15 @@ async def lifespan(app: FastAPI):
         logger.info(f"Database initialized: {DATABASE_TYPE} at {DATABASE_PATH}")
     else:
         logger.info(f"Database initialized: {DATABASE_TYPE} (Cloud SQL)")
+
+    # Backfill: any user who already has tasks in the DB is not a brand-new user.
+    # Set has_completed_onboarding=true for them so they never land on onboarding again.
+    try:
+        from app.services import db_service as _db
+        await _db.backfill_onboarding_flag()
+        logger.info("Onboarding flag backfill complete")
+    except Exception as exc:
+        logger.warning(f"Onboarding flag backfill failed (non-fatal): {exc}")
     
     # Check AI mode
     if settings.is_ai_enabled:

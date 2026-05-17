@@ -39,8 +39,9 @@ export function HomePage() {
     return <EmptyStatePage />;
   }
 
-  // All environments: show onboarding only if the user has never completed it
-  if (!isStatsError && statsData && (statsData as any).total === 0 && !(statsData as any).onboarding_completed) {
+  // All environments: show onboarding only for brand-new users who have never completed it.
+  // Returning users who deleted or completed all their tasks skip onboarding.
+  if (!isStatsError && statsData && statsData.total === 0 && !statsData.has_completed_onboarding) {
     return <EmptyStatePage />;
   }
 
@@ -52,8 +53,8 @@ export function HomePage() {
     );
   }
 
-  const completedToday = (statsData as any)?.completed_today || 0;
-  const completedThisWeek = (statsData as any)?.completed_this_week || 0;
+  const completedToday = statsData?.completed_today || 0;
+  const completedThisWeek = statsData?.completed_this_week || 0;
   const pendingTasks = statsData?.pending_tasks || 0;
 
   return (
