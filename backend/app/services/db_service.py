@@ -15,6 +15,7 @@ from app.database.repository import (
     QuickWinHistoryRepository,
     TokenUsageRepository,
     UserTokenLimitRepository,
+    UserPreferencesRepository,
 )
 from app.database.models import TaskModel, SubtaskModel
 from app.logging_config import get_db_logger
@@ -117,7 +118,17 @@ async def get_task_stats(user_id: str) -> dict:
     """Get overall task statistics for a specific user."""
     async with async_session() as session:
         repo = TaskRepository(session)
-        return await repo.get_stats(user_id)
+        stats = await repo.get_stats(user_id)
+        prefs_repo = UserPreferencesRepository(session)
+        stats["onboarding_completed"] = await prefs_repo.has_completed_onboarding(user_id)
+        return stats
+
+
+async def mark_onboarding_complete(user_id: str) -> None:
+    """Persist that a user has completed the onboarding flow."""
+    async with async_session() as session:
+        prefs_repo = UserPreferencesRepository(session)
+        await prefs_repo.mark_onboarding_complete(user_id)
 
 
 async def get_in_progress_tasks(user_id: str) -> List[dict]:

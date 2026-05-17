@@ -26,18 +26,22 @@ export function HomePage() {
     refetchInterval: 60000,
   });
 
-  if (shouldPreviewEmptyState) {
-    if (isStatsLoading) {
-      return (
-        <div className="flex items-center justify-center min-h-[calc(100vh-120px)]">
-          <div className="text-gray-400 text-sm">Loading...</div>
-        </div>
-      );
-    }
+  if (isStatsLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-120px)]">
+        <div className="text-gray-400 text-sm">Loading...</div>
+      </div>
+    );
+  }
 
-    if (!isStatsError && statsData && (statsData as any).total === 0) {
-      return <EmptyStatePage />;
-    }
+  // Dev-only: ?emptyState=1 forces the empty state preview even if the user has tasks
+  if (shouldPreviewEmptyState) {
+    return <EmptyStatePage />;
+  }
+
+  // All environments: show onboarding only if the user has never completed it
+  if (!isStatsError && statsData && (statsData as any).total === 0 && !(statsData as any).onboarding_completed) {
+    return <EmptyStatePage />;
   }
 
   if (showFocusMode) {

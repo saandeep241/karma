@@ -247,6 +247,16 @@ class TokenUsageModel(Base):
         }
 
 
+class UserPreferencesModel(Base):
+    """Per-user preferences and onboarding state."""
+    __tablename__ = "user_preferences"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    onboarding_completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 class UserTokenLimitModel(Base):
     """Track monthly token limits per user."""
     __tablename__ = "user_token_limits"
