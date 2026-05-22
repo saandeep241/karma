@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     # Clerk Authentication (optional)
     clerk_secret_key: Optional[str] = None
     clerk_publishable_key: Optional[str] = None
+
+    # Langfuse Observability (optional)
+    langfuse_public_key: Optional[str] = None
+    langfuse_secret_key: Optional[str] = None
+    langfuse_host: str = "https://cloud.langfuse.com"
     
     # App settings
     app_name: str = "Karma - Smart Task Suggestions"

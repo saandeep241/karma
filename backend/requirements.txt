@@ -21,5 +21,8 @@ greenlet>=3.0.0
 fastapi-clerk-auth>=0.0.9
 python-jose[cryptography]>=3.3.0
 
+# Observability
+langfuse>=2.0.0
+
 # Utilities
 python-dotenv==1.0.0

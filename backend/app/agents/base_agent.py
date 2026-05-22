@@ -19,6 +19,7 @@ from app.config import get_settings
 from app.services.tools import save_reasoning
 from app.services import db_service
 from app.logging_config import get_logger
+from app.langfuse_client import get_langfuse
 from .agent_tools import AGENT_TOOLS, execute_tool
 
 logger = get_logger("BaseAgent")
@@ -207,12 +208,30 @@ class BaseAgent(ABC):
             self.AGENT_NAME, prompt,
         )
         
+        messages = [
+            {"role": "system", "content": self.SYSTEM_PROMPT},
+            {"role": "user", "content": prompt}
+        ]
+
+        langfuse = get_langfuse()
+        lf_trace = None
+        lf_generation = None
+        if langfuse:
+            lf_trace = langfuse.trace(
+                name=self.AGENT_NAME,
+                user_id=user_id or "anonymous",
+                metadata={"operation_type": operation_type, "task_id": task_id},
+            )
+            lf_generation = lf_trace.generation(
+                name=f"{self.AGENT_NAME}.simple_completion",
+                model=self.model,
+                model_parameters={"temperature": temperature, "max_tokens": max_tokens},
+                input=messages,
+            )
+
         response = self.client.chat.completions.create(
             model=self.model,
-            messages=[
-                {"role": "system", "content": self.SYSTEM_PROMPT},
-                {"role": "user", "content": prompt}
-            ],
+            messages=messages,
             temperature=temperature,
             max_tokens=max_tokens
         )
@@ -231,7 +250,21 @@ class BaseAgent(ABC):
                 response.usage.prompt_tokens,
                 response.usage.completion_tokens,
             )
-        
+
+        if lf_generation:
+            usage_data = {}
+            if response.usage:
+                usage_data = {
+                    "input": response.usage.prompt_tokens,
+                    "output": response.usage.completion_tokens,
+                    "total": response.usage.total_tokens,
+                    "unit": "TOKENS",
+                }
+            lf_generation.end(output=raw_response, usage=usage_data)
+
+        if langfuse:
+            langfuse.flush()
+
         # Track token usage if user_id is provided (fire and forget)
         if user_id and response.usage:
             # Increment monthly usage counter
@@ -302,6 +335,15 @@ class BaseAgent(ABC):
         tool_calls_made = []
         tool_results = []
         iterations = 0
+
+        langfuse = get_langfuse()
+        lf_trace = None
+        if langfuse:
+            lf_trace = langfuse.trace(
+                name=self.AGENT_NAME,
+                user_id=user_id or "anonymous",
+                metadata={"operation_type": operation_type, "task_id": task_id},
+            )
         
         # Check token limit before first iteration (estimate: prompt + max_tokens * max_iterations)
         if user_id:
@@ -318,6 +360,15 @@ class BaseAgent(ABC):
             iterations += 1
             
             try:
+                lf_generation = None
+                if lf_trace:
+                    lf_generation = lf_trace.generation(
+                        name=f"{self.AGENT_NAME}.iteration_{iterations}",
+                        model=self.model,
+                        model_parameters={"temperature": temperature, "max_tokens": max_tokens},
+                        input=messages,
+                    )
+
                 response = self.client.chat.completions.create(
                     model=self.model,
                     messages=messages,
@@ -326,7 +377,21 @@ class BaseAgent(ABC):
                     temperature=temperature,
                     max_tokens=max_tokens
                 )
-                
+
+                if lf_generation:
+                    usage_data = {}
+                    if response.usage:
+                        usage_data = {
+                            "input": response.usage.prompt_tokens,
+                            "output": response.usage.completion_tokens,
+                            "total": response.usage.total_tokens,
+                            "unit": "TOKENS",
+                        }
+                    lf_generation.end(
+                        output=response.choices[0].message.content,
+                        usage=usage_data,
+                    )
+
                 # Track token usage for each API call (accumulated across iterations)
                 if user_id and response.usage:
                     # Increment monthly usage counter
@@ -402,6 +467,8 @@ class BaseAgent(ABC):
                         })
                 else:
                     # No more tool calls - return final response
+                    if langfuse:
+                        langfuse.flush()
                     return {
                         "response": message.content,
                         "tool_calls": tool_calls_made,
@@ -415,6 +482,8 @@ class BaseAgent(ABC):
                 raise
         
         # Max iterations reached - return last response
+        if langfuse:
+            langfuse.flush()
         return {
             "response": messages[-1].content if hasattr(messages[-1], 'content') else str(messages[-1]),
             "tool_calls": tool_calls_made,
