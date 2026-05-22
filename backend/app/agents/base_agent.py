@@ -10,9 +10,16 @@ All agents inherit from this base class which provides:
 
 import json
 import asyncio
+from contextlib import contextmanager
 from datetime import datetime
 from typing import Optional, Any
 from abc import ABC, abstractmethod
+
+
+@contextmanager
+def _null_ctx():
+    """No-op context manager used when Langfuse is disabled."""
+    yield None
 
 from openai import OpenAI
 from app.config import get_settings
@@ -214,29 +221,44 @@ class BaseAgent(ABC):
         ]
 
         langfuse = get_langfuse()
-        lf_trace = None
-        lf_generation = None
-        if langfuse:
-            lf_trace = langfuse.trace(
-                name=self.AGENT_NAME,
-                user_id=user_id or "anonymous",
-                metadata={"operation_type": operation_type, "task_id": task_id},
-            )
-            lf_generation = lf_trace.generation(
-                name=f"{self.AGENT_NAME}.simple_completion",
+
+        def _do_completion():
+            return self.client.chat.completions.create(
                 model=self.model,
-                model_parameters={"temperature": temperature, "max_tokens": max_tokens},
-                input=messages,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens
             )
 
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens
-        )
-        
-        raw_response = response.choices[0].message.content
+        if langfuse:
+            with langfuse.start_as_current_observation(
+                name=self.AGENT_NAME,
+                as_type="span",
+                metadata={"user_id": user_id or "anonymous", "operation_type": operation_type, "task_id": task_id},
+            ):
+                with langfuse.start_as_current_observation(
+                    name=f"{self.AGENT_NAME}.simple_completion",
+                    as_type="generation",
+                    model=self.model,
+                    model_parameters={"temperature": temperature, "max_tokens": max_tokens},
+                    input=messages,
+                ) as gen:
+                    response = _do_completion()
+                    raw_response = response.choices[0].message.content
+                    if response.usage:
+                        langfuse.update_current_generation(
+                            output=raw_response,
+                            usage_details={
+                                "input": response.usage.prompt_tokens,
+                                "output": response.usage.completion_tokens,
+                                "total": response.usage.total_tokens,
+                            },
+                        )
+            langfuse.flush()
+        else:
+            response = _do_completion()
+            raw_response = response.choices[0].message.content
+
         logger.debug(
             "%s LLM raw response:\n%s",
             self.AGENT_NAME, raw_response,
@@ -250,20 +272,6 @@ class BaseAgent(ABC):
                 response.usage.prompt_tokens,
                 response.usage.completion_tokens,
             )
-
-        if lf_generation:
-            usage_data = {}
-            if response.usage:
-                usage_data = {
-                    "input": response.usage.prompt_tokens,
-                    "output": response.usage.completion_tokens,
-                    "total": response.usage.total_tokens,
-                    "unit": "TOKENS",
-                }
-            lf_generation.end(output=raw_response, usage=usage_data)
-
-        if langfuse:
-            langfuse.flush()
 
         # Track token usage if user_id is provided (fire and forget)
         if user_id and response.usage:
@@ -298,23 +306,22 @@ class BaseAgent(ABC):
     ) -> dict:
         """
         Execute a completion with tool calling capabilities.
-        
+
         Args:
             prompt: The user prompt
             tools: List of tool names to enable (None = all tools)
             temperature: Sampling temperature
             max_tokens: Max tokens per response
             max_iterations: Max tool call iterations
-            
+
         Returns:
             dict with 'response', 'tool_calls', and 'tool_results'
         """
         self._check_available_or_raise()
-        
+
         # Build tool definitions
         available_tools = tools or list(AGENT_TOOLS.keys())
         openai_tools = []
-        
         for tool_name in available_tools:
             if tool_name in AGENT_TOOLS:
                 tool_def = AGENT_TOOLS[tool_name]
@@ -326,25 +333,18 @@ class BaseAgent(ABC):
                         "parameters": tool_def["parameters"]
                     }
                 })
-        
+
         messages = [
             {"role": "system", "content": self.SYSTEM_PROMPT},
             {"role": "user", "content": prompt}
         ]
-        
+
         tool_calls_made = []
         tool_results = []
         iterations = 0
 
         langfuse = get_langfuse()
-        lf_trace = None
-        if langfuse:
-            lf_trace = langfuse.trace(
-                name=self.AGENT_NAME,
-                user_id=user_id or "anonymous",
-                metadata={"operation_type": operation_type, "task_id": task_id},
-            )
-        
+
         # Check token limit before first iteration (estimate: prompt + max_tokens * max_iterations)
         if user_id:
             estimated_tokens = len(prompt.split()) * 1.3 + (max_tokens * max_iterations)
@@ -355,137 +355,127 @@ class BaseAgent(ABC):
                     status_code=429,
                     detail=f"Monthly token limit exceeded. Used {limit_info.get('tokens_used_this_month', 0):,} / {limit_info.get('monthly_limit', 0):,} tokens this month."
                 )
-        
-        while iterations < max_iterations:
-            iterations += 1
-            
-            try:
-                lf_generation = None
-                if lf_trace:
-                    lf_generation = lf_trace.generation(
+
+        def _run_api_call():
+            return self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                tools=openai_tools if openai_tools else None,
+                tool_choice="auto" if openai_tools else None,
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
+
+        lf_span_ctx = langfuse.start_as_current_observation(
+            name=self.AGENT_NAME,
+            as_type="span",
+            metadata={"user_id": user_id or "anonymous", "operation_type": operation_type, "task_id": task_id},
+        ) if langfuse else None
+
+        with (lf_span_ctx if lf_span_ctx else _null_ctx()):
+            while iterations < max_iterations:
+                iterations += 1
+
+                try:
+                    lf_gen_ctx = langfuse.start_as_current_observation(
                         name=f"{self.AGENT_NAME}.iteration_{iterations}",
+                        as_type="generation",
                         model=self.model,
                         model_parameters={"temperature": temperature, "max_tokens": max_tokens},
                         input=messages,
-                    )
+                    ) if langfuse else None
 
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    tools=openai_tools if openai_tools else None,
-                    tool_choice="auto" if openai_tools else None,
-                    temperature=temperature,
-                    max_tokens=max_tokens
-                )
-
-                if lf_generation:
-                    usage_data = {}
-                    if response.usage:
-                        usage_data = {
-                            "input": response.usage.prompt_tokens,
-                            "output": response.usage.completion_tokens,
-                            "total": response.usage.total_tokens,
-                            "unit": "TOKENS",
-                        }
-                    lf_generation.end(
-                        output=response.choices[0].message.content,
-                        usage=usage_data,
-                    )
-
-                # Track token usage for each API call (accumulated across iterations)
-                if user_id and response.usage:
-                    # Increment monthly usage counter
-                    self._schedule_background_task(
-                        db_service.increment_token_usage(user_id, response.usage.total_tokens),
-                        "increment_token_usage"
-                    )
-                    
-                    # Record detailed usage
-                    self._record_token_usage_async(
-                        user_id=user_id,
-                        prompt_tokens=response.usage.prompt_tokens,
-                        completion_tokens=response.usage.completion_tokens,
-                        total_tokens=response.usage.total_tokens,
-                        task_id=task_id,
-                        operation_type=operation_type
-                    )
-                
-                message = response.choices[0].message
-                
-                # Check if AI wants to call tools
-                if message.tool_calls:
-                    # Append a plain dict so the next API call doesn't serialize OpenAI
-                    # Pydantic models (which can cause by_alias=None errors)
-                    msg_dict = {
-                        "role": message.role,
-                        "content": message.content or "",
-                        "tool_calls": [
-                            {
-                                "id": tc.id,
-                                "type": getattr(tc, "type", "function"),
-                                "function": {
-                                    "name": tc.function.name,
-                                    "arguments": tc.function.arguments or "{}",
+                    with (lf_gen_ctx if lf_gen_ctx else _null_ctx()):
+                        response = _run_api_call()
+                        if langfuse and response.usage:
+                            langfuse.update_current_generation(
+                                output=response.choices[0].message.content,
+                                usage_details={
+                                    "input": response.usage.prompt_tokens,
+                                    "output": response.usage.completion_tokens,
+                                    "total": response.usage.total_tokens,
                                 },
-                            }
-                            for tc in message.tool_calls
-                        ],
-                    }
-                    messages.append(msg_dict)
-                    
-                    for tool_call in message.tool_calls:
-                        tool_name = tool_call.function.name
-                        
-                        try:
-                            tool_args = json.loads(tool_call.function.arguments)
-                        except json.JSONDecodeError:
-                            tool_args = {}
-                        
-                        if self.session:
-                            self.session.add_thought("tool_call", f"Calling {tool_name} with {tool_args}")
-                        
-                        # Execute the tool
-                        result = execute_tool(tool_name, tool_args)
-                        
-                        tool_calls_made.append({
-                            "tool": tool_name,
-                            "args": tool_args
-                        })
-                        tool_results.append({
-                            "tool": tool_name,
-                            "result": result
-                        })
-                        
-                        if self.session:
-                            self.session.add_tool_call(tool_name, tool_args, result)
-                        
-                        # Add tool result to messages
-                        messages.append({
-                            "role": "tool",
-                            "tool_call_id": tool_call.id,
-                            "content": json.dumps(result) if isinstance(result, dict) else str(result)
-                        })
-                else:
-                    # No more tool calls - return final response
-                    if langfuse:
-                        langfuse.flush()
-                    return {
-                        "response": message.content,
-                        "tool_calls": tool_calls_made,
-                        "tool_results": tool_results,
-                        "iterations": iterations
-                    }
-            
-            except Exception as e:
-                if self.session:
-                    self.session.add_thought("error", f"Tool calling failed: {e}")
-                raise
-        
-        # Max iterations reached - return last response
+                            )
+
+                    # Track token usage for each API call (fire and forget)
+                    if user_id and response.usage:
+                        self._schedule_background_task(
+                            db_service.increment_token_usage(user_id, response.usage.total_tokens),
+                            "increment_token_usage"
+                        )
+                        self._record_token_usage_async(
+                            user_id=user_id,
+                            prompt_tokens=response.usage.prompt_tokens,
+                            completion_tokens=response.usage.completion_tokens,
+                            total_tokens=response.usage.total_tokens,
+                            task_id=task_id,
+                            operation_type=operation_type
+                        )
+
+                    message = response.choices[0].message
+
+                    if message.tool_calls:
+                        msg_dict = {
+                            "role": message.role,
+                            "content": message.content or "",
+                            "tool_calls": [
+                                {
+                                    "id": tc.id,
+                                    "type": getattr(tc, "type", "function"),
+                                    "function": {
+                                        "name": tc.function.name,
+                                        "arguments": tc.function.arguments or "{}",
+                                    },
+                                }
+                                for tc in message.tool_calls
+                            ],
+                        }
+                        messages.append(msg_dict)
+
+                        for tool_call in message.tool_calls:
+                            tool_name = tool_call.function.name
+                            try:
+                                tool_args = json.loads(tool_call.function.arguments)
+                            except json.JSONDecodeError:
+                                tool_args = {}
+
+                            if self.session:
+                                self.session.add_thought("tool_call", f"Calling {tool_name} with {tool_args}")
+
+                            result = execute_tool(tool_name, tool_args)
+
+                            tool_calls_made.append({"tool": tool_name, "args": tool_args})
+                            tool_results.append({"tool": tool_name, "result": result})
+
+                            if self.session:
+                                self.session.add_tool_call(tool_name, tool_args, result)
+
+                            messages.append({
+                                "role": "tool",
+                                "tool_call_id": tool_call.id,
+                                "content": json.dumps(result) if isinstance(result, dict) else str(result)
+                            })
+                    else:
+                        # No more tool calls — return final response
+                        if langfuse:
+                            langfuse.flush()
+                        return {
+                            "response": message.content,
+                            "tool_calls": tool_calls_made,
+                            "tool_results": tool_results,
+                            "iterations": iterations
+                        }
+
+                except Exception as e:
+                    if self.session:
+                        self.session.add_thought("error", f"Tool calling failed: {e}")
+                    raise
+
+        # Max iterations reached — return last response
         if langfuse:
             langfuse.flush()
         return {
-            "response": messages[-1].content if hasattr(messages[-1], 'content') else str(messages[-1]),
+            "response": messages[-1].get("content", "") if isinstance(messages[-1], dict) else str(messages[-1]),
             "tool_calls": tool_calls_made,
             "tool_results": tool_results,
             "iterations": iterations,

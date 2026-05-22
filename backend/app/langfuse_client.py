@@ -1,5 +1,5 @@
 """
-Langfuse observability client.
+Langfuse observability client (v4).
 
 Returns a configured Langfuse instance when LANGFUSE_PUBLIC_KEY and
 LANGFUSE_SECRET_KEY are set; otherwise returns None so the app runs
