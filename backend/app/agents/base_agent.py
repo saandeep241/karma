@@ -26,7 +26,7 @@ from app.config import get_settings
 from app.services.tools import save_reasoning
 from app.services import db_service
 from app.logging_config import get_logger
-from app.langfuse_client import get_langfuse
+from app.langfuse_client import get_langfuse, compute_cost
 from .agent_tools import AGENT_TOOLS, execute_tool
 
 logger = get_logger("BaseAgent")
@@ -245,15 +245,21 @@ class BaseAgent(ABC):
                 ) as gen:
                     response = _do_completion()
                     raw_response = response.choices[0].message.content
+                    update_kwargs = {"output": raw_response}
                     if response.usage:
-                        langfuse.update_current_generation(
-                            output=raw_response,
-                            usage_details={
-                                "input": response.usage.prompt_tokens,
-                                "output": response.usage.completion_tokens,
-                                "total": response.usage.total_tokens,
-                            },
+                        update_kwargs["usage_details"] = {
+                            "input": response.usage.prompt_tokens,
+                            "output": response.usage.completion_tokens,
+                            "total": response.usage.total_tokens,
+                        }
+                        cost = compute_cost(
+                            self.model,
+                            response.usage.prompt_tokens,
+                            response.usage.completion_tokens,
                         )
+                        if cost:
+                            update_kwargs["cost_details"] = cost
+                    langfuse.update_current_generation(**update_kwargs)
             langfuse.flush()
         else:
             response = _do_completion()
@@ -387,15 +393,22 @@ class BaseAgent(ABC):
 
                     with (lf_gen_ctx if lf_gen_ctx else _null_ctx()):
                         response = _run_api_call()
-                        if langfuse and response.usage:
-                            langfuse.update_current_generation(
-                                output=response.choices[0].message.content,
-                                usage_details={
+                        if langfuse:
+                            update_kwargs = {"output": response.choices[0].message.content}
+                            if response.usage:
+                                update_kwargs["usage_details"] = {
                                     "input": response.usage.prompt_tokens,
                                     "output": response.usage.completion_tokens,
                                     "total": response.usage.total_tokens,
-                                },
-                            )
+                                }
+                                cost = compute_cost(
+                                    self.model,
+                                    response.usage.prompt_tokens,
+                                    response.usage.completion_tokens,
+                                )
+                                if cost:
+                                    update_kwargs["cost_details"] = cost
+                            langfuse.update_current_generation(**update_kwargs)
 
                     # Track token usage for each API call (fire and forget)
                     if user_id and response.usage:
