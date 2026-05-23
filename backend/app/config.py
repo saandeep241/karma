@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     # Langfuse Observability (optional)
     langfuse_public_key: Optional[str] = None
     langfuse_secret_key: Optional[str] = None
-    langfuse_host: str = "https://cloud.langfuse.com"
+    langfuse_host: str = "https://us.cloud.langfuse.com"
     
     # App settings
     app_name: str = "Karma - Smart Task Suggestions"
