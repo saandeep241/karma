@@ -39,9 +39,8 @@ async def save_task(user_id: str, task_data: dict, date: str = None) -> dict:
         logger.info(f"Task saved: {task.id}")
         result = {"success": True, "task_id": task.id, "task": task.to_dict()}
 
-    # Any task-creation path marks the user as having been active (not a brand-new user).
-    # This is idempotent — once the flag is true it stays true.
-    await mark_onboarding_complete(user_id)
+    # Note: mark_onboarding_complete is now called inside TaskRepository.create so
+    # every task-creation path sets the flag automatically.  No redundant call needed here.
 
     return result
 

@@ -72,6 +72,14 @@ class TaskRepository:
         task = result.scalar_one()
         
         print(f"📦 [DB] Created task: {task.text[:50]}...")
+
+        # Belt-and-suspenders: mark onboarding complete at the repository layer so
+        # no task-creation path (bulk imports, admin tooling, future routes, etc.)
+        # can accidentally leave the flag unset.  This is idempotent — once set it
+        # stays set — so the extra write is a no-op for returning users.
+        prefs_repo = UserPreferencesRepository(self.session)
+        await prefs_repo.mark_onboarding_complete(user_id)
+
         return task
     
     async def get_by_id(self, user_id: str, task_id: str) -> Optional[TaskModel]:
