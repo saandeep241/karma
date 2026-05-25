@@ -12,6 +12,8 @@ export function HomePage() {
   const searchParams = new URLSearchParams(location.search);
   const shouldPreviewEmptyState =
     searchParams.get('emptyState') === '1' && !import.meta.env.PROD;
+  const shouldPreviewCaughtUp =
+    searchParams.get('caughtUp') === '1' && !import.meta.env.PROD;
 
   // Reset focus mode when navigating to home (e.g., clicking logo)
   useEffect(() => {
@@ -37,6 +39,16 @@ export function HomePage() {
   // Dev-only: ?emptyState=1 forces the empty state preview even if the user has tasks
   if (shouldPreviewEmptyState) {
     return <EmptyStatePage />;
+  }
+
+  // Dev-only: ?caughtUp=1 forces the AllCaughtUp screen for design/dev iteration
+  if (shouldPreviewCaughtUp) {
+    return (
+      <AllCaughtUp
+        completedToday={statsData?.completed_today ?? 0}
+        completedThisWeek={statsData?.completed_this_week ?? 0}
+      />
+    );
   }
 
   // All environments: show onboarding only for brand-new users who have never completed it.
