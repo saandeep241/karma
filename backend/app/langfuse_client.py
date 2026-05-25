@@ -6,6 +6,8 @@ LANGFUSE_SECRET_KEY are set; otherwise returns None so the app runs
 identically without any keys configured.
 """
 
+import uuid as _uuid
+from contextlib import contextmanager
 from functools import lru_cache
 from typing import Optional, Dict
 
@@ -49,6 +51,36 @@ def compute_cost(model: str, prompt_tokens: int, completion_tokens: int) -> Opti
         "output": round(output_cost, 8),
         "total": round(input_cost + output_cost, 8),
     }
+
+
+@contextmanager
+def root_trace(name: str, user_id: str = None, operation_type: str = None):
+    """
+    Open a root Langfuse trace for a single request.
+
+    All agent spans opened via `await` within the same asyncio task will
+    automatically nest under this trace through Python contextvars.
+    When Langfuse is disabled this is a no-op and yields None.
+
+    Usage (inside an async route handler):
+        with root_trace("suggest_task", user_id=user.user_id, operation_type="suggest_task") as tid:
+            result = await karma_orchestrator.suggest_task(...)
+    """
+    langfuse = get_langfuse()
+    if not langfuse:
+        yield None
+        return
+
+    trace_id = str(_uuid.uuid4())
+    with langfuse.start_as_current_observation(
+        as_type="trace",
+        id=trace_id,
+        name=name,
+        user_id=user_id or "anonymous",
+        metadata={"operation_type": operation_type},
+    ):
+        yield trace_id
+    langfuse.flush()
 
 
 @lru_cache()

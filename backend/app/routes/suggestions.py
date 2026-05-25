@@ -12,6 +12,7 @@ from app.auth import require_auth, AuthUser
 from app.services.session_store import session_store
 from app.services import db_service
 from app.agents import karma_orchestrator
+from app.langfuse_client import root_trace
 from app.logging_config import get_api_logger
 
 logger = get_api_logger()
@@ -101,118 +102,119 @@ async def get_suggestion_from_storage(request: SuggestFromStorageRequest, user: 
             )
             all_tasks.append(task)
     
-    if not all_tasks:
-        # No tasks - use QuickWin agent
-        valid_times_early = sorted([t.value for t in TimeAvailable])
-        candidates_up = [v for v in valid_times_early if v >= request.time_available]
-        snapped_time_early = candidates_up[0] if candidates_up else valid_times_early[-1]
+    with root_trace("suggestion", user_id=user.user_id, operation_type="suggest_task"):
+        if not all_tasks:
+            # No tasks - use QuickWin agent
+            valid_times_early = sorted([t.value for t in TimeAvailable])
+            candidates_up = [v for v in valid_times_early if v >= request.time_available]
+            snapped_time_early = candidates_up[0] if candidates_up else valid_times_early[-1]
+            context = UserContext(
+                time_available=TimeAvailable(snapped_time_early),
+                energy_level=EnergyLevel(request.energy_level)
+            )
+            quickwin = await karma_orchestrator.generate_quickwin(context, user_id=user.user_id)
+
+            quickwin_task = Task(
+                text=quickwin["text"],
+                estimated_minutes=quickwin["estimated_minutes"]
+            )
+
+            suggestion = TaskSuggestion(
+                task=quickwin_task,
+                reasoning=quickwin["reasoning"],
+                confidence_score=1.0,
+                is_generic_quickwin=True
+            )
+
+            return {
+                "session_id": "quickwin",
+                "suggestion": suggestion.model_dump(by_alias=False),
+                "alternatives_available": True,
+                "message": "No pending tasks. Here's a quick activity!"
+            }
+
+        # Snap the requested time UP to the next valid TimeAvailable value
+        valid_times = sorted([t.value for t in TimeAvailable])
+        candidates = [v for v in valid_times if v >= request.time_available]
+        snapped_time = candidates[0] if candidates else valid_times[-1]
+
+        # Create context
         context = UserContext(
-            time_available=TimeAvailable(snapped_time_early),
+            time_available=TimeAvailable(snapped_time),
             energy_level=EnergyLevel(request.energy_level)
         )
-        quickwin = await karma_orchestrator.generate_quickwin(context, user_id=user.user_id)
-        
-        quickwin_task = Task(
-            text=quickwin["text"],
-            estimated_minutes=quickwin["estimated_minutes"]
+
+        # Create/update session
+        session = session_store.create_session(user.user_id)
+        session.context = context
+        session.todo_list = TodoList(tasks=all_tasks)
+        session.suggested_task_ids = request.excluded_task_ids or []
+        session_store.update_session(session)
+
+        # Tasks passed to the agent are filtered by excluded_task_ids inside the suggester
+        after_exclusion = len(all_tasks) - len([t for t in all_tasks if t.id in (request.excluded_task_ids or [])])
+        logger.info(f"Suggestion candidates: {after_exclusion} tasks (after excluding {len(session.suggested_task_ids)} previously suggested)")
+
+        # Get suggestion from agent - now includes ALL tasks with subtask information
+        suggestion, reasoning_trace = await karma_orchestrator.suggest_task(
+            tasks=all_tasks,
+            context=context,
+            excluded_task_ids=request.excluded_task_ids,
+            user_id=user.user_id
         )
-        
-        suggestion = TaskSuggestion(
-            task=quickwin_task,
-            reasoning=quickwin["reasoning"],
-            confidence_score=1.0,
-            is_generic_quickwin=True
-        )
-        
-        return {
-            "session_id": "quickwin",
-            "suggestion": suggestion.model_dump(by_alias=False),
-            "alternatives_available": True,
-            "message": "No pending tasks. Here's a quick activity!"
-        }
-    
-    # Snap the requested time UP to the next valid TimeAvailable value
-    valid_times = sorted([t.value for t in TimeAvailable])
-    candidates = [v for v in valid_times if v >= request.time_available]
-    snapped_time = candidates[0] if candidates else valid_times[-1]
-    
-    # Create context
-    context = UserContext(
-        time_available=TimeAvailable(snapped_time),
-        energy_level=EnergyLevel(request.energy_level)
-    )
-    
-    # Create/update session
-    session = session_store.create_session(user.user_id)
-    session.context = context
-    session.todo_list = TodoList(tasks=all_tasks)
-    session.suggested_task_ids = request.excluded_task_ids or []
-    session_store.update_session(session)
-    
-    # Tasks passed to the agent are filtered by excluded_task_ids inside the suggester
-    after_exclusion = len(all_tasks) - len([t for t in all_tasks if t.id in (request.excluded_task_ids or [])])
-    logger.info(f"Suggestion candidates: {after_exclusion} tasks (after excluding {len(session.suggested_task_ids)} previously suggested)")
-    
-    # Get suggestion from agent - now includes ALL tasks with subtask information
-    suggestion, reasoning_trace = await karma_orchestrator.suggest_task(
-        tasks=all_tasks,
-        context=context,
-        excluded_task_ids=request.excluded_task_ids,
-        user_id=user.user_id
-    )
-    
-    if not suggestion:
-        # No matching tasks - use QuickWin
-        quickwin = await karma_orchestrator.generate_quickwin(context, user_id=user.user_id)
-        
-        quickwin_task = Task(
-            text=quickwin["text"],
-            estimated_minutes=quickwin["estimated_minutes"]
-        )
-        
-        suggestion = TaskSuggestion(
-            task=quickwin_task,
-            reasoning=quickwin["reasoning"],
-            confidence_score=1.0,
-            is_generic_quickwin=True
-        )
-        
-        return {
+
+        if not suggestion:
+            # No matching tasks - use QuickWin
+            quickwin = await karma_orchestrator.generate_quickwin(context, user_id=user.user_id)
+
+            quickwin_task = Task(
+                text=quickwin["text"],
+                estimated_minutes=quickwin["estimated_minutes"]
+            )
+
+            suggestion = TaskSuggestion(
+                task=quickwin_task,
+                reasoning=quickwin["reasoning"],
+                confidence_score=1.0,
+                is_generic_quickwin=True
+            )
+
+            return {
+                "session_id": session.id,
+                "suggestion": suggestion.model_dump(by_alias=False),
+                "alternatives_available": True,
+                "message": "No tasks match your context. Here's a quick activity!"
+            }
+
+        # Track suggested task
+        session.suggested_task_ids.append(suggestion.task.id)
+        session.current_task = suggestion.task
+        session.current_reasoning = suggestion.reasoning
+        session_store.update_session(session)
+
+        # Check alternatives
+        remaining_tasks = [t for t in all_tasks if t.id not in session.suggested_task_ids]
+
+        print(f"\n✅ TaskSuggester: Suggested '{suggestion.task.text}'")
+
+        # Build response with subtask information if applicable
+        response_data = {
             "session_id": session.id,
             "suggestion": suggestion.model_dump(by_alias=False),
-            "alternatives_available": True,
-            "message": "No tasks match your context. Here's a quick activity!"
+            "alternatives_available": len(remaining_tasks) > 0,
+            "message": f"Based on your {request.time_available} minutes and {request.energy_level} energy:"
         }
-    
-    # Track suggested task
-    session.suggested_task_ids.append(suggestion.task.id)
-    session.current_task = suggestion.task
-    session.current_reasoning = suggestion.reasoning
-    session_store.update_session(session)
-    
-    # Check alternatives
-    remaining_tasks = [t for t in all_tasks if t.id not in session.suggested_task_ids]
-    
-    print(f"\n✅ TaskSuggester: Suggested '{suggestion.task.text}'")
-    
-    # Build response with subtask information if applicable
-    response_data = {
-        "session_id": session.id,
-        "suggestion": suggestion.model_dump(by_alias=False),
-        "alternatives_available": len(remaining_tasks) > 0,
-        "message": f"Based on your {request.time_available} minutes and {request.energy_level} energy:"
-    }
-    
-    # Add subtask info if this is a subtask suggestion
-    if suggestion.suggested_subtask:
-        response_data["has_subtask"] = True
-        response_data["next_subtask"] = suggestion.suggested_subtask.model_dump(by_alias=False)
-        if suggestion.subtask_instruction:
-            response_data["subtask_instruction"] = suggestion.subtask_instruction
-        if suggestion.subtask_estimated_minutes:
-            response_data["subtask_estimated_minutes"] = suggestion.subtask_estimated_minutes
-    
-    return response_data
+
+        # Add subtask info if this is a subtask suggestion
+        if suggestion.suggested_subtask:
+            response_data["has_subtask"] = True
+            response_data["next_subtask"] = suggestion.suggested_subtask.model_dump(by_alias=False)
+            if suggestion.subtask_instruction:
+                response_data["subtask_instruction"] = suggestion.subtask_instruction
+            if suggestion.subtask_estimated_minutes:
+                response_data["subtask_estimated_minutes"] = suggestion.subtask_estimated_minutes
+
+        return response_data
 
 
 @router.post("/suggestion/get")
@@ -234,84 +236,85 @@ async def get_task_suggestion(request: GetSuggestionRequest, user: AuthUser = De
     print(f"   Using agent: TaskSuggester")
     print("=" * 60)
     
-    # Check if user has tasks
-    if not session.todo_list or not session.todo_list.tasks:
-        # Use QuickWin agent instead
-        print("   No tasks available - delegating to QuickWin agent")
-        quickwin = await karma_orchestrator.generate_quickwin(session.context, user_id=user.user_id)
-        
-        quickwin_task = Task(
-            text=quickwin["text"],
-            estimated_minutes=quickwin["estimated_minutes"]
+    with root_trace("suggestion", user_id=user.user_id, operation_type="suggest_task"):
+        # Check if user has tasks
+        if not session.todo_list or not session.todo_list.tasks:
+            # Use QuickWin agent instead
+            print("   No tasks available - delegating to QuickWin agent")
+            quickwin = await karma_orchestrator.generate_quickwin(session.context, user_id=user.user_id)
+
+            quickwin_task = Task(
+                text=quickwin["text"],
+                estimated_minutes=quickwin["estimated_minutes"]
+            )
+
+            suggestion = TaskSuggestion(
+                task=quickwin_task,
+                reasoning=quickwin["reasoning"],
+                confidence_score=1.0,
+                is_generic_quickwin=True
+            )
+
+            return {
+                "suggestion": suggestion.model_dump(by_alias=False),
+                "alternatives_available": True,
+                "message": "You don't have any tasks imported. Here's a quick activity!",
+                "agent_reasoning": f"QuickWin Agent: {quickwin['reasoning']}"
+            }
+
+        # Get suggestion with reasoning
+        suggestion, reasoning_trace = await karma_orchestrator.suggest_task(
+            tasks=session.todo_list.tasks,
+            context=session.context,
+            excluded_task_ids=session.suggested_task_ids,
+            user_id=user.user_id
         )
-        
-        suggestion = TaskSuggestion(
-            task=quickwin_task,
-            reasoning=quickwin["reasoning"],
-            confidence_score=1.0,
-            is_generic_quickwin=True
-        )
-        
+
+        if not suggestion:
+            # No matching tasks - use QuickWin agent
+            print("   No matching tasks - delegating to QuickWin agent")
+            quickwin = await karma_orchestrator.generate_quickwin(session.context, user_id=user.user_id)
+
+            quickwin_task = Task(
+                text=quickwin["text"],
+                estimated_minutes=quickwin["estimated_minutes"]
+            )
+
+            suggestion = TaskSuggestion(
+                task=quickwin_task,
+                reasoning=quickwin["reasoning"],
+                confidence_score=1.0,
+                is_generic_quickwin=True
+            )
+
+            return {
+                "suggestion": suggestion.model_dump(by_alias=False),
+                "alternatives_available": True,
+                "message": "No more tasks match your context. Here's a quick activity!",
+                "agent_reasoning": f"QuickWin Agent: {quickwin['reasoning']}"
+            }
+
+        # Track suggested task
+        session.suggested_task_ids.append(suggestion.task.id)
+        session.current_task = suggestion.task
+        session.current_reasoning = suggestion.reasoning
+        session_store.update_session(session)
+
+        # Check alternatives
+        remaining_tasks = [
+            t for t in session.todo_list.tasks
+            if t.id not in session.suggested_task_ids
+        ]
+
+        print(f"\n✅ TaskSuggester: Suggested '{suggestion.task.text}'")
+        print(f"📊 Confidence: {suggestion.confidence_score:.0%}")
+
         return {
             "suggestion": suggestion.model_dump(by_alias=False),
-            "alternatives_available": True,
-            "message": "You don't have any tasks imported. Here's a quick activity!",
-            "agent_reasoning": f"QuickWin Agent: {quickwin['reasoning']}"
+            "alternatives_available": len(remaining_tasks) > 0,
+            "message": f"Based on your {session.context.time_available.value} minutes and {session.context.energy_level.value} energy:",
+            "agent_reasoning": f"TaskSuggester: {suggestion.reasoning}"
         }
-    
-    # Get suggestion with reasoning
-    suggestion, reasoning_trace = await karma_orchestrator.suggest_task(
-        tasks=session.todo_list.tasks,
-        context=session.context,
-        excluded_task_ids=session.suggested_task_ids,
-        user_id=user.user_id
-    )
-    
-    if not suggestion:
-        # No matching tasks - use QuickWin agent
-        print("   No matching tasks - delegating to QuickWin agent")
-        quickwin = await karma_orchestrator.generate_quickwin(session.context, user_id=user.user_id)
-        
-        quickwin_task = Task(
-            text=quickwin["text"],
-            estimated_minutes=quickwin["estimated_minutes"]
-        )
-        
-        suggestion = TaskSuggestion(
-            task=quickwin_task,
-            reasoning=quickwin["reasoning"],
-            confidence_score=1.0,
-            is_generic_quickwin=True
-        )
-        
-        return {
-            "suggestion": suggestion.model_dump(by_alias=False),
-            "alternatives_available": True,
-            "message": "No more tasks match your context. Here's a quick activity!",
-            "agent_reasoning": f"QuickWin Agent: {quickwin['reasoning']}"
-        }
-    
-    # Track suggested task
-    session.suggested_task_ids.append(suggestion.task.id)
-    session.current_task = suggestion.task
-    session.current_reasoning = suggestion.reasoning
-    session_store.update_session(session)
-    
-    # Check alternatives
-    remaining_tasks = [
-        t for t in session.todo_list.tasks 
-        if t.id not in session.suggested_task_ids
-    ]
-    
-    print(f"\n✅ TaskSuggester: Suggested '{suggestion.task.text}'")
-    print(f"📊 Confidence: {suggestion.confidence_score:.0%}")
-    
-    return {
-        "suggestion": suggestion.model_dump(by_alias=False),
-        "alternatives_available": len(remaining_tasks) > 0,
-        "message": f"Based on your {session.context.time_available.value} minutes and {session.context.energy_level.value} energy:",
-        "agent_reasoning": f"TaskSuggester: {suggestion.reasoning}"
-    }
 
 
 @router.post("/quickwin")
@@ -350,7 +353,8 @@ async def _generate_quickwin(request: dict = None, user_id: str = None):
         print("=" * 60)
         
         # Get AI-generated quick win
-        quickwin = await karma_orchestrator.generate_quickwin(context, user_id=user_id)
+        with root_trace("quickwin", user_id=user_id, operation_type="generate_quickwin"):
+            quickwin = await karma_orchestrator.generate_quickwin(context, user_id=user_id)
         
         # Record quickwin shown to user (if user_id provided)
         if user_id:

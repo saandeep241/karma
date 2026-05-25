@@ -17,6 +17,7 @@ from app.auth import require_auth, AuthUser
 from app.services.session_store import session_store
 from app.services import db_service
 from app.agents import karma_orchestrator
+from app.langfuse_client import root_trace
 from app.logging_config import get_api_logger
 from app.database.connection import async_session
 
@@ -48,12 +49,13 @@ async def import_todo_list(request: ImportTodoListRequest, user: AuthUser = Depe
     logger.info(f"ORCHESTRATOR: Processing {len(tasks)} imported tasks (agent: TaskAnalyzer only)")
     
     # Use orchestrator to analyze and enrich tasks
-    analyzed_tasks, reasoning_trace = await karma_orchestrator.analyze_tasks(
-        tasks,
-        user_id=user.user_id,
-        include_enrichment=False
-    )
-    
+    with root_trace("import_tasks", user_id=user.user_id, operation_type="analyze_tasks"):
+        analyzed_tasks, reasoning_trace = await karma_orchestrator.analyze_tasks(
+            tasks,
+            user_id=user.user_id,
+            include_enrichment=False
+        )
+
     logger.info(f"Orchestrator processed {len(analyzed_tasks)} tasks successfully")
     
     # Save tasks to database
@@ -93,11 +95,12 @@ async def add_single_task(request: AddTaskRequest, user: AuthUser = Depends(requ
     
     # Analyze single task (skip enrichment by default for faster adds)
     logger.debug("Sending task to orchestrator for analysis-only")
-    analyzed_tasks, _ = await karma_orchestrator.analyze_tasks(
-        [task],
-        user_id=user.user_id,
-        include_enrichment=False
-    )
+    with root_trace("add_task", user_id=user.user_id, operation_type="analyze_tasks"):
+        analyzed_tasks, _ = await karma_orchestrator.analyze_tasks(
+            [task],
+            user_id=user.user_id,
+            include_enrichment=False
+        )
     
     if analyzed_tasks:
         # Save to database
@@ -376,12 +379,13 @@ async def breakdown_task_by_id(
     logger.debug(f"Task to break down: {task.text[:50]}...")
     
     # Break task into steps with default 30 min
-    breakdown, reasoning_trace = await karma_orchestrator.break_task_into_steps(
-        task=task,
-        time_available=30,
-        user_id=user.user_id
-    )
-    
+    with root_trace("breakdown_task", user_id=user.user_id, operation_type="break_task"):
+        breakdown, reasoning_trace = await karma_orchestrator.break_task_into_steps(
+            task=task,
+            time_available=30,
+            user_id=user.user_id
+        )
+
     # Optionally save subtasks to database (skip when save_subtasks=False, e.g. FocusMode "Make it easy")
     subtask_count = 0
     if breakdown and breakdown.steps:
@@ -436,7 +440,8 @@ async def reresearch_task_by_id(task_id: str, user: AuthUser = Depends(require_a
     print("=" * 60)
     
     # Re-enrich the task
-    enriched_tasks, reasoning_trace = await karma_orchestrator.analyze_tasks([task], user_id=user.user_id)
+    with root_trace("reresearch_task", user_id=user.user_id, operation_type="analyze_tasks"):
+        enriched_tasks, reasoning_trace = await karma_orchestrator.analyze_tasks([task], user_id=user.user_id)
     
     if enriched_tasks:
         enriched_task = enriched_tasks[0]
@@ -481,12 +486,13 @@ async def breakdown_task_from_browse(request: TaskBreakdownRequest, user: AuthUs
         time_available = session.context.time_available.value
     
     # Break task into steps
-    breakdown, reasoning_trace = await karma_orchestrator.break_task_into_steps(
-        task=task,
-        time_available=time_available,
-        user_id=user.user_id
-    )
-    
+    with root_trace("breakdown_task", user_id=user.user_id, operation_type="break_task"):
+        breakdown, reasoning_trace = await karma_orchestrator.break_task_into_steps(
+            task=task,
+            time_available=time_available,
+            user_id=user.user_id
+        )
+
     session.current_task = task
     session.current_breakdown = breakdown
     session_store.update_session(session)
@@ -560,7 +566,8 @@ async def reresearch_task(request: ReResearchRequest, user: AuthUser = Depends(r
     temp_task = Task(id=task.id, text=enhanced_task_text)
     
     # Re-enrich with the correction context
-    enrichment = await karma_orchestrator.enrich_task(temp_task, user_id=user.user_id)
+    with root_trace("reresearch_task", user_id=user.user_id, operation_type="enrich_task"):
+        enrichment = await karma_orchestrator.enrich_task(temp_task, user_id=user.user_id)
     
     # Save enrichment to database
     await db_service.save_enrichment(user.user_id, request.task_id, enrichment)
