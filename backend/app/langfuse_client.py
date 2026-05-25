@@ -71,13 +71,12 @@ def root_trace(name: str, user_id: str = None, operation_type: str = None):
         yield None
         return
 
-    trace_id = str(_uuid.uuid4())
+    trace_id = _uuid.uuid4().hex
     with langfuse.start_as_current_observation(
-        as_type="trace",
-        id=trace_id,
+        trace_context={"trace_id": trace_id},
+        as_type="span",
         name=name,
-        user_id=user_id or "anonymous",
-        metadata={"operation_type": operation_type},
+        metadata={"operation_type": operation_type, "user_id": user_id or "anonymous"},
     ):
         yield trace_id
     langfuse.flush()
