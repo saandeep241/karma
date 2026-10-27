@@ -129,11 +129,12 @@ export function BrowsePage() {
         }
         case 'time':
           return a.estimated_minutes - b.estimated_minutes;
-        case 'date':
+        case 'date': {
           const dateA = a.created_at?.split('T')[0] || '';
           const dateB = b.created_at?.split('T')[0] || '';
           if (dateA !== dateB) return dateB.localeCompare(dateA);
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        }
         default:
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       }

@@ -198,14 +198,23 @@ export function PresentationPage() {
   });
 
   const currentSlide = presentation?.slides[currentSlideIndex];
+  const [previousSlide, setPreviousSlide] = useState(currentSlide);
 
   // Update editable code when slide changes
-  useEffect(() => {
+  if (previousSlide !== currentSlide) {
+    setPreviousSlide(currentSlide);
     if (currentSlide?.code) {
       setEditableCode(currentSlide.code);
       setExecutionResult(null);
     }
-  }, [currentSlide]);
+  }
+
+  const { mutate: execute } = executeMutation;
+  const handleRunCode = useCallback(() => {
+    if (!editableCode.trim()) return;
+    setIsExecuting(true);
+    execute(editableCode);
+  }, [editableCode, execute]);
 
   // Keyboard navigation
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -221,18 +230,12 @@ export function PresentationPage() {
       e.preventDefault();
       handleRunCode();
     }
-  }, [presentation, currentSlide]);
+  }, [presentation, currentSlide, handleRunCode]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
-
-  const handleRunCode = () => {
-    if (!editableCode.trim()) return;
-    setIsExecuting(true);
-    executeMutation.mutate(editableCode);
-  };
 
   const handleResetSession = () => {
     resetMutation.mutate();

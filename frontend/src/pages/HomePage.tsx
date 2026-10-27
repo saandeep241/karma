@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
 import { FocusMode, AllCaughtUp } from '../components';
@@ -8,6 +8,7 @@ import { EmptyStatePage } from './EmptyStatePage';
 export function HomePage() {
   const location = useLocation();
   const [showFocusMode, setShowFocusMode] = useState(false);
+  const [previousLocation, setPreviousLocation] = useState(location);
 
   const searchParams = new URLSearchParams(location.search);
   const shouldPreviewEmptyState =
@@ -16,11 +17,12 @@ export function HomePage() {
     searchParams.get('caughtUp') === '1' && !import.meta.env.PROD;
 
   // Reset focus mode when navigating to home (e.g., clicking logo)
-  useEffect(() => {
+  if (previousLocation !== location) {
+    setPreviousLocation(location);
     if (location.pathname === '/' && !location.search.includes('focus')) {
       setShowFocusMode(false);
     }
-  }, [location.key, location.pathname, location.search]);
+  }
 
   const { data: statsData, isLoading: isStatsLoading, isError: isStatsError } = useQuery({
     queryKey: ['stats'],

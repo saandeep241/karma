@@ -24,12 +24,13 @@ export async function getAuthToken(): Promise<string | null> {
   
   // Fallback: try to get token from Clerk instance if available
   try {
-    // @ts-ignore - Clerk may not be available
-    const clerk = (window as any).Clerk;
+    const clerk = (window as Window & {
+      Clerk?: { session?: { getToken: () => Promise<string | null> } };
+    }).Clerk;
     if (clerk?.session) {
       return await clerk.session.getToken();
     }
-  } catch (error) {
+  } catch {
     // Clerk not available
   }
   

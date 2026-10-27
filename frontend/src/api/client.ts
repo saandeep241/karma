@@ -25,6 +25,9 @@ console.log('🔗 Full API URL example:', `${API_BASE}/tasks/stats`);
 // Import token getter
 import { getAuthToken } from './authToken';
 
+type ApiError = Error & { status?: number; code?: string };
+let hasLoggedApiCall = false;
+
 // Generic fetch wrapper with error handling and authentication
 async function apiFetch<T>(
   endpoint: string,
@@ -33,9 +36,9 @@ async function apiFetch<T>(
   const url = `${API_BASE}${endpoint}`;
   
   // Log the actual URL being called (only in development or first few calls)
-  if (import.meta.env.DEV || !(window as any).__api_logged) {
+  if (import.meta.env.DEV || !hasLoggedApiCall) {
     console.log('🌐 API Call:', url);
-    (window as any).__api_logged = true;
+    hasLoggedApiCall = true;
   }
   
   // Get auth token tettestestes
@@ -61,8 +64,8 @@ async function apiFetch<T>(
     if (response.status === 401) {
       const errorData = await response.json().catch(() => ({}));
       const error = new Error(errorData.detail || 'Authentication required');
-      (error as any).status = 401;
-      (error as any).code = 'UNAUTHORIZED';
+      (error as ApiError).status = 401;
+      (error as ApiError).code = 'UNAUTHORIZED';
       throw error;
     }
     
@@ -70,14 +73,14 @@ async function apiFetch<T>(
     if (response.status === 403) {
       const errorData = await response.json().catch(() => ({}));
       const error = new Error(errorData.detail || 'Invalid or expired authentication token');
-      (error as any).status = 403;
-      (error as any).code = 'FORBIDDEN';
+      (error as ApiError).status = 403;
+      (error as ApiError).code = 'FORBIDDEN';
       throw error;
     }
     
     const errorData = await response.json().catch(() => ({}));
     const error = new Error(errorData.detail || errorData.message || `API Error: ${response.status}`);
-    (error as any).status = response.status;
+    (error as ApiError).status = response.status;
     throw error;
   }
 
@@ -354,7 +357,12 @@ export async function getAllUserTokenLimits(): Promise<{
     usage_percentage: number;
     current_month: string;
     last_reset_at: string;
-    usage_stats: any;
+    usage_stats: {
+      total_tokens: number;
+      request_count: number;
+      by_agent: Record<string, { tokens: number; count: number }>;
+      by_model: Record<string, { tokens: number; count: number }>;
+    };
   }>;
   total_users: number;
   default_limit: number;
@@ -365,7 +373,7 @@ export async function getAllUserTokenLimits(): Promise<{
 export async function updateUserTokenLimit(
   userId: string,
   newLimit: number
-): Promise<{ success: boolean; message: string; limit_info: any }> {
+): Promise<{ success: boolean; message: string; limit_info: Record<string, unknown> }> {
   return apiFetch(`/tokens/limit/${userId}`, {
     method: 'POST',
     body: JSON.stringify({ new_limit: newLimit }),
@@ -374,7 +382,7 @@ export async function updateUserTokenLimit(
 
 export async function resetUserTokenUsage(
   userId: string
-): Promise<{ success: boolean; message: string; limit_info: any }> {
+): Promise<{ success: boolean; message: string; limit_info: Record<string, unknown> }> {
   return apiFetch(`/tokens/reset/${userId}`, {
     method: 'POST',
   });

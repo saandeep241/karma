@@ -53,6 +53,8 @@ export function TaskCard({
   const [isReResearching, setIsReResearching] = useState(false);
   const [newSubtaskText, setNewSubtaskText] = useState('');
   const [showAddSubtask, setShowAddSubtask] = useState(false);
+  const [previousLoading, setPreviousLoading] = useState<boolean | undefined>(undefined);
+  const [previousEnrichment, setPreviousEnrichment] = useState(task.enrichment);
   const subtaskInputRef = useRef<HTMLInputElement>(null);
 
   // Use task.subtasks directly from props (synced with server)
@@ -65,14 +67,15 @@ export function TaskCard({
   const isInProgress = task.status === 'in_progress';
 
   // Auto-expand when breakdown is loading
-  useEffect(() => {
+  if (previousLoading !== isLoading) {
+    setPreviousLoading(isLoading);
     if (isLoading) {
       setIsBreakingDown(true);
       setIsExpanded(true);
     } else {
       setIsBreakingDown(false);
     }
-  }, [isLoading]);
+  }
 
   const handleStatusChange = (newStatus: TaskStatus) => {
     if (!onStatusChange) return;
@@ -98,9 +101,10 @@ export function TaskCard({
   };
 
   // Reset re-researching state when task updates
-  useEffect(() => {
+  if (previousEnrichment !== task.enrichment) {
+    setPreviousEnrichment(task.enrichment);
     setIsReResearching(false);
-  }, [task.enrichment]);
+  }
 
   // Auto-focus input when it appears
   useEffect(() => {

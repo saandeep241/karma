@@ -6,19 +6,25 @@ import { checkAdmin } from '../api/client';
 
 const isClerkActive = import.meta.env.PROD && !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
-function useClerkUser() {
-  try {
-    if (!isClerkActive) throw new Error('skip');
-    const { user, isLoaded } = useUser();
-    const { signOut } = useClerk();
-    return { user, isLoaded, signOut };
-  } catch {
-    return { user: null as any, isLoaded: true, signOut: async () => {} };
-  }
+type LayoutAuth = {
+  user: ReturnType<typeof useUser>['user'];
+  isLoaded: boolean;
+  signOut: () => Promise<unknown>;
+};
+
+function ClerkLayout() {
+  const { user, isLoaded } = useUser();
+  const { signOut } = useClerk();
+  return <LayoutContent user={user} isLoaded={isLoaded} signOut={signOut} />;
 }
 
 export function Layout() {
-  const { user, isLoaded, signOut } = useClerkUser();
+  return isClerkActive
+    ? <ClerkLayout />
+    : <LayoutContent user={null} isLoaded={true} signOut={async () => {}} />;
+}
+
+function LayoutContent({ user, isLoaded, signOut }: LayoutAuth) {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 

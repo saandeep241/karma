@@ -243,9 +243,9 @@ export function FocusMode({ onExit }: FocusModeProps) {
     try {
       const data = await breakdownMutation.mutateAsync(activeTask.id);
       if (data?.subtasks && data.subtasks.length > 0) {
-        setSubtasks(data.subtasks.map((s: any, index: number) => ({
+        setSubtasks(data.subtasks.map((s, index) => ({
           id: s.id || `subtask-${index}`,
-          text: s.text || s.instruction,
+          text: s.text || ('instruction' in s ? String(s.instruction) : ''),
           completed: s.status === 'completed',
         })));
       }
@@ -487,7 +487,7 @@ export function FocusMode({ onExit }: FocusModeProps) {
           </div>
         );
 
-      case 'breakdown_timer':
+      case 'breakdown_timer': {
         const completedCount = subtasks.filter((s) => s.completed).length;
         return (
           <div className="w-full max-w-lg flex flex-col items-center animate-fade-in">
@@ -540,6 +540,7 @@ export function FocusMode({ onExit }: FocusModeProps) {
           </div>
         );
 
+      }
       case 'completed':
         return (
           <div className="flex flex-col items-center max-w-2xl w-full animate-in fade-in zoom-in duration-500">

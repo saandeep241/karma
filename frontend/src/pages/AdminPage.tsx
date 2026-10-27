@@ -78,7 +78,7 @@ export function AdminPage() {
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <h2 className="text-red-800 font-semibold mb-2">Access Denied</h2>
           <p className="text-red-600">
-            {(error as any)?.message || 'You do not have admin access. Admin access required.'}
+            {error.message || 'You do not have admin access. Admin access required.'}
           </p>
         </div>
       </div>

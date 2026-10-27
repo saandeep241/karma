@@ -96,8 +96,8 @@ export function EmptyStatePage() {
             await queryClient.invalidateQueries({ queryKey: ['stats'] });
             await queryClient.invalidateQueries({ queryKey: ['tasks'] });
             navigate('/', { replace: true });
-          } catch (err: any) {
-            setError(err.message || 'Something went wrong. Please try again.');
+          } catch (err: unknown) {
+            setError((err instanceof Error && err.message) || 'Something went wrong. Please try again.');
           } finally {
             setIsSubmitting(false);
           }
