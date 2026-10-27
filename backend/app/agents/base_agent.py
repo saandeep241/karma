@@ -10,23 +10,19 @@ All agents inherit from this base class which provides:
 
 import json
 import asyncio
-from contextlib import contextmanager
 from datetime import datetime
 from typing import Optional, Any
 from abc import ABC, abstractmethod
 
-
-@contextmanager
-def _null_ctx():
-    """No-op context manager used when Langfuse is disabled."""
-    yield None
 
 from openai import OpenAI
 from app.config import get_settings
 from app.services.tools import save_reasoning
 from app.services import db_service
 from app.logging_config import get_logger
-from app.langfuse_client import get_langfuse, compute_cost
+from app.langfuse_client import (
+    get_langfuse, compute_cost, safe_observation, safe_flush, safe_update_generation,
+)
 from .agent_tools import AGENT_TOOLS, execute_tool
 
 logger = get_logger("BaseAgent")
@@ -230,40 +226,39 @@ class BaseAgent(ABC):
                 max_tokens=max_tokens
             )
 
-        if langfuse:
-            with langfuse.start_as_current_observation(
-                name=self.AGENT_NAME,
-                as_type="span",
-                metadata={"user_id": user_id or "anonymous", "operation_type": operation_type, "task_id": task_id},
-            ):
-                with langfuse.start_as_current_observation(
-                    name=f"{self.AGENT_NAME}.simple_completion",
-                    as_type="generation",
-                    model=self.model,
-                    model_parameters={"temperature": temperature, "max_tokens": max_tokens},
-                    input=messages,
-                ) as gen:
-                    response = _do_completion()
-                    raw_response = response.choices[0].message.content
-                    update_kwargs = {"output": raw_response}
-                    if response.usage:
-                        update_kwargs["usage_details"] = {
-                            "input": response.usage.prompt_tokens,
-                            "output": response.usage.completion_tokens,
-                            "total": response.usage.total_tokens,
-                        }
-                        cost = compute_cost(
-                            self.model,
-                            response.usage.prompt_tokens,
-                            response.usage.completion_tokens,
-                        )
-                        if cost:
-                            update_kwargs["cost_details"] = cost
-                    langfuse.update_current_generation(**update_kwargs)
-            langfuse.flush()
-        else:
-            response = _do_completion()
-            raw_response = response.choices[0].message.content
+        with safe_observation(
+            langfuse,
+            name=self.AGENT_NAME,
+            as_type="span",
+            metadata={"user_id": user_id or "anonymous", "operation_type": operation_type, "task_id": task_id},
+        ):
+            with safe_observation(
+                langfuse,
+                name=f"{self.AGENT_NAME}.simple_completion",
+                as_type="generation",
+                model=self.model,
+                model_parameters={"temperature": temperature, "max_tokens": max_tokens},
+                input=messages,
+            ) as gen:
+                response = _do_completion()
+                raw_response = response.choices[0].message.content
+                update_kwargs = {"output": raw_response}
+                if response.usage:
+                    update_kwargs["usage_details"] = {
+                        "input": response.usage.prompt_tokens,
+                        "output": response.usage.completion_tokens,
+                        "total": response.usage.total_tokens,
+                    }
+                    cost = compute_cost(
+                        self.model,
+                        response.usage.prompt_tokens,
+                        response.usage.completion_tokens,
+                    )
+                    if cost:
+                        update_kwargs["cost_details"] = cost
+                if gen is not None:
+                    safe_update_generation(langfuse, **update_kwargs)
+        safe_flush(langfuse)
 
         logger.debug(
             "%s LLM raw response:\n%s",
@@ -372,28 +367,30 @@ class BaseAgent(ABC):
                 max_tokens=max_tokens
             )
 
-        lf_span_ctx = langfuse.start_as_current_observation(
+        lf_span_ctx = safe_observation(
+            langfuse,
             name=self.AGENT_NAME,
             as_type="span",
             metadata={"user_id": user_id or "anonymous", "operation_type": operation_type, "task_id": task_id},
-        ) if langfuse else None
+        )
 
-        with (lf_span_ctx if lf_span_ctx else _null_ctx()):
+        with lf_span_ctx:
             while iterations < max_iterations:
                 iterations += 1
 
                 try:
-                    lf_gen_ctx = langfuse.start_as_current_observation(
+                    lf_gen_ctx = safe_observation(
+                        langfuse,
                         name=f"{self.AGENT_NAME}.iteration_{iterations}",
                         as_type="generation",
                         model=self.model,
                         model_parameters={"temperature": temperature, "max_tokens": max_tokens},
                         input=messages,
-                    ) if langfuse else None
+                    )
 
-                    with (lf_gen_ctx if lf_gen_ctx else _null_ctx()):
+                    with lf_gen_ctx as generation:
                         response = _run_api_call()
-                        if langfuse:
+                        if generation is not None:
                             update_kwargs = {"output": response.choices[0].message.content}
                             if response.usage:
                                 update_kwargs["usage_details"] = {
@@ -408,7 +405,7 @@ class BaseAgent(ABC):
                                 )
                                 if cost:
                                     update_kwargs["cost_details"] = cost
-                            langfuse.update_current_generation(**update_kwargs)
+                            safe_update_generation(langfuse, **update_kwargs)
 
                     # Track token usage for each API call (fire and forget)
                     if user_id and response.usage:
@@ -470,8 +467,7 @@ class BaseAgent(ABC):
                             })
                     else:
                         # No more tool calls — return final response
-                        if langfuse:
-                            langfuse.flush()
+                        safe_flush(langfuse)
                         return {
                             "response": message.content,
                             "tool_calls": tool_calls_made,
@@ -485,8 +481,7 @@ class BaseAgent(ABC):
                     raise
 
         # Max iterations reached — return last response
-        if langfuse:
-            langfuse.flush()
+        safe_flush(langfuse)
         return {
             "response": messages[-1].get("content", "") if isinstance(messages[-1], dict) else str(messages[-1]),
             "tool_calls": tool_calls_made,

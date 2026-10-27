@@ -7,9 +7,65 @@ identically without any keys configured.
 """
 
 import uuid as _uuid
+import logging
+import sys
 from contextlib import contextmanager
 from functools import lru_cache
 from typing import Optional, Dict
+
+logger = logging.getLogger("karma.langfuse")
+
+
+@contextmanager
+def safe_observation(langfuse, **kwargs):
+    """Ignore telemetry failures, but never swallow or retry application errors."""
+    observation = None
+    context = None
+    if langfuse is not None:
+        try:
+            context = langfuse.start_as_current_observation(**kwargs)
+            observation = context.__enter__()
+        except Exception:
+            logger.warning("Langfuse observation start failed; continuing without telemetry",
+                           exc_info=True)
+            context = None
+    try:
+        yield observation
+    except BaseException:
+        # The body may contain a model call or tool with side effects. Do not
+        # retry it, let telemetry suppress it, or replace its original error.
+        if context is not None:
+            try:
+                context.__exit__(*sys.exc_info())
+            except Exception:
+                logger.warning("Langfuse observation exit failed during application error",
+                               exc_info=True)
+        raise
+    else:
+        if context is not None:
+            try:
+                context.__exit__(None, None, None)
+            except Exception:
+                logger.warning("Langfuse observation exit failed; preserving application result",
+                               exc_info=True)
+
+
+def safe_flush(langfuse):
+    """A telemetry flush must not discard a successful application result."""
+    if langfuse is not None:
+        try:
+            langfuse.flush()
+        except Exception:
+            logger.warning("Langfuse flush failed; preserving application result", exc_info=True)
+
+
+def safe_update_generation(langfuse, **kwargs):
+    if langfuse is not None:
+        try:
+            langfuse.update_current_generation(**kwargs)
+        except Exception:
+            logger.warning("Langfuse generation update failed; preserving application result",
+                           exc_info=True)
 
 # OpenAI pricing per million tokens (USD), updated May 2025
 # Source: https://openai.com/api/pricing
@@ -72,14 +128,17 @@ def root_trace(name: str, user_id: str = None, operation_type: str = None):
         return
 
     trace_id = _uuid.uuid4().hex
-    with langfuse.start_as_current_observation(
-        trace_context={"trace_id": trace_id},
-        as_type="span",
-        name=name,
-        metadata={"operation_type": operation_type, "user_id": user_id or "anonymous"},
-    ):
-        yield trace_id
-    langfuse.flush()
+    try:
+        with safe_observation(
+            langfuse,
+            trace_context={"trace_id": trace_id},
+            as_type="span",
+            name=name,
+            metadata={"operation_type": operation_type, "user_id": user_id or "anonymous"},
+        ) as observation:
+            yield trace_id if observation is not None else None
+    finally:
+        safe_flush(langfuse)
 
 
 @lru_cache()
